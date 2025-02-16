@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">Chat App</string>
+    <string name="developer_name">Yeray</string>
+    <string name="go_to_sign_up_btn">Go to Sign Up</string>
+    <string name="go_to_log_in_btn">Go to Log in</string>
+
+    <string name="user_name">User name</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="repeat_password">Repeat your password</string>
+    <string name="signup_btn">Sign Up</string>
+    <string name="sign_out_btn">Sign out</string>
+    <string name="user_profile_btn">User Profile </string>
+    <string name="user_about_btn">About</string>
+
+
+    <string name="login_textField_email">Email</string>
+    <string name="login_textField_password">Password</string>
+    <string name="login_btn">Log in</string>
+    <string name="menu">Menu</string>
+    <string name="save_profile_data_btn">Save</string>
+
+</resources>

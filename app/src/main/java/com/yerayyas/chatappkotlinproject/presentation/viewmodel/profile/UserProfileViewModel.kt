@@ -13,10 +13,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
-class UserProfileViewModel @Inject constructor() : ViewModel() {
-    // Instancias de Firebase para autenticación y base de datos
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
+class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, private val database: DatabaseReference) : ViewModel() {
 
     // StateFlows para exponer la información del usuario de forma reactiva
     private val _username = MutableStateFlow("")
@@ -132,7 +129,7 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
             .reference.child("profileImages/$uid")
 
         storageReference.putFile(imageUri)
-            .addOnSuccessListener { taskSnapshot ->
+            .addOnSuccessListener { _ ->
                 // Una vez subida la imagen, obtenemos la URL de descarga
                 storageReference.downloadUrl.addOnSuccessListener { downloadUrl ->
                     // Actualizamos el campo "image" en la base de datos

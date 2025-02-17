@@ -24,7 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
@@ -35,7 +35,7 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProf
 @Composable
 fun ConfirmProfilePhotoScreen(
     navController: NavHostController,
-    userProfileViewModel: UserProfileViewModel = viewModel()
+    userProfileViewModel: UserProfileViewModel = hiltViewModel()
 ) {
     // Recuperamos la URI guardada en el SavedStateHandle
     val savedStateHandle = navController.previousBackStackEntry?.savedStateHandle

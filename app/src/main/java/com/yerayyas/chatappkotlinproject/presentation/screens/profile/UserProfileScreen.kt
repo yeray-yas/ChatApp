@@ -46,20 +46,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
-import com.yerayyas.chatappkotlinproject.utils.animations.HamburgerToArrowAnimation
 import com.yerayyas.chatappkotlinproject.Routes
-import com.yerayyas.chatappkotlinproject.utils.bitmapToUri
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
+import com.yerayyas.chatappkotlinproject.utils.animations.HamburgerToArrowAnimation
+import com.yerayyas.chatappkotlinproject.utils.bitmapToUri
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
 @Composable
 fun UserProfileScreen(
     navController: NavHostController,
-    viewModel: UserProfileViewModel = viewModel()
+    viewModel: UserProfileViewModel = hiltViewModel()
 ) {
     val username by viewModel.username.collectAsState()
     val names by viewModel.names.collectAsState()

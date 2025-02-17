@@ -29,7 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
 
@@ -37,7 +37,7 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProf
 @Composable
 fun EditUserProfileScreen(
     navController: NavHostController,
-    userProfileViewModel: UserProfileViewModel = viewModel()
+    userProfileViewModel: UserProfileViewModel = hiltViewModel()
 ) {
     // Estados del ViewModel
     val names by userProfileViewModel.names.collectAsState()

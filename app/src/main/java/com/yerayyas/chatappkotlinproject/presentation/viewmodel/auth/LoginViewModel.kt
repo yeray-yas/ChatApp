@@ -9,9 +9,7 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
-class LoginViewModel @Inject constructor() : ViewModel() {
-
-    private val auth = FirebaseAuth.getInstance()
+class LoginViewModel @Inject constructor(private val auth : FirebaseAuth) : ViewModel() {
 
     fun login(email: String, password: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {

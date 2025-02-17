@@ -1,4 +1,4 @@
-package com.yerayyas.chatappkotlinproject.presentation.viewmodel
+package com.yerayyas.chatappkotlinproject.presentation.viewmodel.main
 
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth

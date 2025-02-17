@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.yerayyas.chatappkotlinproject.R
-import com.yerayyas.chatappkotlinproject.presentation.viewmodel.MainScreenViewModel
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
 
 @Composable

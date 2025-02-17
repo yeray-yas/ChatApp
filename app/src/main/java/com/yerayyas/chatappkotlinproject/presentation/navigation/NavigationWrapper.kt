@@ -25,7 +25,7 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.ConfirmPro
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.EditUserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
-import com.yerayyas.chatappkotlinproject.presentation.viewmodel.MainScreenViewModel
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
 @Composable
 fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Modifier) {

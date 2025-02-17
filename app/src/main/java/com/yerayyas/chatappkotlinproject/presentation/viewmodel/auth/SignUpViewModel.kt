@@ -7,16 +7,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
-import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.DatabaseReference
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
-class SignUpViewModel @Inject constructor() : ViewModel() {
-    private val auth = FirebaseAuth.getInstance()
-    private val database = FirebaseDatabase.getInstance().reference.child("Users")
+class SignUpViewModel @Inject constructor(private val auth : FirebaseAuth, private val database: DatabaseReference) : ViewModel() {
 
     private var errorMessage by mutableStateOf<String?>(null)
 
@@ -41,7 +39,7 @@ class SignUpViewModel @Inject constructor() : ViewModel() {
                     "phone" to ""
                 )
 
-                database.child(uid).setValue(userMap).await()
+                database.child("Users").child(uid).setValue(userMap).await()
                 onResult(true, null)
             } catch (e: FirebaseAuthException) {
                 errorMessage = e.localizedMessage ?: "Error desconocido"

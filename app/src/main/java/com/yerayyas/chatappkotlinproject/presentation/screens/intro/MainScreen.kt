@@ -15,13 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.MainScreenViewModel
 
 
 @Composable
-fun MainScreen(navController: NavController, viewModel: MainScreenViewModel) {
+fun MainScreen(navController: NavController, viewModel: MainScreenViewModel = hiltViewModel()) {
     // Estado actualizado automáticamente
     val isAuthenticated by viewModel.isUserAuthenticated.collectAsState()
 

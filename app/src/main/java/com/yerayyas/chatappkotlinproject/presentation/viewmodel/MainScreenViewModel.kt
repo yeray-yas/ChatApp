@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
 @HiltViewModel
-class MainScreenViewModel @Inject constructor() : ViewModel() {
-    private val auth = FirebaseAuth.getInstance()
+class MainScreenViewModel @Inject constructor(private val auth: FirebaseAuth) : ViewModel() {
+
     private val _isUserAuthenticated = MutableStateFlow(auth.currentUser != null)
     val isUserAuthenticated = _isUserAuthenticated.asStateFlow()
 

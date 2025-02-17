@@ -3,20 +3,16 @@ package com.yerayyas.chatappkotlinproject.presentation.screens.home
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
@@ -34,7 +30,6 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -49,7 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.Routes
@@ -61,7 +56,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     navController: NavHostController,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
     val tabs = listOf("Users", "Chats")
@@ -70,13 +65,11 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val context = LocalContext.current
 
-    // Creamos el PagerState indicando la cantidad de páginas (en este ejemplo: 2)
     val pagerState = rememberPagerState(
         initialPage = 0,
-        pageCount = { 2 }  // Establece el número total de páginas
+        pageCount = { tabs.size }
     )
 
-    // Mueve la app al background al presionar el botón "back"
     BackHandler { (context as Activity).moveTaskToBack(true) }
 
     Scaffold(
@@ -99,31 +92,23 @@ fun HomeScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = stringResource(id = R.string.menu)
-                        )
+                        Icon(Icons.Default.Menu, contentDescription = stringResource(id = R.string.menu))
                     }
                 },
                 actions = {
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.user_profile_btn)) },
                             onClick = {
-                                showMenu = false // Cierra el menú
+                                showMenu = false
                                 navController.navigate(Routes.UserProfile.route)
                             }
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.user_about_btn)) },
-                            onClick = { /*viewModel.aboutUser()*/ Toast.makeText(
-                                context,
-                                "About user",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            onClick = {
+                                showMenu = false
+                                Toast.makeText(context, "About user", Toast.LENGTH_SHORT).show()
                             }
                         )
                         DropdownMenuItem(
@@ -135,49 +120,23 @@ fun HomeScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-        ) {
-            // TabRow para las pestañas
-            TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                indicator = { tabPositions ->
-                    Box(
-                        modifier = Modifier
-                            .tabIndicatorOffset(tabPositions[pagerState.currentPage])
-                            .height(4.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(2.dp)
-                            )
-                    )
-                }
-            ) {
+        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            TabRow(selectedTabIndex = pagerState.currentPage) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = pagerState.currentPage == index,
                         onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(index)
-                            }
+                            coroutineScope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        text = { Text(text = title) }
+                        text = { Text(title) }
                     )
                 }
             }
 
-            // HorizontalPager oficial (ExperimentalFoundationApi)
-            Box(modifier = Modifier.weight(1f)) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    when (page) {
-                        0 -> UsersScreen(viewModel, navController)
-                        1 -> ChatsList()
-                    }
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
+                when (page) {
+                    0 -> UsersScreen(viewModel, navController)
+                    1 -> ChatsList()
                 }
             }
         }
@@ -187,7 +146,7 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UsersScreen(
-    viewModel: HomeViewModel,
+    viewModel: HomeViewModel = hiltViewModel(),
     navController: NavHostController
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -239,7 +198,7 @@ private fun UsersScreen(
 
 @Composable
 private fun UsersList(
-    viewModel: HomeViewModel,
+    viewModel: HomeViewModel = hiltViewModel(),
     navController: NavHostController
 ) {
     val users by viewModel.users.collectAsState()
@@ -250,7 +209,7 @@ private fun UsersList(
         items(users) { user ->
             UserListItem(
                 user = user,
-                onItemClick = { navController.navigate("chat/${user.id}?username=${user.username}")
+                onItemClick = { navController.navigate(Routes.Chat.createRoute(user.id, user.username))
                 }
             )
         }

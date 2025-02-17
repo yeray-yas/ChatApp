@@ -7,7 +7,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.Query
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
@@ -24,11 +23,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 @OptIn(FlowPreview::class)
-class HomeViewModel @Inject constructor() : ViewModel() {
-
-    // Instancias de Firebase
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
+class HomeViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val database: DatabaseReference
+) : ViewModel() {
 
     // Estado de carga
     private val _isLoading = MutableStateFlow(true)

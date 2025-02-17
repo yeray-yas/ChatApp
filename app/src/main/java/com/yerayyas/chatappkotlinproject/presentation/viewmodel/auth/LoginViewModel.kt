@@ -19,7 +19,7 @@ class LoginViewModel @Inject constructor() : ViewModel() {
                 auth.signInWithEmailAndPassword(email, password).await()
                 onResult(true, null)
             } catch (e: Exception) {
-                onResult(false, e.localizedMessage ?: "Error desconocido")
+                onResult(false, e.localizedMessage ?: "Unknown error occurred")
             }
         }
     }

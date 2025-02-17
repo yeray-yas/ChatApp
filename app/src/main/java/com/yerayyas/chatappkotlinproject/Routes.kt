@@ -54,8 +54,8 @@ sealed class Routes(
     // Nueva ruta para confirmar la foto de perfil
     data object ConfirmPhoto : Routes("confirm_photo")
 
-    data object Chat : Routes("chat/{userId}") {
-        fun createRoute(userId: String) = "chat/$userId"
+    data object Chat : Routes("chat/{userId}?username={username}") {
+        fun createRoute(userId: String, username: String = "User") = "chat/$userId?username=$username"
     }
 }
 

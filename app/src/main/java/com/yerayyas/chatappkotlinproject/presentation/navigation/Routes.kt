@@ -1,4 +1,4 @@
-package com.yerayyas.chatappkotlinproject
+package com.yerayyas.chatappkotlinproject.presentation.navigation
 
 
 import androidx.compose.animation.AnimatedContentTransitionScope

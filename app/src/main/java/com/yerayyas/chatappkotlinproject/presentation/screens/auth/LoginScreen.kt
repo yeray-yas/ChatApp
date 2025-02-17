@@ -29,7 +29,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.yerayyas.chatappkotlinproject.Routes
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.components.PasswordTextField
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.auth.LoginViewModel
 import kotlinx.coroutines.delay

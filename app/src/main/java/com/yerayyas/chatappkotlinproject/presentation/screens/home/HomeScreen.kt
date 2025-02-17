@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
-import com.yerayyas.chatappkotlinproject.Routes
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.components.UserListItem
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.launch

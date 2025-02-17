@@ -15,7 +15,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.yerayyas.chatappkotlinproject.Routes
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.LoginScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.SignUpScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.ChatScreen

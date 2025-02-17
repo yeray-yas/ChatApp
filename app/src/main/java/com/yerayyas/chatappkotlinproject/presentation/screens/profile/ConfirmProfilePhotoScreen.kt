@@ -28,7 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
-import com.yerayyas.chatappkotlinproject.Routes
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)

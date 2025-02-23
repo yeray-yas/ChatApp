@@ -175,6 +175,9 @@ class HomeViewModel @Inject constructor(
     private fun loadUsers(searchQuery: String = "") {
         auth.currentUser?.uid?.let { currentUserId ->
             val baseRef = database.child("Users")
+            // Forzamos la sincronización de este nodo para recibir actualizaciones en tiempo real.
+            baseRef.keepSynced(true)
+
             val queryRef: Query = if (searchQuery.isNotEmpty()) {
                 baseRef.orderByChild("find")
                     .startAt(searchQuery)
@@ -211,6 +214,7 @@ class HomeViewModel @Inject constructor(
             })
         }
     }
+
 
     /**
      * Función para cerrar la sesión del usuario.

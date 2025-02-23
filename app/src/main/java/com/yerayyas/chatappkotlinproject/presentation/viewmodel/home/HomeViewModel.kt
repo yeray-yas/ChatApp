@@ -132,7 +132,7 @@ class HomeViewModel @Inject constructor(
      * Carga la lista de usuarios desde Firebase.
      * Si [searchQuery] no está vacío, realiza una búsqueda parcial (basada en el campo "find").
      */
-    private fun loadUsers(searchQuery: String = "") {
+    /*private fun loadUsers(searchQuery: String = "") {
         auth.currentUser?.uid?.let { currentUserId ->
             val baseRef = database.child("Users")
             val queryRef: Query = if (searchQuery.isNotEmpty()) {
@@ -159,6 +159,46 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     // Ordena los usuarios: primero los online y luego por el último visto
+                    _users.value = usersList.sortedWith(
+                        compareByDescending<User> { it.isOnline }
+                            .thenByDescending { it.lastSeen }
+                    )
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("LoadUsers", "Error loading users", error.toException())
+                }
+            })
+        }
+    }*/
+
+    private fun loadUsers(searchQuery: String = "") {
+        auth.currentUser?.uid?.let { currentUserId ->
+            val baseRef = database.child("Users")
+            val queryRef: Query = if (searchQuery.isNotEmpty()) {
+                baseRef.orderByChild("find")
+                    .startAt(searchQuery)
+                    .endAt("$searchQuery\uf8ff")
+            } else {
+                baseRef
+            }
+            // Usamos addValueEventListener para que la UI se actualice en tiempo real
+            queryRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val usersList = snapshot.children.mapNotNull { userSnapshot ->
+                        val userId = userSnapshot.key ?: return@mapNotNull null
+                        // Se excluye al usuario actual
+                        if (userId == currentUserId) return@mapNotNull null
+                        User(
+                            id = userId,
+                            username = userSnapshot.child("username").getValue(String::class.java) ?: "",
+                            email = userSnapshot.child("email").getValue(String::class.java) ?: "",
+                            profileImage = userSnapshot.child("image").getValue(String::class.java) ?: "",
+                            status = userSnapshot.child("status").getValue(String::class.java) ?: "offline",
+                            isOnline = userSnapshot.child("status").getValue(String::class.java) == "online",
+                            lastSeen = userSnapshot.child("lastSeen").getValue(Long::class.java) ?: 0L
+                        )
+                    }
                     _users.value = usersList.sortedWith(
                         compareByDescending<User> { it.isOnline }
                             .thenByDescending { it.lastSeen }

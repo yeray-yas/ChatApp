@@ -12,7 +12,6 @@ sealed class Routes(
     val exitTransition: (AnimatedContentTransitionScope<*>.() -> ExitTransition?)? = null
 ) {
     data object Splash : Routes("splash")
-
     data object Main : Routes(
         route = "main",
         enterTransition = {
@@ -28,13 +27,10 @@ sealed class Routes(
             )
         }
     )
-
     data object SignUp : Routes("signup_screen")
     data object Login : Routes("login_screen")
     data object Home : Routes("home_screen")
-    data object UserProfile : Routes("user_profile") // Ruta para el perfil de usuario
-
-    // Nueva ruta para editar la información personal
+    data object UserProfile : Routes("user_profile")
     data object EditUserProfile : Routes(
         route = "edit_user_profile",
         enterTransition = {
@@ -50,10 +46,7 @@ sealed class Routes(
             )
         }
     )
-
-    // Nueva ruta para confirmar la foto de perfil
     data object ConfirmPhoto : Routes("confirm_photo")
-
     data object Chat : Routes("chat/{userId}?username={username}") {
         fun createRoute(userId: String, username: String = "User") = "chat/$userId?username=$username"
     }

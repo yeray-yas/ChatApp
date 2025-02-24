@@ -33,7 +33,7 @@ class ChatViewModel @Inject constructor() : ViewModel() {
         val currentUserId = firebaseUser?.uid ?: return
         // Genera un chatId único basado en ambos IDs (orden alfabético para asegurar consistencia)
         val chatId = if (currentUserId < receiverId) "$currentUserId-$receiverId" else "$receiverId-$currentUserId"
-        val messageKey = database.child("Chats").child(chatId).push().key ?: return
+        val messageKey = database.child("Chats").child("Messages").child(chatId).push().key ?: return
 
         val chatMessage = ChatMessage(
             id = messageKey,
@@ -43,12 +43,40 @@ class ChatViewModel @Inject constructor() : ViewModel() {
             timestamp = System.currentTimeMillis()
         )
 
-        // Guarda el mensaje en Firebase
-        database.child("Chats").child(chatId).child(messageKey)
+        // Save the message in "Chats/Messages/{chatId}/{messageKey}"
+        database.child("Chats").child("Messages").child(chatId).child(messageKey)
             .setValue(chatMessage)
             .addOnCompleteListener { task ->
                 if (!task.isSuccessful) {
                     Log.e("ChatViewModel", "Error sending message", task.exception)
+                }else{
+                    Log.d("ChatViewModel", "Message sent successfully")
+                    val senderMessageList = database
+                        .child("Chats")
+                        .child("SenderMessagesList")
+                        .child(currentUserId)
+                        .child(receiverId)
+
+                    val receiverMessageList = database
+                        .child("Chats")
+                        .child("ReceiverMessagesList")
+                        .child(receiverId)
+                        .child(currentUserId)
+
+                    senderMessageList.addListenerForSingleValueEvent(object: ValueEventListener{
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            if(!snapshot.exists()){
+                                senderMessageList.child(chatId).setValue(receiverId)
+                            }
+
+                            receiverMessageList.child(chatId).setValue(currentUserId)
+                        }
+
+                        override fun onCancelled(error: DatabaseError) {
+                            Log.e("ChatViewModel", "Error updating message lists", error.toException())
+                        }
+
+                    })
                 }
             }
     }

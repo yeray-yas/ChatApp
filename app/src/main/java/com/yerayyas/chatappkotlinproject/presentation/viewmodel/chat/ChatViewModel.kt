@@ -16,10 +16,13 @@ import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 @HiltViewModel
-class ChatViewModel @Inject constructor() : ViewModel() {
+class ChatViewModel @Inject constructor(
+    private val firebaseAuth: FirebaseAuth,
+    private val database: DatabaseReference
+) : ViewModel() {
 
-    private var firebaseUser: FirebaseUser? = FirebaseAuth.getInstance().currentUser
-    private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
+    private val firebaseUser: FirebaseUser?
+    get() = firebaseAuth.currentUser
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages

@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
@@ -49,7 +50,7 @@ import java.util.Locale
 @Composable
 fun ChatScreen(
     navController: NavHostController,
-    chatViewModel: ChatViewModel = viewModel(),
+    chatViewModel: ChatViewModel = hiltViewModel(),
     userId: String,  // ID del usuario receptor
     username: String // Nombre del usuario con el que se chatea
 ) {

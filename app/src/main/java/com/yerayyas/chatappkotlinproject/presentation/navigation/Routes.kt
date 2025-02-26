@@ -47,7 +47,7 @@ sealed class Routes(
         }
     )
     data object ConfirmPhoto : Routes("confirm_photo")
-    data object Chat : Routes("chat/{userId}?username={username}") {
+    data object Chat : Routes("chat/{userId}") {
         fun createRoute(userId: String, username: String = "User") = "chat/$userId?username=$username"
     }
 }

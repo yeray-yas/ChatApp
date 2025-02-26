@@ -209,7 +209,10 @@ private fun UsersList(
         items(users) { user ->
             UserListItem(
                 user = user,
-                onItemClick = { navController.navigate(Routes.Chat.createRoute(user.id, user.username))
+                onItemClick = {
+                    navController.navigate(Routes.Chat.createRoute(user.id, user.username)) {
+                        popUpTo(Routes.Home.route) { inclusive = false }
+                    }
                 }
             )
         }

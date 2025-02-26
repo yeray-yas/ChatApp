@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -37,9 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.yerayyas.chatappkotlinproject.presentation.components.MediaPickerButton
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
 import com.yerayyas.chatappkotlinproject.utils.animations.HamburgerToArrowAnimation
@@ -72,7 +67,6 @@ fun UserProfileScreen(
     val phone by viewModel.phone.collectAsState()
 
     val scrollState = rememberScrollState()
-    var showImagePickerDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Launcher para seleccionar imagen desde la galería
@@ -96,7 +90,6 @@ fun UserProfileScreen(
         }
     }
 
-    // Interceptamos el botón de retroceso del sistema para navegar a HomeScreen
     BackHandler {
         navController.navigate(Routes.Home.route) {
             popUpTo(Routes.Home.route) { inclusive = false }
@@ -146,20 +139,14 @@ fun UserProfileScreen(
                         .fillMaxSize()
                         .clip(CircleShape)
                 )
-                IconButton(
-                    onClick = { showImagePickerDialog = true },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .offset(x = (-8).dp, y = (8).dp)
-                        .background(Color.White, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile Image",
-                        tint = Color.Black,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                // Reemplazamos el IconButton por MediaPickerButton, usando el ícono de edición.
+                MediaPickerButton(
+                    onGalleryClick = { galleryLauncher.launch("image/*") },
+                    onCameraClick = { cameraLauncher.launch() },
+                    modifier = Modifier.offset(x = (-8).dp, y = 8.dp),
+                    icon = Icons.Default.Edit,
+                    contentDescription = "Edit Profile Image"
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             HamburgerToArrowAnimation()
@@ -237,33 +224,6 @@ fun UserProfileScreen(
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
-        }
-        if (showImagePickerDialog) {
-            AlertDialog(
-                onDismissRequest = { showImagePickerDialog = false },
-                title = { Text("Seleccionar imagen") },
-                text = { Text("Elige una imagen desde la galería o toma una nueva foto.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showImagePickerDialog = false
-                            galleryLauncher.launch("image/*")
-                        }
-                    ) {
-                        Text("Gallery")
-                    }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = {
-                            showImagePickerDialog = false
-                            cameraLauncher.launch()
-                        }
-                    ) {
-                        Text("Camera")
-                    }
-                }
-            )
         }
     }
 }

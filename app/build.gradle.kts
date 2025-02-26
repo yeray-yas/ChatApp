@@ -74,6 +74,11 @@ dependencies {
 
     // Glide
     implementation (libs.compose)
+    kapt (libs.compiler)
+
+    // Coil
+    implementation(libs.coil.compose)
+
 
     // Dagger Hilt
     implementation(libs.hilt.android)

@@ -1,13 +1,10 @@
 package com.yerayyas.chatappkotlinproject.presentation.navigation
 
+import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -29,19 +26,16 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenV
 @Composable
 fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Modifier) {
     val mainScreenViewModel: MainScreenViewModel = hiltViewModel()
-    var hasShownSplash by rememberSaveable { mutableStateOf(false) }
     val isUserAuthenticated by mainScreenViewModel.isUserAuthenticated.collectAsState()
 
-    LaunchedEffect(hasShownSplash, isUserAuthenticated) {
-        if (hasShownSplash) {
-            navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
-                popUpTo(Routes.Splash.route) { inclusive = true }
+    NavHost(navController = navController, startDestination = Routes.Splash.route, modifier = modifier) {
+        composable(Routes.Splash.route) {
+            SplashScreen {
+                navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
+                    popUpTo(Routes.Splash.route) { inclusive = true }
+                }
             }
         }
-    }
-
-    NavHost(navController = navController, startDestination = Routes.Splash.route, modifier = modifier) {
-        composable(Routes.Splash.route) { SplashScreen { hasShownSplash = true } }
         composable(Routes.Main.route) { MainScreen(navController, hiltViewModel()) }
         composable(Routes.SignUp.route) { SignUpScreen(navController) }
         composable(Routes.Login.route) { LoginScreen(navController) }
@@ -50,20 +44,23 @@ fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Mod
         composable(Routes.EditUserProfile.route) { EditUserProfileScreen(navController) }
         composable(Routes.ConfirmPhoto.route) { ConfirmProfilePhotoScreen(navController) }
         composable(
-            route = "chat/{userId}?username={username}",
+            route = Routes.Chat.route,
             arguments = listOf(
                 navArgument("userId") { type = NavType.StringType },
-                navArgument("username") { type = NavType.StringType; defaultValue = "User" }
+                navArgument("username") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: run {
                 Log.e("Navigation", "No userId found in arguments")
                 return@composable
             }
-            val username = backStackEntry.arguments?.getString("username") ?: "User"
+            val username = Uri.decode(backStackEntry.arguments?.getString("username") ?: "User")
+
             ChatScreen(userId = userId, username = username, navController = navController, chatViewModel = hiltViewModel())
         }
     }
 }
+
+
 
 

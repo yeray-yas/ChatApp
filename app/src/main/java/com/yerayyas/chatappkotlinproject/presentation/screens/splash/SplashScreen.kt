@@ -11,22 +11,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.yerayyas.chatappkotlinproject.R
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 @Composable
@@ -34,11 +34,12 @@ fun SplashScreen(
     modifier: Modifier = Modifier,
     onNavigateToMain: () -> Unit
 ) {
-    var shouldNavigate by remember { mutableStateOf(true) }
+    var hasNavigated by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        if (shouldNavigate) {
-            delay(3000) // Solo espera en primer inicio
+        if (!hasNavigated) {
+            delay(3000) // Espera 3 segundos para mostrar la animación
+            hasNavigated = true
             onNavigateToMain()
         }
     }
@@ -63,6 +64,7 @@ fun SplashScreen(
         )
     }
 }
+
 
 
 @Composable

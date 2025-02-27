@@ -1,6 +1,7 @@
 package com.yerayyas.chatappkotlinproject.presentation.navigation
 
 
+import android.net.Uri
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -47,8 +48,9 @@ sealed class Routes(
         }
     )
     data object ConfirmPhoto : Routes("confirm_photo")
-    data object Chat : Routes("chat/{userId}") {
-        fun createRoute(userId: String, username: String = "User") = "chat/$userId?username=$username"
+    data object Chat : Routes("chat/{userId}/{username}") {
+        fun createRoute(userId: String, username: String = "User") =
+            "chat/$userId/${Uri.encode(username)}"
     }
 }
 

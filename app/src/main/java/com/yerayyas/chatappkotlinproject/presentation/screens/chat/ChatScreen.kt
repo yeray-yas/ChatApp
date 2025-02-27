@@ -1,14 +1,20 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.chat
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,6 +49,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -54,6 +61,7 @@ import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.presentation.components.MediaPickerButton
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
 import com.yerayyas.chatappkotlinproject.utils.bitmapToUri
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -63,28 +71,20 @@ import java.util.Locale
 fun ChatScreen(
     navController: NavHostController,
     chatViewModel: ChatViewModel = hiltViewModel(),
-    userId: String,  // ID del usuario receptor
-    username: String // Nombre del usuario con el que se chatea
+    userId: String,
+    username: String
 ) {
     val messages by chatViewModel.messages.collectAsState()
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    // Launcher para seleccionar imagen desde la galería
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            // Aquí puedes llamar a chatViewModel.sendMediaMessage para enviar imagen
-            chatViewModel.sendMediaMessage(userId, it, "image")
-        }
+    // Launchers de galería y cámara
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { chatViewModel.sendMediaMessage(userId, it, "image") }
     }
 
-    // Launcher para tomar foto con la cámara
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         bitmap?.let {
             val uri = bitmapToUri(context, it)
             if (uri != null) {
@@ -93,13 +93,15 @@ fun ChatScreen(
         }
     }
 
+    // Carga mensajes al iniciar
     LaunchedEffect(userId) {
         chatViewModel.loadMessages(userId)
     }
 
+    // Scroll automático al último mensaje cada vez que cambie la lista
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(index = messages.size - 1)
+            listState.animateScrollToItem(messages.size - 1)
         }
     }
 
@@ -116,10 +118,7 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -130,31 +129,34 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Lista de mensajes
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom)
             ) {
                 items(messages) { message ->
-                    ChatMessageItem(message = message)
+                    ChatMessageItem(message)
                 }
             }
+
+            // Barra de entrada
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Usamos el MediaPickerButton para adjuntar archivos
                 MediaPickerButton(
                     onGalleryClick = { galleryLauncher.launch("image/*") },
                     onCameraClick = { cameraLauncher.launch() },
                     icon = Icons.Default.AttachFile,
                     contentDescription = "Attach a file"
                 )
+
                 TextField(
                     value = messageText,
                     onValueChange = { messageText = it },
@@ -183,33 +185,38 @@ fun ChatMessageItem(message: ChatMessage) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     val isMe = message.senderId == currentUserId
 
+    // Opcional: obtener ancho de la pantalla para un límite dinámico
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    // Elegimos que el máximo sea 80% del ancho de la pantalla
+    val maxBubbleWidth = screenWidth * 0.8f
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
     ) {
         Box(
             modifier = Modifier
+                // Máximo 80% del ancho de la pantalla
+                .widthIn(max = maxBubbleWidth)
                 .background(
-                    color = if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    color = if (isMe) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(8.dp)
                 )
                 .padding(8.dp)
         ) {
             if (message.messageType == "image" && message.mediaUrl != null) {
-                // Usamos Glide directamente para cargar la imagen
                 val painter = rememberGlidePainter(message.mediaUrl, context)
-
                 Image(
                     painter = painter,
                     contentDescription = "Image",
                     modifier = Modifier
-                        .size(200.dp)  // Ajusta el tamaño según sea necesario
+                        .size(200.dp)
                         .clip(RoundedCornerShape(8.dp)),
                     alignment = Alignment.Center,
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // Mostrar texto
                 Text(
                     text = message.message,
                     color = if (isMe) Color.White else Color.Black
@@ -220,32 +227,31 @@ fun ChatMessageItem(message: ChatMessage) {
 }
 
 @Composable
-fun rememberGlidePainter(imageUrl: String, context: Context): Painter {
-    // Estado para el painter que se actualizará con la imagen cargada
+fun rememberGlidePainter(
+    imageUrl: String,
+    context: Context,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+): Painter {
     val painterState = remember { mutableStateOf<Painter?>(null) }
 
-    // Usamos LaunchedEffect para cargar la imagen en segundo plano
     LaunchedEffect(imageUrl) {
-        withContext(Dispatchers.IO) {
-            try {
-                // Carga la imagen con Glide en segundo plano
-                val bitmap = Glide.with(context)
+        try {
+            // Carga la imagen en un hilo de fondo
+            val bitmap = withContext(ioDispatcher) {
+                Glide.with(context)
                     .asBitmap()
                     .load(imageUrl)
                     .submit()
                     .get()
-
-                // Actualizamos el painter en el hilo principal
-                withContext(Dispatchers.Main) {
-                    painterState.value = BitmapPainter(bitmap.asImageBitmap())
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+            painterState.value = BitmapPainter(bitmap.asImageBitmap())
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    // Retornamos el painter o un valor por defecto si aún no se ha cargado
-    return painterState.value ?: ColorPainter(Color.Gray) // Imagen de placeholder mientras se carga
+    // Placeholder mientras se carga
+    return painterState.value ?: ColorPainter(Color.Gray)
 }
+
 

@@ -4,26 +4,26 @@ import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class MainScreenViewModel @Inject constructor(private val auth: FirebaseAuth) : ViewModel() {
 
     private val _isUserAuthenticated = MutableStateFlow(auth.currentUser != null)
-    val isUserAuthenticated = _isUserAuthenticated.asStateFlow()
+    val isUserAuthenticated: StateFlow<Boolean> = _isUserAuthenticated
 
-    private val authListener = FirebaseAuth.AuthStateListener {
+    private val authStateListener = FirebaseAuth.AuthStateListener {
         _isUserAuthenticated.value = auth.currentUser != null
     }
 
     init {
-        auth.addAuthStateListener(authListener)
+        auth.addAuthStateListener(authStateListener)
     }
   
     override fun onCleared() {
         super.onCleared()
-        auth.removeAuthStateListener(authListener)
+        auth.removeAuthStateListener(authStateListener)
     }
 }
 

@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,14 +32,26 @@ import kotlinx.coroutines.delay
 @Composable
 fun SplashScreen(
     modifier: Modifier = Modifier,
-    onNavigateToMain: () -> Unit
+    isUserAuthenticated: Boolean,
+    isHomeDataLoaded: Boolean,
+    onNavigateToMain: () -> Unit,
+    onNavigateToHome: () -> Unit
 ) {
-    var hasNavigated by rememberSaveable { mutableStateOf(false) }
+    var delayCompleted by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        if (!hasNavigated) {
-            delay(3000) // Espera 3 segundos para mostrar la animación
-            hasNavigated = true
+    // Si NO hay sesión, activamos el delay de 3 segundos
+    LaunchedEffect(isUserAuthenticated) {
+        if (!isUserAuthenticated) {
+            delay(3000)
+            delayCompleted = true
+        }
+    }
+
+    // Si hay sesión y los datos de HomeViewModel están listos, navegamos
+    LaunchedEffect(isUserAuthenticated, isHomeDataLoaded, delayCompleted) {
+        if (isUserAuthenticated && isHomeDataLoaded) {
+            onNavigateToHome()
+        } else if (!isUserAuthenticated && delayCompleted) {
             onNavigateToMain()
         }
     }
@@ -64,7 +76,6 @@ fun SplashScreen(
         )
     }
 }
-
 
 
 @Composable

@@ -1,5 +1,7 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.intro
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -25,6 +28,13 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenV
 fun MainScreen(navController: NavController, viewModel: MainScreenViewModel = hiltViewModel()) {
     // Estado actualizado automáticamente
     val isAuthenticated by viewModel.isUserAuthenticated.collectAsState()
+
+    val context = LocalContext.current
+
+    // Interceptamos el botón “Atrás” y cerramos la app
+    BackHandler {
+        (context as? Activity)?.finish()
+    }
 
     LaunchedEffect(isAuthenticated) {
         if (isAuthenticated) navController.navigate("home_screen") { popUpTo(0) }

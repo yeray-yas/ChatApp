@@ -31,17 +31,17 @@ fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Mod
     val homeViewModel: HomeViewModel = hiltViewModel()
 
     val isUserAuthenticated by mainScreenViewModel.isUserAuthenticated.collectAsState()
-    val isHomeDataLoaded by homeViewModel.isLoading.collectAsState()
+    val isLoading by homeViewModel.isLoading.collectAsState()
+    // Si isLoading == true, aún no se han cargado los datos
+    val isHomeDataLoaded = !isLoading
 
-    // 1) Agregamos un LaunchedEffect que escucha cambios en isUserAuthenticated
     LaunchedEffect(isUserAuthenticated) {
-        // 2) Si el usuario YA NO está autenticado y NO estamos en MainScreen,
-        //    navegamos a MainScreen
-        if (!isUserAuthenticated) {
-            // Ojo con popUpTo: decide si quieres “limpiar” el back stack hasta Splash o Main
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        // Si el usuario YA NO está autenticado y NO estamos en la Splash
+        if (!isUserAuthenticated && currentRoute != Routes.Splash.route) {
+            // Navegamos a Main, limpiando el back stack
             navController.navigate(Routes.Main.route) {
-                // Elimina absolutamente tod o lo anterior del stack
-                popUpTo(0)
+                popUpTo(0) // elimina todas las pantallas anteriores
             }
         }
     }
@@ -51,19 +51,22 @@ fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Mod
             SplashScreen(
                 onNavigateToMain = {
                     navController.navigate(Routes.Main.route) {
+                        // Elimina la Splash del stack
                         popUpTo(Routes.Splash.route) { inclusive = true }
                     }
                 },
                 onNavigateToHome = {
                     navController.navigate(Routes.Home.route) {
+                        // Elimina la Splash del stack
                         popUpTo(Routes.Splash.route) { inclusive = true }
                     }
                 },
+                // Pasamos los estados correctos
                 isUserAuthenticated = isUserAuthenticated,
-                isHomeDataLoaded = !isHomeDataLoaded
+                isHomeDataLoaded = isHomeDataLoaded
             )
         }
-        composable(Routes.Main.route) { MainScreen(navController, hiltViewModel()) }
+        composable(Routes.Main.route) { MainScreen(navController) }
         composable(Routes.SignUp.route) { SignUpScreen(navController) }
         composable(Routes.Login.route) { LoginScreen(navController) }
         composable(Routes.Home.route) { HomeScreen(navController) }
@@ -83,10 +86,12 @@ fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Mod
             }
             val username = Uri.decode(backStackEntry.arguments?.getString("username") ?: "User")
 
-            ChatScreen(userId = userId, username = username, navController = navController, chatViewModel = hiltViewModel())
+            ChatScreen(
+                userId = userId,
+                username = username,
+                navController = navController,
+                chatViewModel = hiltViewModel()
+            )
         }
     }
 }
-
-
-

@@ -3,9 +3,7 @@ package com.yerayyas.chatappkotlinproject.presentation.screens.splash
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,18 +13,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.airbnb.lottie.compose.LottieAnimation
-import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.LottieConstants
-import com.airbnb.lottie.compose.animateLottieCompositionAsState
-import com.airbnb.lottie.compose.rememberLottieComposition
 import com.yerayyas.chatappkotlinproject.R
+import com.yerayyas.chatappkotlinproject.presentation.components.Loader
 import kotlinx.coroutines.delay
 
 @Composable
@@ -39,23 +32,30 @@ fun SplashScreen(
 ) {
     var delayCompleted by remember { mutableStateOf(false) }
 
-    // Si NO hay sesión, activamos el delay de 3 segundos
-    LaunchedEffect(isUserAuthenticated) {
+    // 1) Se ejecuta SOLO una vez al entrar a SplashScreen
+    LaunchedEffect(Unit) {
+        // Si NO hay sesión, esperamos 10 segundos
         if (!isUserAuthenticated) {
             delay(3000)
             delayCompleted = true
         }
     }
 
-    // Si hay sesión y los datos de HomeViewModel están listos, navegamos
+    // 2) Observa cambios de autenticación, carga y el delay
     LaunchedEffect(isUserAuthenticated, isHomeDataLoaded, delayCompleted) {
-        if (isUserAuthenticated && isHomeDataLoaded) {
-            onNavigateToHome()
-        } else if (!isUserAuthenticated && delayCompleted) {
-            onNavigateToMain()
+        when {
+            // Si hay sesión y los datos están listos, vamos a Home
+            isUserAuthenticated && isHomeDataLoaded -> {
+                onNavigateToHome()
+            }
+            // Si NO hay sesión y ya terminó el delay, vamos a Main
+            !isUserAuthenticated && delayCompleted -> {
+                onNavigateToMain()
+            }
         }
     }
 
+    // UI del SplashScreen
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -75,23 +75,5 @@ fun SplashScreen(
             style = TextStyle(fontWeight = FontWeight.Bold)
         )
     }
-}
-
-
-@Composable
-fun Loader() {
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.chat_animation))
-    val progress by animateLottieCompositionAsState(
-        composition = composition,
-        iterations = LottieConstants.IterateForever
-    )
-    LottieAnimation(
-        composition = composition,
-        progress = { progress },
-        modifier = Modifier
-            .fillMaxWidth()
-            .size(600.dp),
-        contentScale = ContentScale.Fit
-    )
 }
 

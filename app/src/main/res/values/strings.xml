@@ -4,7 +4,10 @@
     <string name="go_to_sign_up_btn">Go to Sign Up</string>
     <string name="go_to_log_in_btn">Go to Log in</string>
 
+    <!--User Profile-->
     <string name="user_name">User name</string>
+    <string name="provider_txt">Provider: </string>
+    <string name="provider_name"> -- </string>
     <string name="email">Email</string>
     <string name="password">Password</string>
     <string name="repeat_password">Repeat your password</string>

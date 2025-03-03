@@ -36,7 +36,8 @@ class SignUpViewModel @Inject constructor(private val auth : FirebaseAuth, priva
                     "profession" to "",
                     "address" to "",
                     "status" to "offline",
-                    "phone" to ""
+                    "phone" to "",
+                    "provider" to "email"
                 )
 
                 database.child("Users").child(uid).setValue(userMap).await()

@@ -43,6 +43,9 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
     private val _phone = MutableStateFlow("")
     val phone: StateFlow<String> = _phone
 
+    private val _provider = MutableStateFlow("")
+    val provider: StateFlow<String> = _provider
+
     // Listener para mantener actualizada la información del usuario
     private var userListener: ValueEventListener? = null
 
@@ -72,6 +75,7 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
                         _age.value = snapshot.child("age").getValue(String::class.java) ?: ""
                         _phone.value = snapshot.child("phone").getValue(String::class.java) ?: ""
                         _image.value = snapshot.child("image").getValue(String::class.java) ?: ""
+                        _provider.value = snapshot.child("provider").getValue(String::class.java) ?: ""
                     }
 
                     override fun onCancelled(error: DatabaseError) {

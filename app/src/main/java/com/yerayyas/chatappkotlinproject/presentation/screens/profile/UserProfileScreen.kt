@@ -17,12 +17,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -39,11 +43,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.components.MediaPickerButton
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
@@ -65,6 +73,7 @@ fun UserProfileScreen(
     val address by viewModel.address.collectAsState()
     val age by viewModel.age.collectAsState()
     val phone by viewModel.phone.collectAsState()
+    val provider by viewModel.provider.collectAsState()
 
     val scrollState = rememberScrollState()
     val context = LocalContext.current
@@ -74,7 +83,10 @@ fun UserProfileScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            navController.currentBackStackEntry?.savedStateHandle?.set("selectedImageUri", it.toString())
+            navController.currentBackStackEntry?.savedStateHandle?.set(
+                "selectedImageUri",
+                it.toString()
+            )
             navController.navigate(Routes.ConfirmPhoto.route)
         }
     }
@@ -85,7 +97,10 @@ fun UserProfileScreen(
     ) { bitmap: Bitmap? ->
         bitmap?.let {
             val uri = bitmapToUri(context, it)
-            navController.currentBackStackEntry?.savedStateHandle?.set("selectedImageUri", uri.toString())
+            navController.currentBackStackEntry?.savedStateHandle?.set(
+                "selectedImageUri",
+                uri.toString()
+            )
             navController.navigate(Routes.ConfirmPhoto.route)
         }
     }
@@ -165,6 +180,28 @@ fun UserProfileScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(start = 8.dp)
                 )
+                Text(
+                    text = stringResource(R.string.provider_txt),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+                Card(
+                    modifier = Modifier
+                        .wrapContentSize()
+                        .padding(0.5.dp)
+                        .padding(start = 5.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Green),
+                ) {
+                   Text(
+                       text = provider,
+                       style = MaterialTheme.typography.headlineSmall,
+                       fontSize = 17.sp,
+                       fontWeight = FontWeight.Bold,
+                       modifier = Modifier.wrapContentSize().padding(10.dp)
+                   )
+                }
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     thickness = 1.dp,

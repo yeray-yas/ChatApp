@@ -36,8 +36,17 @@ class HomeViewModel @Inject constructor(
     private val _username = MutableStateFlow("")
     val username: StateFlow<String> = _username
 
-    // Listener for the presence management
+    // Listener for the .info/connected changes
     private var connectionListener: ValueEventListener? = null
+
+    // Listener para el nodo "connections" del usuario
+    private var connectionsListener: ValueEventListener? = null
+
+    // Referencia al nodo del usuario actual
+    private var currentUserRef: DatabaseReference? = null
+
+    // Referencia a la conexión de este dispositivo
+    private var myConnectionRef: DatabaseReference? = null
 
     // StateFlow for the user's list (excludes the current user)
     private val _users = MutableStateFlow<List<User>>(emptyList())
@@ -62,46 +71,60 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Updates the StateFlow with the new search query.
+     * Actualiza el StateFlow con el nuevo término de búsqueda.
      */
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
     /**
-     * Set up the user's presence management, updating their status to "online"
-     * and scheduling a change to "offline" when disconnected.
+     * Configura el manejo de presencia del usuario usando un nodo "connections" para llevar el conteo
+     * de dispositivos conectados.
      */
     private fun setupPresenceManagement() {
         auth.currentUser?.uid?.let { uid ->
-            val userRef = database.child("Users").child(uid)
+            currentUserRef = database.child("Users").child(uid)
             val connectedRef = database.child(".info/connected")
             connectionListener = connectedRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.getValue(Boolean::class.java) == true) {
-                        // Configura los valores que se actualizarán al desconectarse
-                        userRef.child("status").onDisconnect().setValue("offline")
-                        userRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
-                        // Actualiza el estado a "online" de forma inmediata
-                        userRef.updateChildren(
-                            mapOf(
-                                "status" to "online",
-                                "lastSeen" to ServerValue.TIMESTAMP
-                            )
-                        )
+                        // Creamos una entrada única para este dispositivo en "connections"
+                        myConnectionRef = currentUserRef?.child("connections")?.push()
+                        // Cuando este dispositivo se desconecte, se eliminará su entrada automáticamente
+                        myConnectionRef?.onDisconnect()?.removeValue()
+                        // Establecemos el valor de la conexión
+                        myConnectionRef?.setValue(true)
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e("Presence", "Connection error", error.toException())
+                    Log.e("Presence", "Error de conexión", error.toException())
                 }
             })
+
+            // Listener para contar las conexiones activas y actualizar el status del usuario
+            connectionsListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val count = snapshot.childrenCount
+                    if (count > 0) {
+                        currentUserRef?.child("status")?.setValue("online")
+                        currentUserRef?.child("lastSeen")?.setValue(ServerValue.TIMESTAMP)
+                    } else {
+                        currentUserRef?.child("status")?.setValue("offline")
+                        currentUserRef?.child("lastSeen")?.setValue(ServerValue.TIMESTAMP)
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("Presence", "Error en el listener de conexiones", error.toException())
+                }
+            }
+            currentUserRef?.child("connections")?.addValueEventListener(connectionsListener!!)
         }
     }
 
     /**
-     * Loads the current user's data from Firebase (for example, the user name)
-     * and updates the corresponding StateFlow.
+     * Carga los datos actuales del usuario (por ejemplo, su nombre) y actualiza el StateFlow correspondiente.
      */
     private fun loadCurrentUserData() {
         auth.currentUser?.uid?.let { uid ->
@@ -110,16 +133,14 @@ class HomeViewModel @Inject constructor(
                     override fun onDataChange(snapshot: DataSnapshot) {
                         _username.value = snapshot.child("username").getValue(String::class.java)
                             ?.replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(
-                                    Locale.ROOT
-                                ) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
                             }
                             ?: ""
                         _isLoading.value = false
                     }
 
                     override fun onCancelled(error: DatabaseError) {
-                        Log.e("LoadUser", "Error loading user data", error.toException())
+                        Log.e("LoadUser", "Error al cargar datos del usuario", error.toException())
                         _isLoading.value = false
                     }
                 })
@@ -129,8 +150,8 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Loads the list of users from Firebase.
-     * If [searchQuery] is not empty, we do a parcial search (based on the "find" field).
+     * Carga la lista de usuarios desde Firebase.
+     * Si [searchQuery] no está vacío, se realiza una búsqueda parcial (basada en el campo "find").
      */
     private fun loadUsers(searchQuery: String = "") {
         auth.currentUser?.uid?.let { currentUserId ->
@@ -169,28 +190,30 @@ class HomeViewModel @Inject constructor(
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e("LoadUsers", "Error loading users", error.toException())
+                    Log.e("LoadUsers", "Error al cargar usuarios", error.toException())
                 }
             })
         }
     }
 
-
     /**
-     * Function to sign out the current user.
-     * Updates the user's status to "offline" before call [FirebaseAuth.signOut]
-     * and removes the connection listener.
+     * Cierra sesión del usuario actual.
+     * Antes de llamar a [FirebaseAuth.signOut] se actualiza el status a "offline" y se remueven los listeners.
      */
     fun signOut() {
-        auth.currentUser?.uid?.let { uid ->
-            database.child("Users").child(uid).updateChildren(
-                mapOf(
-                    "status" to "offline",
-                    "lastSeen" to ServerValue.TIMESTAMP
-                )
-            ).addOnCompleteListener {
-                auth.signOut()
-                cleanupListeners()
+        auth.currentUser?.uid?.let { _ ->
+            currentUserRef?.let { userRef ->
+                // Removemos la conexión de este dispositivo
+                myConnectionRef?.removeValue()
+                userRef.updateChildren(
+                    mapOf(
+                        "status" to "offline",
+                        "lastSeen" to ServerValue.TIMESTAMP
+                    )
+                ).addOnCompleteListener {
+                    auth.signOut()
+                    cleanupListeners()
+                }
             }
         } ?: run {
             auth.signOut()
@@ -199,10 +222,13 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Erase the Firebase listeners to avoid memory leaks.
+     * Remueve los listeners de Firebase para evitar memory leaks.
      */
     private fun cleanupListeners() {
         connectionListener?.let { database.removeEventListener(it) }
+        currentUserRef?.child("connections")?.let { connectionsRef ->
+            connectionsListener?.let { connectionsRef.removeEventListener(it) }
+        }
     }
 
     override fun onCleared() {

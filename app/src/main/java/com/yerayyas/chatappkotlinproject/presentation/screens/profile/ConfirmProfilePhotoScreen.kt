@@ -1,6 +1,7 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.profile
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -112,12 +113,18 @@ fun ConfirmProfilePhotoScreen(
                 }
                 Button(
                     onClick = {
-                        // Aceptar: actualizamos la imagen y navegamos a UserProfileScreen
-                        userProfileViewModel.updateProfileImage(imageUri)
-                        navController.navigate(Routes.UserProfile.route) {
-                            popUpTo(Routes.UserProfile.route) { inclusive = false }
-                            launchSingleTop = true
-                            restoreState = true
+                        // Aceptar: actualizamos la imagen y, al completarse, navegamos a UserProfileScreen
+                        userProfileViewModel.updateProfileImage(imageUri) { success ->
+                            if (success) {
+                                navController.navigate(Routes.UserProfile.route) {
+                                    popUpTo(Routes.UserProfile.route) { inclusive = false }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else {
+                                // Opcional: mostrar mensaje de error al usuario
+                                Toast.makeText(navController.context, "Error updating image", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 ) {

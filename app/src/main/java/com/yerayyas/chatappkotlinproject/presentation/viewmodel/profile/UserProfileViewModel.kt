@@ -127,30 +127,35 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
      * Actualiza la foto de perfil subiendo la imagen a Firebase Storage y actualizando
      * la URL en la base de datos en la rama "image".
      */
-    fun updateProfileImage(imageUri: Uri) {
+    fun updateProfileImage(imageUri: Uri, onComplete: (Boolean) -> Unit) {
         val uid = auth.currentUser?.uid ?: return
         val storageReference = FirebaseStorage.getInstance()
             .reference.child("profileImages/$uid")
 
         storageReference.putFile(imageUri)
-            .addOnSuccessListener { _ ->
+            .addOnSuccessListener {
                 // Una vez subida la imagen, obtenemos la URL de descarga
                 storageReference.downloadUrl.addOnSuccessListener { downloadUrl ->
                     // Actualizamos el campo "image" en la base de datos
-                    database.child("Users").child(uid).child("image").setValue(downloadUrl.toString())
+                    database.child("Users").child(uid).child("image")
+                        .setValue(downloadUrl.toString())
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 Log.d("UpdateImage", "Imagen actualizada correctamente")
+                                onComplete(true)
                             } else {
                                 Log.e("UpdateImage", "Error actualizando la imagen", task.exception)
+                                onComplete(false)
                             }
                         }
                 }
             }
             .addOnFailureListener {
                 Log.e("UpdateImage", "Error al subir la imagen", it)
+                onComplete(false)
             }
     }
+
 
     override fun onCleared() {
         super.onCleared()

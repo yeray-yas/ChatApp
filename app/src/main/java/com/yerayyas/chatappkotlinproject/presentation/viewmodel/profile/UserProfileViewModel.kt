@@ -46,6 +46,10 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
     private val _provider = MutableStateFlow("")
     val provider: StateFlow<String> = _provider
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
+
     // Listener para mantener actualizada la información del usuario
     private var userListener: ValueEventListener? = null
 
@@ -132,30 +136,24 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
         val storageReference = FirebaseStorage.getInstance()
             .reference.child("profileImages/$uid")
 
+        _isLoading.value = true // Comenzamos la carga
+
         storageReference.putFile(imageUri)
             .addOnSuccessListener {
-                // Una vez subida la imagen, obtenemos la URL de descarga
                 storageReference.downloadUrl.addOnSuccessListener { downloadUrl ->
-                    // Actualizamos el campo "image" en la base de datos
                     database.child("Users").child(uid).child("image")
                         .setValue(downloadUrl.toString())
                         .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                Log.d("UpdateImage", "Imagen actualizada correctamente")
-                                onComplete(true)
-                            } else {
-                                Log.e("UpdateImage", "Error actualizando la imagen", task.exception)
-                                onComplete(false)
-                            }
+                            _isLoading.value = false // Terminamos la carga
+                            onComplete(task.isSuccessful)
                         }
                 }
             }
             .addOnFailureListener {
-                Log.e("UpdateImage", "Error al subir la imagen", it)
+                _isLoading.value = false // Error: ocultamos el indicador de carga
                 onComplete(false)
             }
     }
-
 
     override fun onCleared() {
         super.onCleared()

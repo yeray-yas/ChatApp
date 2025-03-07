@@ -231,6 +231,32 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Elimina el usuario de la base de datos y, a continuación, borra la cuenta de autenticación.
+     * Al finalizar, se cierra la sesión para que se redirija a MainScreen.
+     */
+    fun deleteUser() {
+        auth.currentUser?.uid?.let { uid ->
+            // Primero borramos los datos del usuario en la base de datos
+            database.child("Users").child(uid).removeValue().addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    // Luego, intentamos borrar la cuenta de autenticación
+                    auth.currentUser?.delete()?.addOnCompleteListener { deleteTask ->
+                        if (deleteTask.isSuccessful) {
+                            // Finalmente, cerramos la sesión y limpiamos los listeners
+                            auth.signOut()
+                            cleanupListeners()
+                        } else {
+                            Log.e("DeleteUser", "Error al eliminar la cuenta de auth", deleteTask.exception)
+                        }
+                    }
+                } else {
+                    Log.e("DeleteUser", "Error al borrar datos del usuario", task.exception)
+                }
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         cleanupListeners()

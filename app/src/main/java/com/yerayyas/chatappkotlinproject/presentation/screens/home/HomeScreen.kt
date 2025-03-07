@@ -111,6 +111,15 @@ fun HomeScreen(
                                 Toast.makeText(context, "About user", Toast.LENGTH_SHORT).show()
                             }
                         )
+                        // Opción para borrar el usuario
+                        DropdownMenuItem(
+                            text = { Text("Erase user") },
+                            onClick = {
+                                showMenu = false
+                                // Llamamos al méto do para borrar el usuario
+                                viewModel.deleteUser()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.sign_out_btn)) },
                             onClick = { viewModel.signOut() }

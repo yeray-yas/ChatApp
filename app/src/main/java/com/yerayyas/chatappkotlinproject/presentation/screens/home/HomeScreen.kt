@@ -3,6 +3,7 @@ package com.yerayyas.chatappkotlinproject.presentation.screens.home
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,7 +53,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.UserListItem
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     navController: NavHostController,
@@ -158,38 +159,26 @@ private fun UsersScreen(
             .padding(vertical = 8.dp)
     ) {
         SearchBar(
-            inputField = {
-                // Campo de entrada del SearchBar usando TextField
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    placeholder = { Text("Find users...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Find") },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Delete search")
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            expanded = isActive,
-            onExpandedChange = { isActive = it },
+            query = searchQuery,
+            onQueryChange = { viewModel.onSearchQueryChanged(it) },
+            onSearch = { /* Implement search functionality */ },
+            active = isActive,
+            onActiveChange = { isActive = it },
             modifier = Modifier.fillMaxWidth(),
-            shape = SearchBarDefaults.inputFieldShape,
-            colors = SearchBarDefaults.colors(),
-            tonalElevation = SearchBarDefaults.TonalElevation,
-            shadowElevation = SearchBarDefaults.ShadowElevation,
-            windowInsets = SearchBarDefaults.windowInsets,
+            placeholder = { Text("Find users...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Find") },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Delete search")
+                    }
+                }
+            },
             content = {
-                // Contenido que se muestra cuando el SearchBar está expandido
                 UsersList(viewModel, navController)
             }
         )
         if (!isActive) {
-            // Cuando no está activo, también se muestra la lista
             UsersList(viewModel, navController)
         }
     }

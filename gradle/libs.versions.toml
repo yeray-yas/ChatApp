@@ -19,6 +19,7 @@ navigationCompose = "2.8.5"
 googleServicesVersion = "4.4.2"
 hiltVersion = "2.52"
 hiltNavigationVersion = "1.2.0"
+lifecycleProcess = "2.8.7"
 
 [libraries]
 
@@ -50,6 +51,7 @@ material3 = { module = "androidx.compose.material3:material3", version.ref = "ma
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltVersion" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hiltVersion" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationVersion" }
+androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

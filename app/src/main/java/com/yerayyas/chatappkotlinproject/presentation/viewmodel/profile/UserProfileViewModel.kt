@@ -59,19 +59,22 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
             userListener = database.child("Users").child(uid)
                 .addValueEventListener(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
-                        _username.value = snapshot.child("username").getValue(String::class.java)?.replaceFirstChar {
+                        val publicData = snapshot.child("public")
+                        val privateData = snapshot.child("private")
+                        
+                        _username.value = publicData.child("username").getValue(String::class.java)?.replaceFirstChar {
                             if (it.isLowerCase()) it.titlecase(
                                 Locale.ROOT
                             ) else it.toString()
                         } ?: ""
-                        _email.value = snapshot.child("email").getValue(String::class.java) ?: ""
-                        _names.value = snapshot.child("names").getValue(String::class.java) ?: ""
-                        _lastNames.value = snapshot.child("lastNames").getValue(String::class.java) ?: ""
-                        _profession.value = snapshot.child("profession").getValue(String::class.java) ?: ""
-                        _address.value = snapshot.child("address").getValue(String::class.java) ?: ""
-                        _age.value = snapshot.child("age").getValue(String::class.java) ?: ""
-                        _phone.value = snapshot.child("phone").getValue(String::class.java) ?: ""
-                        _image.value = snapshot.child("image").getValue(String::class.java) ?: ""
+                        _email.value = privateData.child("email").getValue(String::class.java) ?: ""
+                        _names.value = privateData.child("names").getValue(String::class.java) ?: ""
+                        _lastNames.value = privateData.child("lastNames").getValue(String::class.java) ?: ""
+                        _profession.value = privateData.child("profession").getValue(String::class.java) ?: ""
+                        _address.value = privateData.child("address").getValue(String::class.java) ?: ""
+                        _age.value = privateData.child("age").getValue(String::class.java) ?: ""
+                        _phone.value = privateData.child("phone").getValue(String::class.java) ?: ""
+                        _image.value = publicData.child("profileImage").getValue(String::class.java) ?: ""
                     }
 
                     override fun onCancelled(error: DatabaseError) {
@@ -101,12 +104,12 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
     ) {
         auth.currentUser?.uid?.let { uid ->
             val updates = mapOf(
-                "names" to names,
-                "lastNames" to lastNames,
-                "profession" to profession,
-                "address" to address,
-                "age" to age,
-                "phone" to phone
+                "private/names" to names,
+                "private/lastNames" to lastNames,
+                "private/profession" to profession,
+                "private/address" to address,
+                "private/age" to age,
+                "private/phone" to phone
             )
             database.child("Users").child(uid).updateChildren(updates)
                 .addOnCompleteListener { task ->
@@ -121,7 +124,7 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
 
     /**
      * Actualiza la foto de perfil subiendo la imagen a Firebase Storage y actualizando
-     * la URL en la base de datos en la rama "image".
+     * la URL en la base de datos en la rama "profileImage".
      */
     fun updateProfileImage(imageUri: Uri) {
         val uid = auth.currentUser?.uid ?: return
@@ -132,8 +135,9 @@ class UserProfileViewModel @Inject constructor(private val auth : FirebaseAuth, 
             .addOnSuccessListener { _ ->
                 // Una vez subida la imagen, obtenemos la URL de descarga
                 storageReference.downloadUrl.addOnSuccessListener { downloadUrl ->
-                    // Actualizamos el campo "image" en la base de datos
-                    database.child("Users").child(uid).child("image").setValue(downloadUrl.toString())
+                    // Actualizamos el campo "profileImage" en la carpeta public
+                    database.child("Users").child(uid).child("public").child("profileImage")
+                        .setValue(downloadUrl.toString())
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 Log.d("UpdateImage", "Imagen actualizada correctamente")

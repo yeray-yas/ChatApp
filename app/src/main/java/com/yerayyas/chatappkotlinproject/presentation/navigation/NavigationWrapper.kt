@@ -9,7 +9,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -24,10 +23,15 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.ConfirmPro
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.EditUserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenImageScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
 @Composable
-fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Modifier) {
+fun NavigationWrapper(
+    modifier: Modifier = Modifier,
+    navController: NavHostController,
+    startDestination: String = Routes.Splash.route,
+) {
     val mainScreenViewModel: MainScreenViewModel = hiltViewModel()
     var hasShownSplash by rememberSaveable { mutableStateOf(false) }
     val isUserAuthenticated by mainScreenViewModel.isUserAuthenticated.collectAsState()
@@ -40,7 +44,11 @@ fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Mod
         }
     }
 
-    NavHost(navController = navController, startDestination = Routes.Splash.route, modifier = modifier) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        modifier = modifier
+    ) {
         composable(Routes.Splash.route) { SplashScreen { hasShownSplash = true } }
         composable(Routes.Main.route) { MainScreen(navController, hiltViewModel()) }
         composable(Routes.SignUp.route) { SignUpScreen(navController) }
@@ -58,7 +66,16 @@ fun NavigationWrapper(navController: NavHostController, modifier: Modifier = Mod
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")!!
             val username = backStackEntry.arguments?.getString("username") ?: "User"
-            ChatScreen(userId = userId, username = username, navController = navController, chatViewModel = viewModel())
+            ChatScreen(userId = userId, username = username, navController = navController)
+        }
+        composable("chat/{userId}/{username}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            val username = backStackEntry.arguments?.getString("username") ?: return@composable
+            ChatScreen(navController = navController, userId = userId, username = username)
+        }
+        composable("fullScreenImage/{imageId}") { backStackEntry ->
+            val imageId = backStackEntry.arguments?.getString("imageId") ?: return@composable
+            FullScreenImageScreen(navController = navController, imageId = imageId)
         }
     }
 }

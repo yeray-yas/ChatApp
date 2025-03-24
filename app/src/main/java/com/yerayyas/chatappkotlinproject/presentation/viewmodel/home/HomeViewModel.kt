@@ -76,19 +76,25 @@ class HomeViewModel @Inject constructor(
         auth.currentUser?.uid?.let { uid ->
             val userRef = database.child("Users").child(uid)
             val connectedRef = database.child(".info/connected")
+            
+            // Configura los valores que se actualizarán al desconectarse
+            userRef.child("private").child("status").onDisconnect().setValue("offline")
+            userRef.child("private").child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
+            
+            // Listener para la conexión
             connectionListener = connectedRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    if (snapshot.getValue(Boolean::class.java) == true) {
-                        // Configura los valores que se actualizarán al desconectarse
-                        userRef.child("status").onDisconnect().setValue("offline")
-                        userRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
+                    val connected = snapshot.getValue(Boolean::class.java) ?: false
+                    if (connected) {
                         // Actualiza el estado a "online" de forma inmediata
-                        userRef.updateChildren(
+                        userRef.child("private").updateChildren(
                             mapOf(
                                 "status" to "online",
                                 "lastSeen" to ServerValue.TIMESTAMP
                             )
-                        )
+                        ).addOnFailureListener { e ->
+                            Log.e("Presence", "Error updating online status", e)
+                        }
                     }
                 }
 
@@ -108,7 +114,8 @@ class HomeViewModel @Inject constructor(
             database.child("Users").child(uid)
                 .addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
-                        _username.value = snapshot.child("username").getValue(String::class.java)
+                        val publicData = snapshot.child("public")
+                        _username.value = publicData.child("username").getValue(String::class.java)
                             ?.replaceFirstChar {
                                 if (it.isLowerCase()) it.titlecase(
                                     Locale.ROOT
@@ -136,26 +143,30 @@ class HomeViewModel @Inject constructor(
         auth.currentUser?.uid?.let { currentUserId ->
             val baseRef = database.child("Users")
             val queryRef: Query = if (searchQuery.isNotEmpty()) {
-                baseRef.orderByChild("find")
+                baseRef.orderByChild("public/find")
                     .startAt(searchQuery)
                     .endAt("$searchQuery\uf8ff")
             } else {
                 baseRef
             }
-            queryRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            queryRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val usersList = snapshot.children.mapNotNull { userSnapshot ->
                         val userId = userSnapshot.key ?: return@mapNotNull null
                         // Se excluye el usuario actual
                         if (userId == currentUserId) return@mapNotNull null
+                        
+                        val publicData = userSnapshot.child("public")
+                        val privateData = userSnapshot.child("private")
+                        
                         User(
                             id = userId,
-                            username = userSnapshot.child("username").getValue(String::class.java) ?: "",
-                            email = userSnapshot.child("email").getValue(String::class.java) ?: "",
-                            profileImage = userSnapshot.child("image").getValue(String::class.java) ?: "",
-                            status = userSnapshot.child("status").getValue(String::class.java) ?: "offline",
-                            isOnline = userSnapshot.child("status").getValue(String::class.java) == "online",
-                            lastSeen = userSnapshot.child("lastSeen").getValue(Long::class.java) ?: 0L
+                            username = publicData.child("username").getValue(String::class.java) ?: "",
+                            email = privateData.child("email").getValue(String::class.java) ?: "",
+                            profileImage = publicData.child("profileImage").getValue(String::class.java) ?: "",
+                            status = privateData.child("status").getValue(String::class.java) ?: "offline",
+                            isOnline = privateData.child("status").getValue(String::class.java) == "online",
+                            lastSeen = privateData.child("lastSeen").getValue(Long::class.java) ?: 0L
                         )
                     }
                     // Ordena los usuarios: primero los online y luego por el último visto
@@ -178,7 +189,7 @@ class HomeViewModel @Inject constructor(
      */
     fun signOut() {
         auth.currentUser?.uid?.let { uid ->
-            database.child("Users").child(uid).updateChildren(
+            database.child("Users").child(uid).child("private").updateChildren(
                 mapOf(
                     "status" to "offline",
                     "lastSeen" to ServerValue.TIMESTAMP

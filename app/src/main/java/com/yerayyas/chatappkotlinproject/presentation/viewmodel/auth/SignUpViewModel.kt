@@ -24,22 +24,25 @@ class SignUpViewModel @Inject constructor(private val auth : FirebaseAuth, priva
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
                 val uid = result.user?.uid ?: throw Exception("Error: UID es null")
 
-                val userMap = mapOf(
-                    "userId" to uid,
+                // Datos públicos
+                val publicData = mapOf(
                     "username" to username,
-                    "email" to email,
-                    "image" to "",
-                    "find" to username.lowercase(),
-                    "names" to "",
-                    "lastNames" to "",
-                    "age" to "",
-                    "profession" to "",
-                    "address" to "",
-                    "status" to "offline",
-                    "phone" to ""
+                    "profileImage" to "",
+                    "find" to username.lowercase()
                 )
 
-                database.child("Users").child(uid).setValue(userMap).await()
+                // Datos privados
+                val privateData = mapOf(
+                    "email" to email,
+                    "status" to "offline",
+                    "lastSeen" to 0L
+                )
+
+                // Crear la estructura completa del usuario
+                val userRef = database.child("Users").child(uid)
+                userRef.child("public").setValue(publicData).await()
+                userRef.child("private").setValue(privateData).await()
+
                 onResult(true, null)
             } catch (e: FirebaseAuthException) {
                 errorMessage = e.localizedMessage ?: "Error desconocido"

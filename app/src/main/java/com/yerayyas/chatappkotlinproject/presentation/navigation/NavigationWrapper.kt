@@ -38,8 +38,11 @@ fun NavigationWrapper(
 
     LaunchedEffect(hasShownSplash, isUserAuthenticated) {
         if (hasShownSplash) {
-            navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
-                popUpTo(Routes.Splash.route) { inclusive = true }
+            val currentRoute = navController.currentDestination?.route
+            if (currentRoute != Routes.Main.route) {
+                navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
+                    popUpTo(Routes.Splash.route) { inclusive = true }
+                }
             }
         }
     }

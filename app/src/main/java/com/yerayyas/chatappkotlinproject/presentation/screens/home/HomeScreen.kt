@@ -3,7 +3,6 @@ package com.yerayyas.chatappkotlinproject.presentation.screens.home
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,11 +27,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,12 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
-import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.components.UserListItem
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavHostController,
@@ -113,8 +110,30 @@ fun HomeScreen(
                             }
                         )
                         DropdownMenuItem(
+                            text = { Text("Delete user") },
+                            onClick = {
+                                viewModel.deleteUser { success, error ->
+                                    if (success) {
+                                        navController.navigate(Routes.Main.route) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Error al borrar la cuenta: $error", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.sign_out_btn)) },
-                            onClick = { viewModel.signOut() }
+                            onClick = {
+                                viewModel.signOut {
+                                    navController.navigate(Routes.Main.route) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                                showMenu = false
+                            }
                         )
                     }
                 }

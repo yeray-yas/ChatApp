@@ -187,7 +187,7 @@ class HomeViewModel @Inject constructor(
      * Función para cerrar la sesión del usuario.
      * Actualiza el estado a "offline" antes de llamar a [FirebaseAuth.signOut].
      */
-    fun signOut() {
+    fun signOut(onSignOutComplete: () -> Unit) {
         auth.currentUser?.uid?.let { uid ->
             database.child("Users").child(uid).child("private").updateChildren(
                 mapOf(
@@ -197,11 +197,34 @@ class HomeViewModel @Inject constructor(
             ).addOnCompleteListener {
                 auth.signOut()
                 cleanupListeners()
+                onSignOutComplete()
             }
         } ?: run {
             auth.signOut()
             cleanupListeners()
+            onSignOutComplete()
         }
+    }
+
+    fun deleteUser(onComplete: (Boolean, String?) -> Unit) {
+        val user = auth.currentUser ?: return onComplete(false, "No hay usuario autenticado")
+        
+        // Primero borramos los datos del usuario en la base de datos
+        database.child("Users").child(user.uid).removeValue()
+            .addOnSuccessListener {
+                // Luego borramos la cuenta de autenticación
+                user.delete()
+                    .addOnSuccessListener {
+                        cleanupListeners()
+                        onComplete(true, null)
+                    }
+                    .addOnFailureListener { e ->
+                        onComplete(false, "Error al borrar la cuenta: ${e.message}")
+                    }
+            }
+            .addOnFailureListener { e ->
+                onComplete(false, "Error al borrar los datos: ${e.message}")
+            }
     }
 
     /**

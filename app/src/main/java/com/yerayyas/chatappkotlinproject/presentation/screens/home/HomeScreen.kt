@@ -45,9 +45,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
+import com.yerayyas.chatappkotlinproject.presentation.components.ChatListItem
 import com.yerayyas.chatappkotlinproject.presentation.components.UserListItem
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.ChatsListViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,7 +158,7 @@ fun HomeScreen(
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
                 when (page) {
                     0 -> UsersScreen(viewModel, navController)
-                    1 -> ChatsList()
+                    1 -> ChatsList(navController, hiltViewModel())
                 }
             }
         }
@@ -225,12 +227,22 @@ private fun UsersList(
 }
 
 @Composable
-private fun ChatsList() {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(10) { index ->
-            Text(
-                text = "Chat $index",
-                modifier = Modifier.padding(16.dp)
+private fun ChatsList(
+    navController: NavHostController,
+    viewModel: ChatsListViewModel = hiltViewModel()
+) {
+    val chats by viewModel.chats.collectAsState()
+    
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(chats) { chat ->
+            ChatListItem(
+                chat = chat,
+                onClick = {
+                    navController.navigate(Routes.Chat.createRoute(chat.otherUserId, chat.otherUsername))
+                }
             )
         }
     }

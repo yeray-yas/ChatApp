@@ -1,0 +1,69 @@
+package com.yerayyas.chatappkotlinproject.presentation.components
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.yerayyas.chatappkotlinproject.data.model.ChatListItem
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun ChatListItem(
+    chat: ChatListItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = chat.otherUsername,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = chat.lastMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                text = formatTimestamp(chat.timestamp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val date = Date(timestamp)
+    val now = Date()
+    val diff = now.time - date.time
+    val minutes = diff / (60 * 1000)
+    val hours = minutes / 60
+    val days = hours / 24
+
+    return when {
+        minutes < 60 -> "Ahora"
+        hours < 24 -> "$hours h"
+        days < 7 -> "$days d"
+        else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
+    }
+} 

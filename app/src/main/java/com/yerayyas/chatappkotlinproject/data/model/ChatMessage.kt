@@ -7,10 +7,17 @@ data class ChatMessage(
     val message: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val imageUrl: String? = null,
-    val messageType: MessageType = MessageType.TEXT
+    val messageType: MessageType = MessageType.TEXT,
+    val readStatus: ReadStatus = ReadStatus.SENT
 )
 
 enum class MessageType {
     TEXT,
     IMAGE
+}
+
+enum class ReadStatus {
+    SENT,
+    DELIVERED,
+    READ
 }

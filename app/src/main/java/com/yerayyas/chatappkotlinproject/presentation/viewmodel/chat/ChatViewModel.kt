@@ -12,6 +12,7 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.storage.FirebaseStorage
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
+import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,20 +31,26 @@ class ChatViewModel @Inject constructor(
     val messages: StateFlow<List<ChatMessage>> = _messages
 
     private var messagesListener: ValueEventListener? = null
+    private var currentChatId: String? = null
+    private var otherUserId: String? = null
 
     fun getCurrentUserId(): String {
         return auth.currentUser?.uid ?: ""
     }
 
-    fun loadMessages(receiverId: String) {
+    fun loadMessages(otherUserId: String) {
         val currentUserId = auth.currentUser?.uid ?: return
-        val chatId = if (currentUserId < receiverId) {
-            "$currentUserId-$receiverId"
+        this.otherUserId = otherUserId
+        currentChatId = if (currentUserId < otherUserId) {
+            "$currentUserId-$otherUserId"
         } else {
-            "$receiverId-$currentUserId"
+            "$otherUserId-$currentUserId"
         }
 
-        messagesListener = database.child("Chats").child("Messages").child(chatId)
+        Log.d("ChatViewModel", "Loading messages for chat: $currentChatId")
+        Log.d("ChatViewModel", "Current user: $currentUserId, Other user: $otherUserId")
+
+        messagesListener = database.child("Chats").child("Messages").child(currentChatId!!)
             .orderByChild("timestamp")
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -51,12 +58,58 @@ class ChatViewModel @Inject constructor(
                         messageSnapshot.getValue(ChatMessage::class.java)
                     }.sortedBy { it.timestamp }
                     _messages.value = messagesList
+                    
+                    // Log del último mensaje
+                    if (messagesList.isNotEmpty()) {
+                        val lastMessage = messagesList.last()
+                        Log.d("ChatViewModel", "Last message status: ${lastMessage.readStatus}")
+                        Log.d("ChatViewModel", "Last message sender: ${lastMessage.senderId}")
+                        Log.d("ChatViewModel", "Last message receiver: ${lastMessage.receiverId}")
+
+                        // Si hay mensajes no leídos dirigidos a nosotros, marcarlos como leídos
+                        val unreadMessages = messagesList.filter { 
+                            it.receiverId == currentUserId && it.readStatus != ReadStatus.READ 
+                        }
+                        if (unreadMessages.isNotEmpty()) {
+                            markMessagesAsRead()
+                        }
+                    }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
                     Log.e("ChatViewModel", "Error loading messages", error.toException())
                 }
             })
+    }
+
+    private fun markMessagesAsRead() {
+        viewModelScope.launch {
+            try {
+                val currentUserId = auth.currentUser?.uid ?: return@launch
+                val chatId = currentChatId ?: return@launch
+
+                Log.d("ChatViewModel", "Marking messages as read for chat: $chatId")
+
+                // Obtener todos los mensajes no leídos
+                val messagesRef = database.child("Chats").child("Messages").child(chatId)
+                val snapshot = messagesRef.get().await()
+                
+                var updatedCount = 0
+                snapshot.children.forEach { messageSnapshot ->
+                    val message = messageSnapshot.getValue(ChatMessage::class.java)
+                    // Solo marcar como leídos los mensajes dirigidos a nosotros
+                    if (message?.receiverId == currentUserId && message.readStatus != ReadStatus.READ) {
+                        Log.d("ChatViewModel", "Updating message ${message.id} to READ")
+                        // Actualizar el estado de lectura
+                        messageSnapshot.ref.child("readStatus").setValue(ReadStatus.READ)
+                        updatedCount++
+                    }
+                }
+                Log.d("ChatViewModel", "Updated $updatedCount messages to READ")
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error marking messages as read", e)
+            }
+        }
     }
 
     fun sendMessage(receiverId: String, messageText: String) {
@@ -78,7 +131,8 @@ class ChatViewModel @Inject constructor(
                     receiverId = receiverId,
                     message = messageText,
                     timestamp = System.currentTimeMillis(),
-                    messageType = MessageType.TEXT
+                    messageType = MessageType.TEXT,
+                    readStatus = ReadStatus.SENT
                 )
 
                 messageRef.setValue(message)
@@ -113,7 +167,8 @@ class ChatViewModel @Inject constructor(
                     message = "Imagen",
                     timestamp = System.currentTimeMillis(),
                     imageUrl = imageUrl,
-                    messageType = MessageType.IMAGE
+                    messageType = MessageType.IMAGE,
+                    readStatus = ReadStatus.SENT
                 )
 
                 messageRef.setValue(message)

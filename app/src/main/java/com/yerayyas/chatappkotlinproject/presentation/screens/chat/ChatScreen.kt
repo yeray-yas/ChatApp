@@ -52,6 +52,7 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
+import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
 import java.util.Locale
 
@@ -73,14 +74,15 @@ fun ChatScreen(
         uri?.let { chatViewModel.sendImage(userId, it) }
     }
 
+    // Cargar mensajes cuando se abre el chat
     LaunchedEffect(userId) {
         chatViewModel.loadMessages(userId)
     }
 
     // Scroll automático al final cuando hay nuevos mensajes
-    LaunchedEffect(messages.size) {
+    LaunchedEffect(messages) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+            listState.scrollToItem(0)
         }
     }
 
@@ -111,11 +113,13 @@ fun ChatScreen(
                 state = listState,
                 reverseLayout = true
             ) {
-                items(messages.reversed()) { message ->
+                items(messages.reversed().size) { index ->
+                    val message = messages.reversed()[index]
                     ChatMessageItem(
                         message = message,
                         currentUserId = chatViewModel.getCurrentUserId(),
-                        navController = navController
+                        navController = navController,
+                        isLastMessage = index == 0
                     )
                 }
             }
@@ -181,7 +185,12 @@ private fun MessageImage(
 }
 
 @Composable
-fun ChatMessageItem(message: ChatMessage, currentUserId: String, navController: NavHostController) {
+fun ChatMessageItem(
+    message: ChatMessage,
+    currentUserId: String,
+    navController: NavHostController,
+    isLastMessage: Boolean = false
+) {
     val isMe = message.senderId == currentUserId
     Row(
         modifier = Modifier
@@ -197,17 +206,32 @@ fun ChatMessageItem(message: ChatMessage, currentUserId: String, navController: 
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            when (message.messageType) {
-                MessageType.TEXT -> {
-                    Text(
-                        text = message.message,
-                        color = if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                MessageType.IMAGE -> {
-                    message.imageUrl?.let { url ->
-                        MessageImage(url = url, navController = navController)
+            Column {
+                when (message.messageType) {
+                    MessageType.TEXT -> {
+                        Text(
+                            text = message.message,
+                            color = if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                    MessageType.IMAGE -> {
+                        message.imageUrl?.let { url ->
+                            MessageImage(url = url, navController = navController)
+                        }
+                    }
+                }
+                
+                if (isMe && isLastMessage) {
+                    Text(
+                        text = when (message.readStatus) {
+                            ReadStatus.SENT -> "Enviado"
+                            ReadStatus.DELIVERED -> "Entregado"
+                            ReadStatus.READ -> "Visto"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isMe) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.End)
+                    )
                 }
             }
         }

@@ -20,4 +20,7 @@
     <string name="menu">Menu</string>
     <string name="save_profile_data_btn">Save</string>
 
+
+    <string name="no_authenticated_user">There is no authenticated user</string>
+
 </resources>

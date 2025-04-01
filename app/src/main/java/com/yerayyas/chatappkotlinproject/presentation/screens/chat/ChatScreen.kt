@@ -2,6 +2,7 @@ package com.yerayyas.chatappkotlinproject.presentation.screens.chat
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -14,8 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -65,8 +69,12 @@ fun ChatScreen(
     username: String
 ) {
     val messages by chatViewModel.messages.collectAsState()
+    val isLoading by chatViewModel.isLoading.collectAsState()
+    val error by chatViewModel.error.collectAsState()
+    
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -86,6 +94,13 @@ fun ChatScreen(
         }
     }
 
+    // Mostrar errores como Toast
+    LaunchedEffect(error) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -100,37 +115,59 @@ fun ChatScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            LazyColumn(
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Lista de mensajes
+                Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
                     .padding(8.dp),
-                state = listState,
-                reverseLayout = true
-            ) {
-                items(messages.reversed().size) { index ->
-                    val message = messages.reversed()[index]
-                    ChatMessageItem(
-                        message = message,
-                        currentUserId = chatViewModel.getCurrentUserId(),
-                        navController = navController,
-                        isLastMessage = index == 0
-                    )
+                        state = listState,
+                        reverseLayout = true
+                    ) {
+                        items(messages.reversed().size) { index ->
+                            val message = messages.reversed()[index]
+                            ChatMessageItem(
+                                message = message,
+                                currentUserId = chatViewModel.getCurrentUserId(),
+                                navController = navController,
+                                isLastMessage = index == 0
+                            )
+                        }
+                    }
+                    
+                    // Indicador de carga
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .align(Alignment.Center)
+                        )
+                    }
                 }
-            }
 
+                // Input de mensajes
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                    IconButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        enabled = !isLoading
+                    ) {
                     Icon(Icons.Default.AttachFile, contentDescription = "Adjuntar archivo")
                 }
 
@@ -141,16 +178,25 @@ fun ChatScreen(
                     placeholder = { Text("Escribe un mensaje...") },
                     keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
+                            if (!isLoading && messageText.isNotBlank()) {
                         chatViewModel.sendMessage(userId, messageText)
                         messageText = ""
-                    })
+                            }
+                        }),
+                        enabled = !isLoading
                 )
 
-                IconButton(onClick = {
+                    IconButton(
+                        onClick = {
+                            if (!isLoading && messageText.isNotBlank()) {
                     chatViewModel.sendMessage(userId, messageText)
                     messageText = ""
-                }) {
+                            }
+                        },
+                        enabled = !isLoading && messageText.isNotBlank()
+                    ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar mensaje")
+                    }
                 }
             }
         }
@@ -185,55 +231,76 @@ private fun MessageImage(
 }
 
 @Composable
-fun ChatMessageItem(
+private fun ChatMessageItem(
     message: ChatMessage,
     currentUserId: String,
     navController: NavHostController,
     isLastMessage: Boolean = false
 ) {
-    val isMe = message.senderId == currentUserId
+    val isMe = message.isSentBy(currentUserId)
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
     ) {
-        Box(
+        Column(
             modifier = Modifier
+                .widthIn(max = 280.dp)
                 .background(
-                    if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    color = getBubbleColor(isMe),
                     shape = RoundedCornerShape(12.dp)
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Column {
-                when (message.messageType) {
-                    MessageType.TEXT -> {
-                        Text(
-                            text = message.message,
-                            color = if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    MessageType.IMAGE -> {
-                        message.imageUrl?.let { url ->
-                            MessageImage(url = url, navController = navController)
-                        }
-                    }
-                }
-                
-                if (isMe && isLastMessage) {
+            when (message.messageType) {
+                MessageType.TEXT -> {
                     Text(
-                        text = when (message.readStatus) {
-                            ReadStatus.SENT -> "Enviado"
-                            ReadStatus.DELIVERED -> "Entregado"
-                            ReadStatus.READ -> "Visto"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isMe) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.End)
+                        text = message.message,
+                        color = getTextColor(isMe),
+                        modifier = Modifier.wrapContentWidth()
                     )
                 }
+                MessageType.IMAGE -> {
+                    message.imageUrl?.let { url ->
+                        MessageImage(url = url, navController = navController)
+                    }
+                }
+            }
+            
+            if (isMe && isLastMessage) {
+                Text(
+                    text = when (message.readStatus) {
+                        ReadStatus.SENT -> "Enviado"
+                        ReadStatus.DELIVERED -> "Entregado"
+                        ReadStatus.READ -> "Visto"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 4.dp)
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun getBubbleColor(isMe: Boolean): Color {
+    return if (isMe) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+}
+
+@Composable
+private fun getTextColor(isMe: Boolean): Color {
+    return if (isMe) {
+        Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
 }

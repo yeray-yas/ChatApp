@@ -1,11 +1,14 @@
 package com.yerayyas.chatappkotlinproject.presentation.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yerayyas.chatappkotlinproject.data.model.ChatListItem
@@ -32,10 +35,32 @@ fun ChatListItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = chat.otherUsername,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = chat.otherUsername,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (chat.unreadCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = chat.unreadCount.toString(),
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = chat.lastMessage,
                     style = MaterialTheme.typography.bodyMedium,

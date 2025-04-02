@@ -7,6 +7,7 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.ValueEventListener
 import com.yerayyas.chatappkotlinproject.data.model.ChatListItem
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
+import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,8 +23,12 @@ class ChatsListViewModel @Inject constructor(
     private val _chats = MutableStateFlow<List<ChatListItem>>(emptyList())
     val chats: StateFlow<List<ChatListItem>> = _chats.asStateFlow()
 
+    private val _unreadMessagesCount = MutableStateFlow(0)
+    val unreadMessagesCount: StateFlow<Int> = _unreadMessagesCount.asStateFlow()
+
     init {
         loadChats()
+        loadUnreadMessagesCount()
     }
 
     private fun loadChats() {
@@ -61,6 +66,11 @@ class ChatsListViewModel @Inject constructor(
                                 }
                                 Log.d("ChatsListViewModel", "Other user ID: $otherUserId")
                                 
+                                // Calcular mensajes no leídos para este chat
+                                val unreadCount = messages.count { 
+                                    it.receiverId == currentUserId && it.readStatus != ReadStatus.READ 
+                                }
+                                
                                 // Obtener el nombre de usuario del otro usuario
                                 database.child("Users").child(otherUserId)
                                     .child("public")
@@ -76,7 +86,8 @@ class ChatsListViewModel @Inject constructor(
                                                 otherUserId = otherUserId,
                                                 otherUsername = username,
                                                 lastMessage = message.message,
-                                                timestamp = message.timestamp
+                                                timestamp = message.timestamp,
+                                                unreadCount = unreadCount
                                             )
                                         )
                                         
@@ -94,6 +105,40 @@ class ChatsListViewModel @Inject constructor(
             
             override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                 Log.e("ChatsListViewModel", "Error loading chats", error.toException())
+            }
+        })
+    }
+
+    private fun loadUnreadMessagesCount() {
+        val currentUserId = auth.currentUser?.uid ?: return
+        Log.d("ChatsListViewModel", "Loading unread messages count for user: $currentUserId")
+        
+        val chatsRef = database.child("Chats").child("Messages")
+        
+        chatsRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                var totalUnread = 0
+                
+                snapshot.children.forEach { chatSnapshot ->
+                    val chatId = chatSnapshot.key ?: return@forEach
+                    
+                    // Verificar si el chat pertenece al usuario actual
+                    if (chatId.contains(currentUserId)) {
+                        chatSnapshot.children.forEach { messageSnapshot ->
+                            val message = messageSnapshot.getValue(ChatMessage::class.java)
+                            if (message?.receiverId == currentUserId && message.readStatus != ReadStatus.READ) {
+                                totalUnread++
+                            }
+                        }
+                    }
+                }
+                
+                Log.d("ChatsListViewModel", "Total unread messages: $totalUnread")
+                _unreadMessagesCount.value = totalUnread
+            }
+            
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                Log.e("ChatsListViewModel", "Error loading unread messages count", error.toException())
             }
         })
     }

@@ -8,5 +8,5 @@ data class User(
     val profileImage: String,// Mapea con "image" en Firebase
     val status: String,      // Mapea directo ("online"/"offline")
     val isOnline: Boolean,   // Se calcula desde "status"
-    val lastSeen: Long = 0   // No está en Firebase actualmente 
+    val lastSeen: Long = 0   // No está en Firebase
 )

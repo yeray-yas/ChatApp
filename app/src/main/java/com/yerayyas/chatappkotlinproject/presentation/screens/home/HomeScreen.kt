@@ -56,13 +56,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     navController: NavHostController,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    chatsListViewModel: ChatsListViewModel = hiltViewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
     val tabs = listOf("Users", "Chats")
     var showMenu by remember { mutableStateOf(false) }
     val username by viewModel.username.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val unreadMessagesCount by chatsListViewModel.unreadMessagesCount.collectAsState()
     val context = LocalContext.current
 
     val pagerState = rememberPagerState(
@@ -150,7 +152,13 @@ fun HomeScreen(
                         onClick = {
                             coroutineScope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        text = { Text(title) }
+                        text = {
+                            if (index == 1 && unreadMessagesCount > 0) {
+                                Text("[$unreadMessagesCount] $title")
+                            } else {
+                                Text(title)
+                            }
+                        }
                     )
                 }
             }

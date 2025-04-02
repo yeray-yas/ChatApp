@@ -5,5 +5,6 @@ data class ChatListItem(
     val otherUserId: String,
     val otherUsername: String,
     val lastMessage: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val unreadCount: Int = 0
 ) 

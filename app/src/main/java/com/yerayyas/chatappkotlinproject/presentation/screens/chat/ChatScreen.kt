@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -71,7 +74,7 @@ fun ChatScreen(
     val messages by chatViewModel.messages.collectAsState()
     val isLoading by chatViewModel.isLoading.collectAsState()
     val error by chatViewModel.error.collectAsState()
-    
+
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -118,21 +121,26 @@ fun ChatScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
         ) {
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = paddingValues.calculateTopPadding(),
+                        start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
+                        end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
+                    )
             ) {
                 // Lista de mensajes
                 Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
                 ) {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                    .padding(8.dp),
+                            .padding(8.dp),
                         state = listState,
                         reverseLayout = true
                     ) {
@@ -146,56 +154,56 @@ fun ChatScreen(
                             )
                         }
                     }
-                    
+
                     // Indicador de carga
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(1.dp)
                                 .align(Alignment.Center)
                         )
                     }
                 }
 
                 // Input de mensajes
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
                         onClick = { imagePickerLauncher.launch("image/*") },
                         enabled = !isLoading
                     ) {
-                    Icon(Icons.Default.AttachFile, contentDescription = "Adjuntar archivo")
-                }
+                        Icon(Icons.Default.AttachFile, contentDescription = "Adjuntar archivo")
+                    }
 
-                TextField(
-                    value = messageText,
-                    onValueChange = { messageText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Escribe un mensaje...") },
-                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = {
+                    TextField(
+                        value = messageText,
+                        onValueChange = { messageText = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Escribe un mensaje...") },
+                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = {
                             if (!isLoading && messageText.isNotBlank()) {
-                        chatViewModel.sendMessage(userId, messageText)
-                        messageText = ""
+                                chatViewModel.sendMessage(userId, messageText)
+                                messageText = ""
                             }
                         }),
                         enabled = !isLoading
-                )
+                    )
 
                     IconButton(
                         onClick = {
                             if (!isLoading && messageText.isNotBlank()) {
-                    chatViewModel.sendMessage(userId, messageText)
-                    messageText = ""
+                                chatViewModel.sendMessage(userId, messageText)
+                                messageText = ""
                             }
                         },
                         enabled = !isLoading && messageText.isNotBlank()
                     ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar mensaje")
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar mensaje")
                     }
                 }
             }
@@ -238,7 +246,7 @@ private fun ChatMessageItem(
     isLastMessage: Boolean = false
 ) {
     val isMe = message.isSentBy(currentUserId)
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -268,7 +276,7 @@ private fun ChatMessageItem(
                     }
                 }
             }
-            
+
             if (isMe && isLastMessage) {
                 Text(
                     text = when (message.readStatus) {

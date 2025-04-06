@@ -12,21 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,7 +59,6 @@ fun UserListItem(
         ) {
             ProfileImage(user.profileImage)
             UserInfoSection(user, Modifier.weight(1f))
-            UserStatusAndActions()
         }
     }
 }
@@ -168,32 +157,4 @@ private fun OnlineStatusIndicator(isOnline: Boolean) {
     )
 }
 
-@Composable
-private fun UserStatusAndActions() {
-    var showMenu by remember { mutableStateOf(false) }
-
-    Box {
-        IconButton(onClick = { showMenu = true }) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Options",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Start chat") },
-                onClick = { showMenu = false /* Acción para iniciar chat */ }
-            )
-            DropdownMenuItem(
-                text = { Text("See profile") },
-                onClick = { showMenu = false /* Acción para ver perfil */ }
-            )
-        }
-    }
-}
 

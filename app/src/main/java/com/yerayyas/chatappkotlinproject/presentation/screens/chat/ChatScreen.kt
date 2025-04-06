@@ -60,6 +60,7 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
 import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
+import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
 import java.util.Locale
 
@@ -107,13 +108,18 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = username.replaceFirstChar {
-                    if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
-                }, style = MaterialTheme.typography.titleMedium) },
+                title = {
+                    Text(text = username.replaceFirstChar {
+                        if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
+                    }, style = MaterialTheme.typography.titleMedium)
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    UserStatusAndActions()
                 }
             )
         }
@@ -270,6 +276,7 @@ private fun ChatMessageItem(
                         modifier = Modifier.wrapContentWidth()
                     )
                 }
+
                 MessageType.IMAGE -> {
                     message.imageUrl?.let { url ->
                         MessageImage(url = url, navController = navController)

@@ -18,7 +18,7 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.auth.LoginScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.SignUpScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.ChatScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.home.HomeScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.intro.MainScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.main.MainScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.ConfirmProfilePhotoScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.EditUserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen

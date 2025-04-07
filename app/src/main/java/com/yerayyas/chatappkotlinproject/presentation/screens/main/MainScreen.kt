@@ -1,4 +1,4 @@
-package com.yerayyas.chatappkotlinproject.presentation.screens.intro
+package com.yerayyas.chatappkotlinproject.presentation.screens.main
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

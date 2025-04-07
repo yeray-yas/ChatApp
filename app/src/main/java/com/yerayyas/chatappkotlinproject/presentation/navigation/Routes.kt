@@ -57,5 +57,9 @@ sealed class Routes(
     data object Chat : Routes("chat/{userId}?username={username}") {
         fun createRoute(userId: String, username: String = "User") = "chat/$userId?username=$username"
     }
+
+    data object OtherUsersProfile : Routes("other_profile/{userId}?username={username}") {
+        fun createRoute(userId: String, username: String = "User") = "other_profile/$userId?username=$username"
+    }
 }
 

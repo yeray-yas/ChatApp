@@ -119,7 +119,11 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    UserStatusAndActions()
+                    UserStatusAndActions(
+                        navController = navController,
+                        userId = userId,
+                        username = username
+                    )
                 }
             )
         }

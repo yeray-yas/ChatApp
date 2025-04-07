@@ -24,6 +24,7 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.EditUserPr
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenImageScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsersProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
 @Composable
@@ -79,6 +80,25 @@ fun NavigationWrapper(
         composable("fullScreenImage/{imageId}") { backStackEntry ->
             val imageId = backStackEntry.arguments?.getString("imageId") ?: return@composable
             FullScreenImageScreen(navController = navController, imageId = imageId)
+        }
+
+        composable(
+            route = Routes.OtherUsersProfile.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("username") {
+                    type = NavType.StringType
+                    defaultValue = "User"
+                }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")!!
+            val username = backStackEntry.arguments?.getString("username") ?: "User"
+            OtherUsersProfileScreen(
+                navController = navController,
+                userId = userId,
+                username = username
+            )
         }
     }
 }

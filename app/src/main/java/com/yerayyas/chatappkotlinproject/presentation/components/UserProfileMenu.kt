@@ -15,10 +15,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 
 @Composable
-fun UserStatusAndActions() {
+fun UserStatusAndActions(
+    navController: NavHostController,
+    userId: String,
+    username: String
+) {
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
@@ -38,6 +44,7 @@ fun UserStatusAndActions() {
                 text = { Text(text = stringResource(R.string.see_profile)) },
                 onClick = {
                     showMenu = false
+                    navController.navigate(Routes.OtherUsersProfile.createRoute(userId, username))
 
                 }
             )

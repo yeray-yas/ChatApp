@@ -64,6 +64,7 @@ dependencies {
     implementation (libs.firebase.auth.ktx)
     implementation (libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.firebase.database)
+    implementation (libs.firebase.messaging)
 
     // Extended Icons
     implementation(libs.androidx.material.icons.extended)
@@ -80,6 +81,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+
+    // Retrofit
+    implementation (libs.retrofit)
+    implementation (libs.converter.gson)
+
+    // WorkManager
+    implementation (libs.androidx.work.runtime.ktx)
 
     // Tests
     testImplementation(libs.junit)

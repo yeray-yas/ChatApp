@@ -34,6 +34,17 @@ import com.yerayyas.chatappkotlinproject.presentation.components.PasswordTextFie
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.auth.SignUpViewModel
 import kotlinx.coroutines.delay
 
+/**
+ * Composable function for the sign-up screen in the chat application.
+ *
+ * This screen allows a new user to create an account by providing a username, email,
+ * and password.
+ *
+ * It includes input validation, error handling via toast messages, and visual feedback
+ * (such as loading indicators) during the sign-up process.
+ *
+ * @param navController Controller used to navigate between composable screens.
+ */
 @Composable
 fun SignUpScreen(navController: NavController) {
     val viewModel: SignUpViewModel = hiltViewModel()

@@ -34,6 +34,15 @@ import com.yerayyas.chatappkotlinproject.presentation.components.PasswordTextFie
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.auth.LoginViewModel
 import kotlinx.coroutines.delay
 
+/**
+ * Composable that displays the login screen UI.
+ *
+ * This screen provides input fields for the user's email and password, handles form validation,
+ * shows error messages as toast notifications and inline text, and displays a loading indicator during authentication.
+ * Upon successful login, the user is navigated to the Home screen.
+ *
+ * @param navController NavController used for navigating between composable destinations.
+ */
 @Composable
 fun LoginScreen(navController: NavController) {
     val viewModel: LoginViewModel = hiltViewModel()
@@ -52,7 +61,9 @@ fun LoginScreen(navController: NavController) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -60,7 +71,9 @@ fun LoginScreen(navController: NavController) {
             value = email,
             onValueChange = { email = it },
             placeholder = { Text("Email") },
-            modifier = Modifier.fillMaxWidth().padding(5.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp),
             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Email)
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -68,7 +81,9 @@ fun LoginScreen(navController: NavController) {
             value = password,
             onValueChange = { password = it },
             placeholder = "Password",
-            modifier = Modifier.fillMaxWidth().padding(5.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Box(
@@ -108,7 +123,9 @@ fun LoginScreen(navController: NavController) {
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth().padding(5.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp)
         ) {
             Text("Log In")
         }

@@ -4,7 +4,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,76 +14,85 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "ChatViewModel"
 
 /**
- * ViewModel para la pantalla de chat.
- * Gestiona la lógica de presentación y el estado de la UI.
+ * ViewModel for the chat screen.
+ * Manages presentation logic and UI state.
+ *
+ * This ViewModel handles fetching chat messages, sending text messages, and sending images.
+ * It uses a `ChatRepository` to interact with the backend and Firebase.
+ * The UI state includes messages, loading status, and error handling.
  */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val auth: FirebaseAuth,
     private val chatRepository: ChatRepository
 ) : ViewModel() {
-    
-    // Estados para la UI
+
+    /**
+     * A flow of chat messages to be displayed in the UI.
+     */
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
-    
+
+    /**
+     * A flow representing the loading state of the chat.
+     * True when messages are being loaded, false otherwise.
+     */
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-    
+
+    /**
+     * A flow for error messages to be shown in the UI.
+     * It holds an error message if something goes wrong, or null if no error.
+     */
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private var otherUserId: String? = null
 
     /**
-     * Obtiene el ID del usuario actual.
-     * @return ID del usuario actual o cadena vacía si no hay usuario autenticado
+     * Retrieves the ID of the currently authenticated user.
+     *
+     * @return The ID of the current user, or an empty string if no user is authenticated.
      */
     fun getCurrentUserId(): String = chatRepository.getCurrentUserId()
 
     /**
-     * Carga los mensajes de un chat con otro usuario.
-     * @param otherUserId ID del otro usuario en el chat
+     * Loads messages from the chat with another user.
+     *
+     * @param otherUserId The ID of the other user in the chat.
      */
     fun loadMessages(otherUserId: String) {
         this.otherUserId = otherUserId
-        
-        // Inicialmente establecemos isLoading a true
+
         _isLoading.value = true
         _error.value = null
-        
+
         chatRepository.getMessages(otherUserId)
-            .onStart { 
-                // Ya establecimos isLoading a true antes, así que no es necesario aquí
-            }
             .onEach { messagesList ->
                 _messages.value = messagesList
-                // Aseguramos que isLoading se establezca a false cuando recibimos mensajes
                 _isLoading.value = false
             }
             .catch { e ->
                 Log.e(TAG, "Error loading messages", e)
-                _error.value = "Error al cargar los mensajes: ${e.message}"
+                _error.value = "Error loading messages: ${e.message}"
                 _isLoading.value = false
             }
-            .onCompletion { 
-                // Aseguramos que isLoading se establezca a false cuando termina el flujo
+            .onCompletion {
                 _isLoading.value = false
             }
             .launchIn(viewModelScope)
     }
 
     /**
-     * Envía un mensaje de texto al otro usuario.
-     * @param receiverId ID del usuario receptor
-     * @param messageText Texto del mensaje a enviar
+     * Sends a text message to another user.
+     *
+     * @param receiverId The ID of the receiving user.
+     * @param messageText The content of the message to send.
      */
     fun sendMessage(receiverId: String, messageText: String) {
         if (messageText.isBlank()) return
@@ -95,15 +103,16 @@ class ChatViewModel @Inject constructor(
                 chatRepository.sendTextMessage(receiverId, messageText)
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending message", e)
-                _error.value = "Error al enviar el mensaje: ${e.message}"
+                _error.value = "Error sending message: ${e.message}"
             }
         }
     }
 
     /**
-     * Envía una imagen al otro usuario.
-     * @param receiverId ID del usuario receptor
-     * @param imageUri URI de la imagen a enviar
+     * Sends an image to another user.
+     *
+     * @param receiverId The ID of the receiving user.
+     * @param imageUri The URI of the image to send.
      */
     fun sendImage(receiverId: String, imageUri: Uri) {
         viewModelScope.launch {
@@ -113,7 +122,7 @@ class ChatViewModel @Inject constructor(
                 chatRepository.sendImageMessage(receiverId, imageUri)
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending image", e)
-                _error.value = "Error al enviar la imagen: ${e.message}"
+                _error.value = "Error sending image: ${e.message}"
             } finally {
                 _isLoading.value = false
             }

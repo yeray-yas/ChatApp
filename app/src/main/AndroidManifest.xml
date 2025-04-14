@@ -38,24 +38,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <service
-            android:name=".notifications.MyFirebaseMessagingService"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <service android:name=".notifications.MyFirebaseInstanceIdService"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="TODO">
-            <intent-filter>
-                <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
-            </intent-filter>
-        </service>
-
     </application>
 
 </manifest>

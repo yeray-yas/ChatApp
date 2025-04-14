@@ -27,6 +27,16 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenIma
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsersProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
+/**
+ * A composable function that wraps the navigation logic of the application using Jetpack Compose Navigation.
+ *
+ * This function defines the navigation graph for the app, setting up all the composable destinations
+ * and handling navigation logic after the splash screen based on user authentication status.
+ *
+ * @param modifier Optional [Modifier] to be applied to the NavHost.
+ * @param navController The [NavHostController] used for navigating between composable destinations.
+ * @param startDestination The route where navigation starts; defaults to [Routes.Splash.route].
+ */
 @Composable
 fun NavigationWrapper(
     modifier: Modifier = Modifier,
@@ -61,22 +71,28 @@ fun NavigationWrapper(
         composable(Routes.UserProfile.route) { UserProfileScreen(navController) }
         composable(Routes.EditUserProfile.route) { EditUserProfileScreen(navController) }
         composable(Routes.ConfirmPhoto.route) { ConfirmProfilePhotoScreen(navController) }
+
         composable(
             route = "chat/{userId}?username={username}",
             arguments = listOf(
                 navArgument("userId") { type = NavType.StringType },
-                navArgument("username") { type = NavType.StringType; defaultValue = "User" }
+                navArgument("username") {
+                    type = NavType.StringType
+                    defaultValue = "User"
+                }
             )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")!!
             val username = backStackEntry.arguments?.getString("username") ?: "User"
             ChatScreen(userId = userId, username = username, navController = navController)
         }
+
         composable("chat/{userId}/{username}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
             val username = backStackEntry.arguments?.getString("username") ?: return@composable
             ChatScreen(navController = navController, userId = userId, username = username)
         }
+
         composable("fullScreenImage/{imageId}") { backStackEntry ->
             val imageId = backStackEntry.arguments?.getString("imageId") ?: return@composable
             FullScreenImageScreen(navController = navController, imageId = imageId)
@@ -102,5 +118,6 @@ fun NavigationWrapper(
         }
     }
 }
+
 
 

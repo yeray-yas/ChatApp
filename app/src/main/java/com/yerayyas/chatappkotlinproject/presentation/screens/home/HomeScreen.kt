@@ -52,6 +52,16 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewMod
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.ChatsListViewModel
 import kotlinx.coroutines.launch
 
+/**
+ * Composable function representing the main Home screen of the app.
+ *
+ * Displays a top app bar with user info, menu actions (profile, about, delete user, sign out),
+ * and a tab layout for navigating between Users and Chats sections.
+ *
+ * @param navController Navigation controller for navigating between screens.
+ * @param viewModel ViewModel providing user-related state and actions.
+ * @param chatsListViewModel ViewModel managing chat list state, including unread messages.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -122,7 +132,7 @@ fun HomeScreen(
                                             popUpTo(0) { inclusive = true }
                                         }
                                     } else {
-                                        Toast.makeText(context, "Error al borrar la cuenta: $error", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "Error erasing the count: $error", Toast.LENGTH_LONG).show()
                                     }
                                 }
                                 showMenu = false
@@ -173,6 +183,12 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Composable function displaying the user search and user list UI.
+ *
+ * @param viewModel ViewModel managing user data and search state.
+ * @param navController Navigation controller for navigating to user chat screens.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UsersScreen(
@@ -213,7 +229,12 @@ private fun UsersScreen(
     }
 }
 
-
+/**
+ * Displays a list of users in a vertically scrollable column.
+ *
+ * @param viewModel ViewModel providing user data.
+ * @param navController Navigation controller for navigating to individual chats.
+ */
 @Composable
 private fun UsersList(
     viewModel: HomeViewModel = hiltViewModel(),
@@ -227,20 +248,25 @@ private fun UsersList(
         items(users) { user ->
             UserListItem(
                 user = user,
-                onItemClick = { navController.navigate(Routes.Chat.createRoute(user.id, user.username))
-                }
+                onItemClick = { navController.navigate(Routes.Chat.createRoute(user.id, user.username)) }
             )
         }
     }
 }
 
+/**
+ * Displays a list of recent chats in a vertically scrollable column.
+ *
+ * @param navController Navigation controller for navigating to specific chat screens.
+ * @param viewModel ViewModel providing chat data.
+ */
 @Composable
 private fun ChatsList(
     navController: NavHostController,
     viewModel: ChatsListViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
-    
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -255,4 +281,3 @@ private fun ChatsList(
         }
     }
 }
-

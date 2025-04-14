@@ -5,8 +5,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
-
-private const val ANIMATION_DURATION = 300
+import com.yerayyas.chatappkotlinproject.utils.Constants.ANIMATION_DURATION
 
 /**
  * Represents the different navigation routes in the application using a sealed class.

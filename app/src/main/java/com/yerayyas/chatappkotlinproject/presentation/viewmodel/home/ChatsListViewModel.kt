@@ -14,72 +14,91 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
+/**
+ * ViewModel responsible for managing and loading chat data for the chat list.
+ *
+ * This ViewModel handles the logic for fetching the list of chats, including
+ * messages and the number of unread messages for each chat. It listens for
+ * changes in the Firebase Realtime Database and updates the UI accordingly.
+ *
+ * Dependencies injected via Hilt:
+ * - FirebaseAuth: Used to get the current user's authentication status and user ID.
+ * - DatabaseReference: Used to access Firebase Realtime Database and load chat data.
+ *
+ * The ViewModel exposes the following properties:
+ * - [chats]: A state flow containing the list of chat items.
+ * - [unreadMessagesCount]: A state flow containing the total number of unread messages.
+ */
 @HiltViewModel
 class ChatsListViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val database: DatabaseReference
 ) : ViewModel() {
 
+    /**
+     * A state flow representing the list of chat items.
+     */
     private val _chats = MutableStateFlow<List<ChatListItem>>(emptyList())
     val chats: StateFlow<List<ChatListItem>> = _chats.asStateFlow()
 
+    /**
+     * A state flow representing the total number of unread messages.
+     */
     private val _unreadMessagesCount = MutableStateFlow(0)
     val unreadMessagesCount: StateFlow<Int> = _unreadMessagesCount.asStateFlow()
 
+    /**
+     * Initializes the ViewModel by loading chats and unread messages count.
+     */
     init {
         loadChats()
         loadUnreadMessagesCount()
     }
 
+    /**
+     * Loads the list of chats for the current user from the Firebase Realtime Database.
+     * This function listens for changes to the chat data and updates the list accordingly.
+     */
     private fun loadChats() {
         val currentUserId = auth.currentUser?.uid ?: return
-        Log.d("ChatsListViewModel", "Loading chats for user: $currentUserId")
-        
+
         val chatsRef = database.child("Chats").child("Messages")
-        Log.d("ChatsListViewModel", "Chats reference: Chats/Messages")
 
         chatsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                Log.d("ChatsListViewModel", "Data changed. Number of chats: ${snapshot.childrenCount}")
                 val chatList = mutableListOf<ChatListItem>()
-                
+
                 snapshot.children.forEach { chatSnapshot ->
                     val chatId = chatSnapshot.key ?: return@forEach
-                    Log.d("ChatsListViewModel", "Processing chat: $chatId")
-                    
-                    // Verificar si el chat pertenece al usuario actual
+
+                    // Check if the chat belongs to the current user
                     if (chatId.contains(currentUserId)) {
-                        Log.d("ChatsListViewModel", "Chat belongs to current user")
                         val messages = chatSnapshot.children.mapNotNull { messageSnapshot ->
                             messageSnapshot.getValue(ChatMessage::class.java)
                         }
-                        Log.d("ChatsListViewModel", "Number of messages in chat: ${messages.size}")
-                        
+
                         if (messages.isNotEmpty()) {
                             val lastMessage = messages.maxByOrNull { it.timestamp }
                             lastMessage?.let { message ->
-                                // Obtener el ID del otro usuario del chatId
                                 val otherUserId = if (chatId.startsWith(currentUserId)) {
-                                    chatId.substring(currentUserId.length + 1) // +1 para el guión
+                                    chatId.substring(currentUserId.length + 1)
                                 } else {
                                     chatId.substring(0, chatId.length - currentUserId.length - 1)
                                 }
-                                Log.d("ChatsListViewModel", "Other user ID: $otherUserId")
-                                
-                                // Calcular mensajes no leídos para este chat
-                                val unreadCount = messages.count { 
-                                    it.receiverId == currentUserId && it.readStatus != ReadStatus.READ 
+
+                                // Calculate unread message count for this chat
+                                val unreadCount = messages.count {
+                                    it.receiverId == currentUserId && it.readStatus != ReadStatus.READ
                                 }
-                                
-                                // Obtener el nombre de usuario del otro usuario
+
+                                // Fetch the other user's username
                                 database.child("Users").child(otherUserId)
                                     .child("public")
                                     .child("username")
                                     .get()
                                     .addOnSuccessListener { usernameSnapshot ->
-                                        val username = usernameSnapshot.getValue(String::class.java) ?: "Usuario"
-                                        Log.d("ChatsListViewModel", "Other username: $username")
-                                        
+                                        val username = usernameSnapshot.getValue(String::class.java) ?: "User"
+
                                         chatList.add(
                                             ChatListItem(
                                                 chatId = chatId,
@@ -90,9 +109,8 @@ class ChatsListViewModel @Inject constructor(
                                                 unreadCount = unreadCount
                                             )
                                         )
-                                        
+
                                         _chats.value = chatList.sortedByDescending { it.timestamp }
-                                        Log.d("ChatsListViewModel", "Updated chats list. Size: ${_chats.value.size}")
                                     }
                                     .addOnFailureListener { e ->
                                         Log.e("ChatsListViewModel", "Error getting username", e)
@@ -102,27 +120,30 @@ class ChatsListViewModel @Inject constructor(
                     }
                 }
             }
-            
+
             override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                 Log.e("ChatsListViewModel", "Error loading chats", error.toException())
             }
         })
     }
 
+    /**
+     * Loads the total count of unread messages for the current user from the Firebase Realtime Database.
+     * This function listens for changes to the message data and updates the unread message count.
+     */
     private fun loadUnreadMessagesCount() {
         val currentUserId = auth.currentUser?.uid ?: return
-        Log.d("ChatsListViewModel", "Loading unread messages count for user: $currentUserId")
-        
+
         val chatsRef = database.child("Chats").child("Messages")
-        
+
         chatsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 var totalUnread = 0
-                
+
                 snapshot.children.forEach { chatSnapshot ->
                     val chatId = chatSnapshot.key ?: return@forEach
-                    
-                    // Verificar si el chat pertenece al usuario actual
+
+                    // Check if the chat belongs to the current user
                     if (chatId.contains(currentUserId)) {
                         chatSnapshot.children.forEach { messageSnapshot ->
                             val message = messageSnapshot.getValue(ChatMessage::class.java)
@@ -132,14 +153,13 @@ class ChatsListViewModel @Inject constructor(
                         }
                     }
                 }
-                
-                Log.d("ChatsListViewModel", "Total unread messages: $totalUnread")
+
                 _unreadMessagesCount.value = totalUnread
             }
-            
+
             override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                 Log.e("ChatsListViewModel", "Error loading unread messages count", error.toException())
             }
         })
     }
-} 
+}

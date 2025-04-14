@@ -15,6 +15,17 @@ import com.yerayyas.chatappkotlinproject.data.model.ChatListItem
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * A composable function that displays a single chat item in the chat list.
+ *
+ * It shows the other user's name, the last message sent in the conversation,
+ * the number of unread messages (if any), and a formatted timestamp.
+ * The whole item is clickable and triggers the [onClick] callback when tapped.
+ *
+ * @param chat The [ChatListItem] containing the data to be displayed.
+ * @param onClick Lambda function to be executed when the item is clicked.
+ * @param modifier Optional [Modifier] for customizing layout and styling.
+ */
 @Composable
 fun ChatListItem(
     chat: ChatListItem,
@@ -77,6 +88,17 @@ fun ChatListItem(
     }
 }
 
+/**
+ * Formats a given timestamp into a human-readable string.
+ *
+ * - "Now" if less than an hour ago
+ * - "{x} h" if less than 24 hours ago
+ * - "{x} d" if within the last 7 days
+ * - "dd/MM/yy" format otherwise
+ *
+ * @param timestamp The timestamp in milliseconds.
+ * @return A formatted time string representing the recency of the message.
+ */
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)
     val now = Date()
@@ -86,9 +108,9 @@ private fun formatTimestamp(timestamp: Long): String {
     val days = hours / 24
 
     return when {
-        minutes < 60 -> "Ahora"
+        minutes < 60 -> "Now"
         hours < 24 -> "$hours h"
         days < 7 -> "$days d"
         else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
     }
-} 
+}

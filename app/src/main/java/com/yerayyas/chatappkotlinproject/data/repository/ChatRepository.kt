@@ -28,8 +28,14 @@ import javax.inject.Singleton
 private const val TAG = "ChatRepository"
 
 /**
- * Repositorio para manejar las operaciones relacionadas con los mensajes de chat.
- * Abstrae las operaciones de base de datos y almacenamiento.
+ * Repository responsible for handling chat-related operations.
+ * This includes message retrieval, message sending, and marking messages as read.
+ * It abstracts Firebase Realtime Database and Firebase Storage logic.
+ *
+ * @property context Application context used for error messages.
+ * @property auth FirebaseAuth instance to access the current user.
+ * @property database Firebase Realtime Database reference.
+ * @property storage Firebase Storage reference for uploading images.
  */
 @Singleton
 class ChatRepository @Inject constructor(
@@ -39,22 +45,23 @@ class ChatRepository @Inject constructor(
     private val storage: FirebaseStorage
 ) {
 
-    // Scope para lanzar corrutinas desde dentro de los callbacks
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
     /**
-     * Obtiene el ID del usuario actual.
-     * @return ID del usuario actual o cadena vacía si no hay usuario autenticado
+     * Returns the ID of the currently authenticated user.
+     *
+     * @return The current user ID, or an empty string if no user is authenticated.
      */
     fun getCurrentUserId(): String = auth.currentUser?.uid ?: ""
 
     /**
-     * Obtiene el ID del chat a partir de los IDs de usuarios.
-     * @param userId1 ID del primer usuario
-     * @param userId2 ID del segundo usuario
-     * @return ID del chat formado por la combinación de los IDs de usuario
+     * Generates a unique chat ID based on two user IDs.
+     *
+     * @param userId1 ID of the first user.
+     * @param userId2 ID of the second user.
+     * @return A deterministic chat ID composed of both user IDs.
      */
-    fun getChatId(userId1: String, userId2: String): String {
+    private fun getChatId(userId1: String, userId2: String): String {
         return if (userId1 < userId2) {
             "$userId1-$userId2"
         } else {
@@ -63,13 +70,14 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Obtiene los mensajes de un chat como un Flow.
-     * @param otherUserId ID del otro usuario en el chat
-     * @return Flow de lista de mensajes ordenados por timestamp
+     * Observes the list of messages in a chat as a cold Flow.
+     * Automatically marks messages as read if they were unread and addressed to the current user.
+     *
+     * @param otherUserId ID of the other user in the chat.
+     * @return A Flow emitting a sorted list of [ChatMessage]s by timestamp.
      */
     fun getMessages(otherUserId: String): Flow<List<ChatMessage>> = callbackFlow {
         val currentUserId = requireCurrentUserId()
-
         val chatId = getChatId(currentUserId, otherUserId)
         val messagesRef = database.child("Chats").child("Messages").child(chatId)
             .orderByChild("timestamp")
@@ -77,18 +85,16 @@ class ChatRepository @Inject constructor(
         val listener = messagesRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 try {
-                    val messagesList = snapshot.children.mapNotNull { messageSnapshot ->
-                        messageSnapshot.getValue(ChatMessage::class.java)
+                    val messagesList = snapshot.children.mapNotNull {
+                        it.getValue(ChatMessage::class.java)
                     }.sortedBy { it.timestamp }
 
                     trySend(messagesList)
 
-                    // Si hay mensajes no leídos dirigidos a nosotros, marcarlos como leídos
                     val unreadMessages = messagesList.filter {
                         it.receiverId == currentUserId && it.readStatus != ReadStatus.READ
                     }
                     if (unreadMessages.isNotEmpty()) {
-                        // Lanzar en una corrutina separada, ya que markMessagesAsRead es una función suspendida
                         repositoryScope.launch {
                             try {
                                 markMessagesAsRead(chatId)
@@ -115,8 +121,10 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Marca los mensajes como leídos en Firebase.
-     * @param chatId ID del chat
+     * Marks all unread messages directed to the current user in a specific chat as read.
+     *
+     * @param chatId The ID of the chat where messages should be updated.
+     * @throws Exception If any database operation fails.
      */
     suspend fun markMessagesAsRead(chatId: String) {
         try {
@@ -125,7 +133,6 @@ class ChatRepository @Inject constructor(
 
             Log.d(TAG, "Marking messages as read for chat: $chatId")
 
-            // Obtener todos los mensajes no leídos
             val messagesRef = database.child("Chats").child("Messages").child(chatId)
             val snapshot = messagesRef.get().await()
 
@@ -134,11 +141,11 @@ class ChatRepository @Inject constructor(
                 val message = messageSnapshot.getValue(ChatMessage::class.java)
                 if (message?.receiverId == currentUserId && message.readStatus != ReadStatus.READ) {
                     Log.d(TAG, "Updating message ${message.id} to READ")
-                    // Actualizar el estado de lectura
                     messageSnapshot.ref.child("readStatus").setValue(ReadStatus.READ).await()
                     updatedCount++
                 }
             }
+
             Log.d(TAG, "Updated $updatedCount messages to READ")
         } catch (e: Exception) {
             Log.e(TAG, "Error marking messages as read", e)
@@ -147,19 +154,20 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Envía un mensaje de texto al otro usuario.
-     * @param receiverId ID del usuario receptor
-     * @param messageText Texto del mensaje a enviar
+     * Sends a plain text message to another user.
+     *
+     * @param receiverId ID of the user who will receive the message.
+     * @param messageText Content of the text message to send.
+     * @throws Exception If message sending fails.
      */
     suspend fun sendTextMessage(receiverId: String, messageText: String) {
         if (messageText.isBlank()) return
 
         try {
             val currentUserId = requireCurrentUserId()
-
             val chatId = getChatId(currentUserId, receiverId)
-
             val messageRef = database.child("Chats").child("Messages").child(chatId).push()
+
             val message = ChatMessage(
                 id = messageRef.key ?: UUID.randomUUID().toString(),
                 senderId = currentUserId,
@@ -178,29 +186,29 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Envía una imagen al otro usuario.
-     * @param receiverId ID del usuario receptor
-     * @param imageUri URI de la imagen a enviar
+     * Sends an image message to another user by uploading the image to Firebase Storage
+     * and creating a message with the image's URL.
+     *
+     * @param receiverId ID of the user who will receive the image.
+     * @param imageUri URI of the image to upload and send.
+     * @throws Exception If image upload or message creation fails.
      */
     suspend fun sendImageMessage(receiverId: String, imageUri: Uri) {
         try {
             val currentUserId = requireCurrentUserId()
-
             val chatId = getChatId(currentUserId, receiverId)
 
-            // Subir imagen a Firebase Storage
             val imageFileName = "chat_images/${UUID.randomUUID()}.jpg"
             val imageRef = storage.reference.child(imageFileName)
             imageRef.putFile(imageUri).await()
             val imageUrl = imageRef.downloadUrl.await().toString()
 
-            // Crear mensaje con la imagen
             val messageRef = database.child("Chats").child("Messages").child(chatId).push()
             val message = ChatMessage(
                 id = messageRef.key ?: UUID.randomUUID().toString(),
                 senderId = currentUserId,
                 receiverId = receiverId,
-                message = "Imagen",
+                message = "Image",
                 timestamp = System.currentTimeMillis(),
                 imageUrl = imageUrl,
                 messageType = MessageType.IMAGE,
@@ -215,12 +223,13 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Obtiene el ID del usuario actual o lanza una excepción si no está autenticado.
-     * @return ID del usuario autenticado
-     * @throws IllegalStateException si no hay usuario autenticado
+     * Returns the authenticated user's ID or throws an exception if the user is not signed in.
+     *
+     * @return The current user ID.
+     * @throws IllegalStateException If no user is authenticated.
      */
     private fun requireCurrentUserId(): String {
         return auth.currentUser?.uid
             ?: throw IllegalStateException(context.getString(R.string.no_authenticated_user))
     }
-} 
+}

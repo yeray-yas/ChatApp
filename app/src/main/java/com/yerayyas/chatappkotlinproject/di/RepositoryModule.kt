@@ -13,14 +13,23 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Módulo Dagger Hilt para proporcionar instancias de repositorios.
+ * Dagger Hilt module that provides repository dependencies for the application.
+ *
+ * This module is installed in the SingletonComponent, making the provided instances
+ * available throughout the entire application lifecycle.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
 
     /**
-     * Proporciona una instancia singleton de ChatRepository.
+     * Provides a singleton instance of [ChatRepository].
+     *
+     * @param context The application context.
+     * @param auth An instance of [FirebaseAuth] used for authentication.
+     * @param database A [DatabaseReference] to the Firebase Realtime Database.
+     * @param storage An instance of [FirebaseStorage] for storing media files.
+     * @return A configured instance of [ChatRepository].
      */
     @Provides
     @Singleton
@@ -32,4 +41,4 @@ object RepositoryModule {
     ): ChatRepository {
         return ChatRepository(context, auth, database, storage)
     }
-} 
+}

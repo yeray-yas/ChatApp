@@ -34,6 +34,19 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.OtherUsersProfileViewModel
 
+/**
+ * Composable function that displays the profile screen of another user.
+ *
+ * This screen shows the user's profile image, username, and user ID.
+ * It also includes a top app bar with a back navigation button. The user data is fetched
+ * using a ViewModel and is displayed upon loading.
+ *
+ * @param navController The NavHostController used for navigation between screens.
+ * @param userId The unique identifier of the user whose profile is being displayed.
+ * @param username The username of the user (used as a fallback if user data is not loaded).
+ * @param viewModel The ViewModel responsible for fetching and holding the user's profile data.
+ *                  This is injected using Hilt.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
 @Composable
 fun OtherUsersProfileScreen(
@@ -51,7 +64,7 @@ fun OtherUsersProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Perfil de ${userData?.username ?: username}") },
+                title = { Text("${userData?.username ?: username}'s Profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -67,7 +80,6 @@ fun OtherUsersProfileScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Imagen circular con Glide
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -75,8 +87,8 @@ fun OtherUsersProfileScreen(
                     .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
             ) {
                 GlideImage(
-                    model = userData?.profileImage ?: R.drawable.galeria, // Añade un placeholder en tus recursos
-                    contentDescription = "Foto de perfil",
+                    model = userData?.profileImage ?: R.drawable.galeria,
+                    contentDescription = "Profile picture",
                     modifier = Modifier.fillMaxSize(),
                     requestBuilderTransform = {
                         it.override(100, 100)

@@ -52,7 +52,6 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
-import com.yerayyas.chatappkotlinproject.utils.animations.HamburgerToArrowAnimation
 import com.yerayyas.chatappkotlinproject.utils.bitmapToUri
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
@@ -162,7 +161,6 @@ fun UserProfileScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            HamburgerToArrowAnimation()
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start,

@@ -7,6 +7,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
+/**
+ * ViewModel for the main screen of the chat application.
+ *
+ * This ViewModel is responsible for managing user authentication state.
+ * It uses FirebaseAuth to check if the user is authenticated and updates
+ * the state accordingly. It also listens to authentication state changes
+ * and updates the `isUserAuthenticated` flow.
+ *
+ * @property auth The FirebaseAuth instance used to check the user's authentication status.
+ * @property _isUserAuthenticated A private MutableStateFlow that holds the authentication state.
+ * @property isUserAuthenticated A public immutable StateFlow that exposes the authentication state.
+ * @property authListener A listener that listens for changes in the authentication state.
+ */
 @HiltViewModel
 class MainScreenViewModel @Inject constructor(private val auth: FirebaseAuth) : ViewModel() {
 
@@ -20,11 +33,14 @@ class MainScreenViewModel @Inject constructor(private val auth: FirebaseAuth) : 
     init {
         auth.addAuthStateListener(authListener)
     }
-  
+
+    /**
+     * Called when the ViewModel is about to be destroyed.
+     * Removes the authentication state listener to prevent memory leaks.
+     */
     override fun onCleared() {
         super.onCleared()
         auth.removeAuthStateListener(authListener)
     }
 }
-
 

@@ -64,6 +64,17 @@ import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndAc
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
 import java.util.Locale
 
+/**
+ * ChatScreen displays the UI for a one-on-one chat conversation.
+ *
+ * It handles message input, sending text and image messages, displaying the chat history,
+ * showing loading indicators, and providing UI feedback for errors.
+ *
+ * @param navController Navigation controller used to navigate between screens.
+ * @param chatViewModel ViewModel providing chat data and logic.
+ * @param userId The ID of the other user in the chat.
+ * @param username The username of the other user, shown in the top app bar.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -86,19 +97,16 @@ fun ChatScreen(
         uri?.let { chatViewModel.sendImage(userId, it) }
     }
 
-    // Cargar mensajes cuando se abre el chat
     LaunchedEffect(userId) {
         chatViewModel.loadMessages(userId)
     }
 
-    // Scroll automático al final cuando hay nuevos mensajes
     LaunchedEffect(messages) {
         if (messages.isNotEmpty()) {
             listState.scrollToItem(0)
         }
     }
 
-    // Mostrar errores como Toast
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -129,8 +137,7 @@ fun ChatScreen(
         }
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
                 modifier = Modifier
@@ -141,7 +148,6 @@ fun ChatScreen(
                         end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
                     )
             ) {
-                // Lista de mensajes
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -165,7 +171,6 @@ fun ChatScreen(
                         }
                     }
 
-                    // Indicador de carga
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier
@@ -175,7 +180,6 @@ fun ChatScreen(
                     }
                 }
 
-                // Input de mensajes
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -186,14 +190,14 @@ fun ChatScreen(
                         onClick = { imagePickerLauncher.launch("image/*") },
                         enabled = !isLoading
                     ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = "Adjuntar archivo")
+                        Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
                     }
 
                     TextField(
                         value = messageText,
                         onValueChange = { messageText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Escribe un mensaje...") },
+                        placeholder = { Text("Type a message...") },
                         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = {
                             if (!isLoading && messageText.isNotBlank()) {
@@ -213,7 +217,7 @@ fun ChatScreen(
                         },
                         enabled = !isLoading && messageText.isNotBlank()
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar mensaje")
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send message")
                     }
                 }
             }
@@ -221,6 +225,13 @@ fun ChatScreen(
     }
 }
 
+/**
+ * Displays an image sent in a chat message with optional full-screen preview navigation.
+ *
+ * @param url URL of the image.
+ * @param navController Used to navigate to a full-screen image screen.
+ * @param modifier Modifier applied to the image view.
+ */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 private fun MessageImage(
@@ -230,24 +241,33 @@ private fun MessageImage(
 ) {
     GlideImage(
         model = url,
-        contentDescription = "Imagen del mensaje",
+        contentDescription = "Message image",
         modifier = modifier
             .size(200.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable {
                 try {
                     val imageId = url.hashCode().toString()
-                    Log.d("ChatMessageItem", "Navegando a imagen con ID: $imageId")
+                    Log.d("ChatMessageItem", "Navigating to image with ID: $imageId")
                     navController.navigate("fullScreenImage/$imageId")
                     ImageUrlStore.addImageUrl(imageId, url)
                 } catch (e: Exception) {
-                    Log.e("ChatMessageItem", "Error al navegar: ${e.message}")
+                    Log.e("ChatMessageItem", "Navigation error: ${e.message}")
                 }
             },
         contentScale = ContentScale.Crop
     )
 }
 
+/**
+ * Displays a single chat message with its bubble styling, text or image content,
+ * and optionally a delivery/read status for the last message.
+ *
+ * @param message The chat message to display.
+ * @param currentUserId ID of the current user to determine sender alignment.
+ * @param navController Navigation controller for image preview.
+ * @param isLastMessage Whether this is the last message sent by the user.
+ */
 @Composable
 private fun ChatMessageItem(
     message: ChatMessage,
@@ -291,9 +311,9 @@ private fun ChatMessageItem(
             if (isMe && isLastMessage) {
                 Text(
                     text = when (message.readStatus) {
-                        ReadStatus.SENT -> "Enviado"
-                        ReadStatus.DELIVERED -> "Entregado"
-                        ReadStatus.READ -> "Visto"
+                        ReadStatus.SENT -> "Sent"
+                        ReadStatus.DELIVERED -> "Delivered"
+                        ReadStatus.READ -> "Read"
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.7f),

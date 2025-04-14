@@ -19,6 +19,18 @@ import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 
+/**
+ * Displays a user action menu for a chat, including options to view the profile,
+ * report the user, or block the user.
+ *
+ * This composable shows a vertical three-dot icon button. When clicked, it expands
+ * a dropdown menu with user-related actions. It uses a [NavHostController] to
+ * navigate to the other user's profile screen.
+ *
+ * @param navController The navigation controller used to perform navigation actions.
+ * @param userId The ID of the user for whom the actions apply.
+ * @param username The username of the user, used when navigating to the profile.
+ */
 @Composable
 fun UserStatusAndActions(
     navController: NavHostController,
@@ -45,7 +57,6 @@ fun UserStatusAndActions(
                 onClick = {
                     showMenu = false
                     navController.navigate(Routes.OtherUsersProfile.createRoute(userId, username))
-
                 }
             )
             DropdownMenuItem(

@@ -21,6 +21,19 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
+/**
+ * A composable password input field with toggle visibility functionality.
+ *
+ * Displays a [TextField] designed for password input, including:
+ * - A leading lock icon for context.
+ * - A trailing icon button to show or hide the password text.
+ * - Support for customizing the placeholder and input value.
+ *
+ * @param value The current text entered in the password field.
+ * @param onValueChange Callback invoked when the text changes.
+ * @param placeholder The placeholder text displayed when the field is empty.
+ * @param modifier A [Modifier] for styling and layout control.
+ */
 @Composable
 fun PasswordTextField(
     value: String,
@@ -42,14 +55,14 @@ fun PasswordTextField(
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-            val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+            val description = if (passwordVisible) "Hide password" else "Show password"
             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                 Icon(imageVector = image, contentDescription = description)
             }
         },
         leadingIcon = {
-            // Usamos un ícono de candado en lugar de uno inexistente
-            Icon(imageVector = Icons.Default.Lock, contentDescription = "Icono de contraseña")
+            Icon(imageVector = Icons.Default.Lock, contentDescription = "Password icon")
         }
     )
 }
+

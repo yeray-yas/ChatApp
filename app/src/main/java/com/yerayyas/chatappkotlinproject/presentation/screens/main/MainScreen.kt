@@ -20,17 +20,24 @@ import androidx.navigation.NavController
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
-
+/**
+ * Displays the main entry screen of the app.
+ *
+ * This composable determines if the user is authenticated and navigates
+ * to the home screen if they are. Otherwise, it shows two buttons that
+ * allow the user to navigate to the Sign Up or Log In screens.
+ *
+ * @param navController Navigation controller used to handle screen transitions.
+ * @param viewModel ViewModel that provides authentication state.
+ */
 @Composable
 fun MainScreen(navController: NavController, viewModel: MainScreenViewModel = hiltViewModel()) {
-    // Estado actualizado automáticamente
     val isAuthenticated by viewModel.isUserAuthenticated.collectAsState()
 
     LaunchedEffect(isAuthenticated) {
         if (isAuthenticated) navController.navigate("home_screen") { popUpTo(0) }
     }
 
-    // Mostrar los botones para navegar a la pantalla de login o registro
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -38,7 +45,6 @@ fun MainScreen(navController: NavController, viewModel: MainScreenViewModel = hi
     ) {
         Button(
             onClick = {
-                // Navegar a la pantalla de SignUp
                 navController.navigate(route = "signup_screen")
             }
         ) {
@@ -47,7 +53,6 @@ fun MainScreen(navController: NavController, viewModel: MainScreenViewModel = hi
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
-                // Navegar a la pantalla de Log In
                 navController.navigate(route = "login_screen")
             }
         ) {

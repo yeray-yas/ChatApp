@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.repository.ChatRepository
+import com.yerayyas.chatappkotlinproject.utils.Constants.ERROR_LOADING_MESSAGES
+import com.yerayyas.chatappkotlinproject.utils.Constants.ERROR_SENDING_IMAGE
+import com.yerayyas.chatappkotlinproject.utils.Constants.ERROR_SENDING_MESSAGE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -78,8 +81,8 @@ class ChatViewModel @Inject constructor(
                 _isLoading.value = false
             }
             .catch { e ->
-                Log.e(TAG, "Error loading messages", e)
-                _error.value = "Error loading messages: ${e.message}"
+                Log.e(TAG, ERROR_LOADING_MESSAGES, e)
+                _error.value = ERROR_LOADING_MESSAGES + ": ${e.message}"
                 _isLoading.value = false
             }
             .onCompletion {
@@ -102,8 +105,8 @@ class ChatViewModel @Inject constructor(
                 _error.value = null
                 chatRepository.sendTextMessage(receiverId, messageText)
             } catch (e: Exception) {
-                Log.e(TAG, "Error sending message", e)
-                _error.value = "Error sending message: ${e.message}"
+                Log.e(TAG, ERROR_SENDING_MESSAGE, e)
+                _error.value = ERROR_SENDING_MESSAGE + ": ${e.message}"
             }
         }
     }
@@ -121,8 +124,8 @@ class ChatViewModel @Inject constructor(
                 _error.value = null
                 chatRepository.sendImageMessage(receiverId, imageUri)
             } catch (e: Exception) {
-                Log.e(TAG, "Error sending image", e)
-                _error.value = "Error sending image: ${e.message}"
+                Log.e(TAG, ERROR_SENDING_IMAGE, e)
+                _error.value = ERROR_SENDING_IMAGE + ": ${e.message}"
             } finally {
                 _isLoading.value = false
             }

@@ -5,4 +5,5 @@ object Constants {
     const val ERROR_SENDING_MESSAGE = "Error sending message"
     const val ERROR_SENDING_IMAGE = "Error sending image"
 
+    const val ANIMATION_DURATION = 300
 }

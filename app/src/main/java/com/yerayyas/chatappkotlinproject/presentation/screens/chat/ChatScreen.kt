@@ -11,8 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +52,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -76,7 +76,6 @@ import java.util.Locale
  * @param userId The ID of the other user in the chat.
  * @param username The username of the other user, shown in the top app bar.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     navController: NavHostController,
@@ -84,49 +83,60 @@ fun ChatScreen(
     userId: String,
     username: String
 ) {
+    // --- State Collection ---
     val messages by chatViewModel.messages.collectAsState()
     val isLoading by chatViewModel.isLoading.collectAsState()
     val error by chatViewModel.error.collectAsState()
+    val currentUserId = remember { chatViewModel.getCurrentUserId() }
 
-    var messageText by remember { mutableStateOf("") }
+    // --- Local UI State ---
+    var messageText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
+    // --- Activity Result Launchers ---
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { chatViewModel.sendImage(userId, it) }
     }
 
+    // --- Side Effects ---
     LaunchedEffect(userId) {
         chatViewModel.loadMessages(userId)
     }
 
-    LaunchedEffect(messages) {
+    LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.scrollToItem(0)
+            listState.animateScrollToItem(0)
         }
     }
 
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            chatViewModel.clearError()
         }
     }
 
+    // --- Actions ---
+    val sendMessageAction = {
+        if (!isLoading && messageText.isNotBlank()) {
+            chatViewModel.sendMessage(userId, messageText.trim())
+            messageText = ""
+        }
+    }
+
+    val attachFileAction = {
+        imagePickerLauncher.launch("image/*")
+    }
+
+    // --- UI Structure ---
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(text = username.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
-                    }, style = MaterialTheme.typography.titleMedium)
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            ChatTopAppBar(
+                username = username,
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     UserStatusAndActions(
                         navController = navController,
@@ -137,91 +147,142 @@ fun ChatScreen(
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // Usa consumeWindowInsets=false y WindowInsets Tamer si manejas insets manualmente
+                .padding(paddingValues)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
-                        top = paddingValues.calculateTopPadding(),
-                        start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
-                        end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
-                    )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(8.dp),
-                        state = listState,
-                        reverseLayout = true
-                    ) {
-                        items(messages.reversed().size) { index ->
-                            val message = messages.reversed()[index]
-                            ChatMessageItem(
-                                message = message,
-                                currentUserId = chatViewModel.getCurrentUserId(),
-                                navController = navController,
-                                isLastMessage = index == 0
-                            )
-                        }
-                    }
+            ChatMessagesList(
+                messages = messages,
+                listState = listState,
+                isLoading = isLoading,
+                currentUserId = currentUserId,
+                navController = navController,
+                modifier = Modifier.weight(1f)
+            )
 
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(1.dp)
-                                .align(Alignment.Center)
-                        )
-                    }
-                }
+            ChatInputArea(
+                messageText = messageText,
+                onMessageChange = { messageText = it },
+                onSendMessage = sendMessageAction,
+                onAttachFile = attachFileAction,
+                isLoading = isLoading
+            )
+        }
+    }
+}
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { imagePickerLauncher.launch("image/*") },
-                        enabled = !isLoading
-                    ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
-                    }
-
-                    TextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Type a message...") },
-                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = {
-                            if (!isLoading && messageText.isNotBlank()) {
-                                chatViewModel.sendMessage(userId, messageText)
-                                messageText = ""
-                            }
-                        }),
-                        enabled = !isLoading
-                    )
-
-                    IconButton(
-                        onClick = {
-                            if (!isLoading && messageText.isNotBlank()) {
-                                chatViewModel.sendMessage(userId, messageText)
-                                messageText = ""
-                            }
-                        },
-                        enabled = !isLoading && messageText.isNotBlank()
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send message")
-                    }
-                }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatTopAppBar(
+    username: String,
+    onNavigateBack: () -> Unit,
+    actions: @Composable RowScope.() -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(text = username.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
+            }, style = MaterialTheme.typography.titleMedium)
+        },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
+        },
+        actions = actions
+    )
+}
+
+@Composable
+private fun ChatInputArea(
+    messageText: String,
+    onMessageChange: (String) -> Unit,
+    onSendMessage: () -> Unit,
+    onAttachFile: () -> Unit,
+    isLoading: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val isSendEnabled = !isLoading && messageText.isNotBlank()
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = onAttachFile,
+            enabled = !isLoading
+        ) {
+            Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
+        }
+
+        TextField(
+            value = messageText,
+            onValueChange = onMessageChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Type a message...") },
+            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = {
+                if (isSendEnabled) {
+                    onSendMessage()
+                }
+            }),
+            enabled = !isLoading,
+            shape = RoundedCornerShape(20.dp)
+        )
+
+        IconButton(
+            onClick = onSendMessage,
+            enabled = isSendEnabled
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send message",
+                tint = if (isSendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = 0.5f
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatMessagesList(
+    messages: List<ChatMessage>,
+    listState: LazyListState,
+    isLoading: Boolean,
+    currentUserId: String,
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            state = listState,
+            reverseLayout = true
+        ) {
+            items(messages.reversed().size) { index ->
+                val message = messages.reversed()[index]
+                ChatMessageItem(
+                    message = message,
+                    currentUserId = currentUserId,
+                    navController = navController,
+                    isLastMessage = index == 0 && message.isSentBy(currentUserId)
+                )
+            }
+        }
+
+        if (isLoading && messages.isEmpty()) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(40.dp)
+                    .align(Alignment.Center)
+            )
         }
     }
 }

@@ -131,4 +131,12 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Clears the current error message from the state.
+     * This should typically be called from the UI after the error has been displayed (e.g., via Toast/Snackbar).
+     */
+    fun clearError() {
+        _error.value = null
+    }
 }

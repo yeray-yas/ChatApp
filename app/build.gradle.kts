@@ -54,6 +54,9 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    // Lifecycle viewModel
+    implementation (libs.androidx.lifecycle.viewmodel.compose)
+
     // Lottie animations
     implementation(libs.lottie.compose)
     implementation(libs.androidx.navigation.compose)
@@ -62,9 +65,9 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.storage.ktx)
     implementation (libs.firebase.auth.ktx)
-    implementation (libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.firebase.database)
-    implementation (libs.firebase.messaging)
+    implementation(libs.firebase.database.ktx)
+    implementation(libs.firebase.messaging.ktx)
+    implementation(libs.firebase.analytics.ktx)
 
     // Extended Icons
     implementation(libs.androidx.material.icons.extended)

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.repository.ChatRepository
+import com.yerayyas.chatappkotlinproject.utils.AppState
 import com.yerayyas.chatappkotlinproject.utils.Constants.ERROR_LOADING_MESSAGES
 import com.yerayyas.chatappkotlinproject.utils.Constants.ERROR_SENDING_IMAGE
 import com.yerayyas.chatappkotlinproject.utils.Constants.ERROR_SENDING_MESSAGE
@@ -32,7 +33,9 @@ private const val TAG = "ChatViewModel"
  */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    val appState: AppState
+
 ) : ViewModel() {
 
     /**

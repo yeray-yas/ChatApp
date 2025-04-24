@@ -26,4 +26,11 @@ object Constants {
      * The duration of animations in milliseconds.
      */
     const val ANIMATION_DURATION = 300
+
+
+    const val CHANNEL_ID = "chat_messages_channel"
+    const val CHANNEL_NAME = "Chat Messages"
+    const val SUMMARY_NOTIFICATION_ID = 0
+
+    const val FCM_TOKENS_PATH = "user_fcm_tokens"
 }

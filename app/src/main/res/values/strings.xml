@@ -30,4 +30,7 @@
 
     <string name="no_authenticated_user">There is no authenticated user</string>
 
+
+    <string name="default_notification_channel_id">New Message!!</string>
+
 </resources>

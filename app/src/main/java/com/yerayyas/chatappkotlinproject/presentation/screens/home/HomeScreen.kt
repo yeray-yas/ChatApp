@@ -1,8 +1,14 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.home
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +37,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
@@ -77,6 +85,43 @@ fun HomeScreen(
     val unreadMessagesCount by chatsListViewModel.unreadMessagesCount.collectAsState()
     val context = LocalContext.current
 
+    // --- Inicio: Lógica para solicitar permiso de notificación ---
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                Log.i("HomeScreen", "POST_NOTIFICATIONS permission granted.")
+                // Puedes mostrar un mensaje de agradecimiento si quieres
+                // Toast.makeText(context, "Notifications enabled!", Toast.LENGTH_SHORT).show()
+            } else {
+                Log.w("HomeScreen", "POST_NOTIFICATIONS permission denied.")
+                // Informar al usuario por qué son útiles las notificaciones (opcional pero recomendado)
+                Toast.makeText(
+                    context,
+                    "Notifications disabled. You might miss new messages.",
+                    Toast.LENGTH_LONG
+                ).show()
+                // Aquí podrías mostrar un diálogo explicando cómo habilitarlas manualmente en ajustes
+            }
+        }
+    )
+
+    // Efecto para solicitar el permiso UNA VEZ cuando HomeScreen se muestra por primera vez (si es necesario)
+    LaunchedEffect(Unit) { // Clave Unit para que se ejecute solo una vez
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Solo para Android 13+
+            val permissionStatus = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permissionStatus == PackageManager.PERMISSION_DENIED) {
+                Log.d("HomeScreen", "Requesting POST_NOTIFICATIONS permission...")
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                Log.d("HomeScreen", "POST_NOTIFICATIONS permission already granted.")
+            }
+        }
+    }
+
     val pagerState = rememberPagerState(
         initialPage = 0,
         pageCount = { tabs.size }
@@ -104,7 +149,10 @@ fun HomeScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.Menu, contentDescription = stringResource(id = R.string.menu))
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = stringResource(id = R.string.menu)
+                        )
                     }
                 },
                 actions = {
@@ -132,7 +180,11 @@ fun HomeScreen(
                                             popUpTo(0) { inclusive = true }
                                         }
                                     } else {
-                                        Toast.makeText(context, "Error erasing the count: $error", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Error erasing the count: $error",
+                                            Toast.LENGTH_LONG
+                                        ).show()
                                     }
                                 }
                                 showMenu = false
@@ -154,7 +206,9 @@ fun HomeScreen(
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+        Column(modifier = Modifier
+            .padding(paddingValues)
+            .fillMaxSize()) {
             TabRow(selectedTabIndex = pagerState.currentPage) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -248,7 +302,17 @@ private fun UsersList(
         items(users) { user ->
             UserListItem(
                 user = user,
-                onItemClick = { navController.navigate(Routes.Chat.createRoute(user.id, user.username)) }
+                onItemClick = {   // --- CORRECCIÓN AQUÍ ---
+                    // Construye la ruta usando slashes, igual que en NavHost
+                    val route = "chat/${user.id}/${user.username}"
+                    Log.d("UsersList", "Navigating to route: $route") // Log para verificar
+                    try { // Añadir try-catch por si acaso durante la depuración
+                        navController.navigate(route)
+                    } catch (e: Exception) {
+                        Log.e("UsersList", "Navigation failed for route: $route", e)
+                        // Puedes mostrar un Toast o mensaje si falla
+                    }
+                }
             )
         }
     }
@@ -275,7 +339,13 @@ private fun ChatsList(
             ChatListItem(
                 chat = chat,
                 onClick = {
-                    navController.navigate(Routes.Chat.createRoute(chat.otherUserId, chat.otherUsername))
+                    val route = "chat/${chat.otherUserId}/${chat.otherUsername}"
+                    Log.d("ChatsList", "Navigating to route: $route") // Log para verificar
+                    try {
+                        navController.navigate(route)
+                    } catch (e: Exception) {
+                        Log.e("ChatsList", "Navigation failed for route: $route", e)
+                    }
                 }
             )
         }

@@ -14,6 +14,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.LoginScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.SignUpScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.ChatScreen
@@ -26,6 +27,9 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScree
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenImageScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsersProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
+import android.util.Log // Import Log
+
+private const val NAV_WRAPPER_TAG = "NavigationWrapper" // Tag para logs
 
 /**
  * A composable function that wraps the navigation logic of the application using Jetpack Compose Navigation.
@@ -41,19 +45,60 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenV
 fun NavigationWrapper(
     modifier: Modifier = Modifier,
     navController: NavHostController,
+    mainActivityViewModel: MainActivityViewModel,
     startDestination: String = Routes.Splash.route,
 ) {
     val mainScreenViewModel: MainScreenViewModel = hiltViewModel()
     var hasShownSplash by rememberSaveable { mutableStateOf(false) }
     val isUserAuthenticated by mainScreenViewModel.isUserAuthenticated.collectAsState()
 
+    val pendingNavState by mainActivityViewModel.pendingNavigation.collectAsState()
+
+    LaunchedEffect(pendingNavState) { // Se relanza si pendingNavState cambia
+        pendingNavState?.let { state ->
+            Log.d(NAV_WRAPPER_TAG, "LaunchedEffect: Detected pending navigation state: $state")
+            if (state.navigateTo == "chat" && state.userId != null && state.username != null) {
+                try {
+                    // Asegúrate que la ruta construida coincide EXACTAMENTE con la definición en NavHost
+                    val route = "chat/${state.userId}/${state.username}"
+                    Log.d(NAV_WRAPPER_TAG, "Navigating to chat route: $route")
+                    navController.navigate(route) {
+                        launchSingleTop = true
+                        // Considera popUpTo si quieres limpiar el backstack al llegar desde notificación
+                        // popUpTo(Routes.Home.route) { inclusive = false }
+                    }
+                } catch (e: Exception) {
+                    Log.e(NAV_WRAPPER_TAG, "Error navigating from pending state: ${e.message}", e)
+                } finally {
+                    // --- IMPORTANTE: Limpiar el estado después de procesarlo ---
+                    Log.d(NAV_WRAPPER_TAG, "Clearing pending navigation state.")
+                    mainActivityViewModel.clearPendingNavigation()
+                }
+            } else {
+                // Limpiar si el estado es inválido o no es de chat (por si acaso)
+                Log.d(NAV_WRAPPER_TAG, "Pending state not for chat or invalid, clearing anyway.")
+                mainActivityViewModel.clearPendingNavigation()
+            }
+        }
+    }
+
     LaunchedEffect(hasShownSplash, isUserAuthenticated) {
         if (hasShownSplash) {
-            val currentRoute = navController.currentDestination?.route
-            if (currentRoute != Routes.Main.route) {
-                navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
-                    popUpTo(Routes.Splash.route) { inclusive = true }
+            // Solo navega si no hay una navegación pendiente por notificación
+            // O decide qué tiene prioridad
+            if (pendingNavState == null) { // <- Añade esta comprobación si la notificación tiene prioridad
+                val currentRoute = navController.currentBackStackEntry?.destination?.route
+                // Evita navegar si ya estás en una ruta interna o si acabas de navegar por notificación
+                if (currentRoute == Routes.Splash.route || currentRoute == null /* Podría ser null inicialmente */) {
+                    Log.d(NAV_WRAPPER_TAG, "Post-splash navigation: Authenticated=$isUserAuthenticated")
+                    navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
+                        popUpTo(Routes.Splash.route) { inclusive = true }
+                    }
+                } else {
+                    Log.d(NAV_WRAPPER_TAG, "Post-splash navigation skipped, current route: $currentRoute")
                 }
+            } else {
+                Log.d(NAV_WRAPPER_TAG, "Post-splash navigation skipped due to pending notification navigation.")
             }
         }
     }
@@ -72,24 +117,17 @@ fun NavigationWrapper(
         composable(Routes.EditUserProfile.route) { EditUserProfileScreen(navController) }
         composable(Routes.ConfirmPhoto.route) { ConfirmProfilePhotoScreen(navController) }
 
+
         composable(
-            route = "chat/{userId}?username={username}",
+            route = "chat/{userId}/{username}",
             arguments = listOf(
                 navArgument("userId") { type = NavType.StringType },
-                navArgument("username") {
-                    type = NavType.StringType
-                    defaultValue = "User"
-                }
+                navArgument("username") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId")!!
-            val username = backStackEntry.arguments?.getString("username") ?: "User"
-            ChatScreen(userId = userId, username = username, navController = navController)
-        }
-
-        composable("chat/{userId}/{username}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
             val username = backStackEntry.arguments?.getString("username") ?: return@composable
+            Log.d(NAV_WRAPPER_TAG, "Composing ChatScreen for userId=$userId, username=$username")
             ChatScreen(navController = navController, userId = userId, username = username)
         }
 

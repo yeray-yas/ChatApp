@@ -6,23 +6,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.ui.theme.ChatAppKotlinProjectTheme
 
 /**
- * Root composable that initializes the navigation controller and applies the app theme.
- *
- * This function wraps the main content of the application inside a [Scaffold],
- * handling the padding and setting up the navigation system via [NavigationWrapper].
- *
- * It also applies the [ChatAppKotlinProjectTheme] to provide consistent styling across the app.
+ * Root composable - Pasa el ViewModel si es necesario, o NavigationWrapper lo obtendrá
  */
 @Composable
-fun AppContainer() {
+fun AppContainer(activityViewModel: MainActivityViewModel) { // Acepta el ViewModel
     val navController = rememberNavController()
     ChatAppKotlinProjectTheme {
+        // Scaffold no necesita el ViewModel directamente
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             NavigationWrapper(
                 navController = navController,
+                // Pasa el ViewModel a NavigationWrapper
+                mainActivityViewModel = activityViewModel,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

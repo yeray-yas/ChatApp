@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,6 +64,7 @@ import com.yerayyas.chatappkotlinproject.data.model.MessageType
 import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
+import com.yerayyas.chatappkotlinproject.utils.AppState
 import java.util.Locale
 
 /**
@@ -129,6 +131,23 @@ fun ChatScreen(
 
     val attachFileAction = {
         imagePickerLauncher.launch("image/*")
+    }
+
+    // --- Seguimiento del estado del Chat activo ---
+    // Usamos DisposableEffect para limpiar el estado cuando el Composable se va
+    DisposableEffect(userId) {
+        // Obtenemos la instancia de AppState desde el ViewModel inyectado
+        val currentAppState = chatViewModel.appState
+        Log.d("ChatScreen", "Entering chat with user: $userId")
+        // Modificamos la propiedad del Singleton AppState
+        currentAppState.currentOpenChatUserId = userId
+        onDispose {
+            Log.d("ChatScreen", "Leaving chat with user: $userId")
+            // Solo limpia si el chat que se está dejando es el que estaba marcado
+            if (currentAppState.currentOpenChatUserId == userId) {
+                currentAppState.currentOpenChatUserId = null
+            }
+        }
     }
 
     // --- UI Structure ---

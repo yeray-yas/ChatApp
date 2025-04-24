@@ -11,6 +11,7 @@ import com.google.firebase.database.Query
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.yerayyas.chatappkotlinproject.data.model.User
+import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,8 +19,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.Locale
 import javax.inject.Inject
+
+private const val TAG = "HomeViewModel"
 
 /**
  * ViewModel responsible for managing user data, presence status, and user list in the home screen.
@@ -33,7 +37,8 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class)
 class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val database: DatabaseReference
+    private val database: DatabaseReference,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
@@ -82,7 +87,8 @@ class HomeViewModel @Inject constructor(
             val connectedRef = database.child(".info/connected")
 
             userRef.child("private").child("status").onDisconnect().setValue("offline")
-            userRef.child("private").child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
+            userRef.child("private").child("lastSeen").onDisconnect()
+                .setValue(ServerValue.TIMESTAMP)
 
             connectionListener = connectedRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -162,12 +168,17 @@ class HomeViewModel @Inject constructor(
 
                         User(
                             id = userId,
-                            username = publicData.child("username").getValue(String::class.java) ?: "",
+                            username = publicData.child("username").getValue(String::class.java)
+                                ?: "",
                             email = privateData.child("email").getValue(String::class.java) ?: "",
-                            profileImage = publicData.child("profileImage").getValue(String::class.java) ?: "",
-                            status = privateData.child("status").getValue(String::class.java) ?: "offline",
-                            isOnline = privateData.child("status").getValue(String::class.java) == "online",
-                            lastSeen = privateData.child("lastSeen").getValue(Long::class.java) ?: 0L
+                            profileImage = publicData.child("profileImage")
+                                .getValue(String::class.java) ?: "",
+                            status = privateData.child("status").getValue(String::class.java)
+                                ?: "offline",
+                            isOnline = privateData.child("status")
+                                .getValue(String::class.java) == "online",
+                            lastSeen = privateData.child("lastSeen").getValue(Long::class.java)
+                                ?: 0L
                         )
                     }
                     _users.value = usersList.sortedWith(
@@ -184,26 +195,64 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Signs out the current user, updates the status to "offline" and cleans up listeners.
+     * Signs out the current user asynchronously using viewModelScope.
+     * Updates the user's status to "offline", clears the FCM token,
+     * performs the actual sign out, cleans up listeners, and calls the completion callback.
      *
-     * @param onSignOutComplete Callback function that is called when sign-out is completed.
+     * @param onSignOutComplete Callback function that is called when the entire sign-out process is finished.
      */
     fun signOut(onSignOutComplete: () -> Unit) {
-        auth.currentUser?.uid?.let { uid ->
-            database.child("Users").child(uid).child("private").updateChildren(
-                mapOf(
+        val userId = auth.currentUser?.uid
+
+        viewModelScope.launch { // Inicia una coroutine
+
+            if (userId == null) {
+                // Si no hay usuario, solo limpiar y completar
+                Log.w(TAG, "Sign out called, but no user is currently logged in.")
+                cleanupListeners() // Limpia listeners locales si los hubiera
+                onSignOutComplete() // Llama al callback
+                return@launch // Sale de la coroutine
+            }
+
+            try {
+                // 1. Actualizar estado en Realtime Database (usando await)
+                Log.d(TAG, "Updating user status to offline for userId: $userId")
+                val statusUpdate = mapOf(
                     "status" to "offline",
                     "lastSeen" to ServerValue.TIMESTAMP
                 )
-            ).addOnCompleteListener {
+                database.child("Users").child(userId).child("private")
+                    .updateChildren(statusUpdate)
+                    .await() // Espera a que la Task de Firebase termine
+                Log.d(TAG, "User status updated to offline successfully.")
+
+                // 2. Limpiar el token FCM (llamada suspend dentro de la coroutine)
+                Log.d(TAG, "Clearing FCM token for userId: $userId")
+                userRepository.clearCurrentUserFCMToken() // ¡Llamada correcta!
+                Log.d(TAG, "FCM token cleared successfully.")
+
+                // 3. Realizar el cierre de sesión en Firebase Auth
+                Log.d(TAG, "Signing out user from Firebase Auth: $userId")
                 auth.signOut()
-                cleanupListeners()
-                onSignOutComplete()
+                Log.i(TAG, "User signed out successfully from Firebase Auth.")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during sign out operation for user $userId", e)
+                // Opcional: Intentar desloguear de Auth incluso si falló la DB o el token
+                try {
+                    if (auth.currentUser?.uid == userId) { // Solo si sigue logueado
+                        auth.signOut()
+                        Log.w(TAG, "Signed out from Auth after encountering an error during DB/Token update.")
+                    }
+                } catch (signOutError: Exception) {
+                    Log.e(TAG, "Error signing out from Auth after previous error", signOutError)
+                }
+            } finally {
+                // 4. Limpiar listeners locales y llamar al callback (SIEMPRE)
+                Log.d(TAG, "Cleaning up listeners and calling onSignOutComplete.")
+                cleanupListeners() // Asegura la limpieza de listeners
+                onSignOutComplete() // Notifica que el proceso terminó (con éxito o error)
             }
-        } ?: run {
-            auth.signOut()
-            cleanupListeners()
-            onSignOutComplete()
         }
     }
 

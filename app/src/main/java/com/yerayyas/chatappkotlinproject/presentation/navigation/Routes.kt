@@ -76,16 +76,6 @@ sealed class Routes(
     data object ConfirmPhoto : Routes("confirm_photo")
 
     /**
-     * Screen for a one-to-one chat.
-     *
-     * @param userId The ID of the user to chat with.
-     * @param username The display name of the user (optional).
-     */
-    data object Chat : Routes("chat/{userId}?username={username}") {
-        fun createRoute(userId: String, username: String = "User") = "chat/$userId?username=$username"
-    }
-
-    /**
      * Screen for viewing another user's profile.
      *
      * @param userId The ID of the user whose profile is being viewed.

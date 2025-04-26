@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "589449768350",
+    "firebase_url": "https://chatapp-6ba7c-default-rtdb.firebaseio.com",
     "project_id": "chatapp-6ba7c",
     "storage_bucket": "chatapp-6ba7c.firebasestorage.app"
   },

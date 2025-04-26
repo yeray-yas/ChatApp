@@ -2,43 +2,56 @@ package com.yerayyas.chatappkotlinproject.data.repository
 
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DatabaseReference
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
-import kotlinx.coroutines.tasks.await // Necesitas la dependencia kotlinx-coroutines-play-services
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.yerayyas.chatappkotlinproject.utils.Constants.FCM_TOKENS_PATH
 
-private const val TAG = "UserRepositoryImpl"
+private const val TAG = "UserRepositoryImpl" // Tag para logs
+private const val USERS_COLLECTION = "users" // Nombre de la colección de usuarios en Firestore
+private const val FCM_TOKEN_FIELD = "fcmToken" // Nombre del campo para el token en el documento
 
 /**
  * Implementación de [UserRepository] que usa Firebase Authentication y
- * Firebase Realtime Database para gestionar los tokens FCM.
+ * Firestore para gestionar los tokens FCM.
  */
-@Singleton // Hilt creará una sola instancia de esta implementación
+@Singleton
 class UserRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth, // Inyecta FirebaseAuth
-    private val database: DatabaseReference // Inyecta la referencia raíz de RTDB
+    private val firestore: FirebaseFirestore // <-- Cambiado: Inyecta FirebaseFirestore
 ) : UserRepository {
 
     override suspend fun updateCurrentUserFCMToken(token: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            Log.w(TAG, "Cannot update FCM token: No user logged in.")
+            // Podrías lanzar una excepción aquí si lo consideras un error grave
+            return
+        }
 
         if (token.isBlank()) {
-            Log.w(TAG, "Cannot update FCM token: Token is blank.")
+            Log.w(TAG, "Cannot update FCM token for user $userId: Token is blank.")
             return
         }
 
         try {
-            // Guarda/actualiza el token en /user_fcm_tokens/{userId}/token = "EL_TOKEN_FCM"
-            // Usar un nodo específico para tokens es mejor que guardarlo dentro del perfil de usuario.
-            // Podrías incluso guardar una lista o mapa si permites múltiples dispositivos.
-            // Por simplicidad, aquí solo guardamos el último token.
-            database.child(FCM_TOKENS_PATH).child(userId).child("token").setValue(token).await()
-            Log.i(TAG, "FCM token updated successfully for user $userId")
+            // Actualiza el campo 'fcmToken' en el documento del usuario dentro de la colección 'users'
+            // Asume que el documento del usuario ya existe.
+            // Si el documento podría NO existir, considera usar .set(mapOf(FCM_TOKEN_FIELD to token), SetOptions.merge())
+            firestore.collection(USERS_COLLECTION)
+                .document(userId)
+                .update(FCM_TOKEN_FIELD, token) // Actualiza solo el campo del token
+                .await() // Espera a que la operación termine
+
+            Log.i(TAG, "FCM token updated successfully in Firestore for user $userId")
+
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating FCM token in Realtime Database for user $userId", e)
-            throw e // Relanza la excepción para que el llamador (el Service) sepa que falló
+            // Firestore puede lanzar una excepción si el documento no existe al usar update.
+            // Podrías intentar crearlo aquí como fallback si fuera necesario.
+            Log.e(TAG, "Error updating FCM token in Firestore for user $userId", e)
+            throw e // Relanza para que el llamador sepa que falló
         }
     }
 
@@ -50,13 +63,25 @@ class UserRepositoryImpl @Inject constructor(
         }
 
         try {
-            // Elimina la entrada del token para este usuario
-            database.child(FCM_TOKENS_PATH).child(userId).removeValue().await()
-            Log.i(TAG, "FCM token cleared successfully for user $userId")
+            // Elimina el campo 'fcmToken' del documento del usuario
+            val updates = mapOf(
+                FCM_TOKEN_FIELD to FieldValue.delete() // FieldValue.delete() elimina el campo
+            )
+            firestore.collection(USERS_COLLECTION)
+                .document(userId)
+                .update(updates) // Usa update con un mapa para eliminar el campo
+                .await() // Espera a que la operación termine
+
+            Log.i(TAG, "FCM token field cleared successfully in Firestore for user $userId")
+
         } catch (e: Exception) {
-            Log.e(TAG, "Error clearing FCM token in Realtime Database for user $userId", e)
-            // Decide si relanzar o solo loggear dependiendo de la criticidad
+            // Puede fallar si el documento no existe o por problemas de permisos/red.
+            Log.e(TAG, "Error clearing FCM token field in Firestore for user $userId", e)
+            // Decide si relanzar o solo loggear
             // throw e
         }
     }
+
+    // --- Funciones existentes o futuras de UserRepositoryImpl ---
+    // ...
 }

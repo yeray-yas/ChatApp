@@ -9,22 +9,12 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.google.firebase.firestore.FirebaseFirestore
 
-/**
- * Dagger Hilt module for providing Firebase-related dependencies.
- *
- * This module installs bindings into the SingletonComponent,
- * meaning the provided instances will live as long as the application.
- */
 @Module
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
 
-    /**
-     * Provides a singleton instance of [FirebaseAuth].
-     *
-     * @return An instance of FirebaseAuth.
-     */
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth {
@@ -32,25 +22,32 @@ object FirebaseModule {
     }
 
     /**
-     * Provides the root [DatabaseReference] of the Firebase Realtime Database.
-     *
-     * This reference can be used to read/write to the database.
-     *
-     * @return A DatabaseReference pointing to the root node.
+     * Proporciona la referencia raíz de Realtime Database.
+     * (La dejamos por si se usa en otras partes, pero no para los tokens FCM).
      */
     @Provides
     fun provideFirebaseDatabase(): DatabaseReference {
         return FirebaseDatabase.getInstance().reference
     }
 
-    /**
-     * Provides a singleton instance of [FirebaseStorage].
-     *
-     * @return An instance of FirebaseStorage for uploading and downloading files.
-     */
     @Provides
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage {
         return FirebaseStorage.getInstance()
+    }
+
+    /**
+     * NUEVO: Proporciona una instancia singleton de [FirebaseFirestore].
+     *
+     * @return Una instancia de FirebaseFirestore.
+     */
+    @Provides
+    @Singleton // Es bueno que Firestore sea singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore {
+        return FirebaseFirestore.getInstance()
+        // Alternativamente, podrías usar la extensión KTX si prefieres:
+        // import com.google.firebase.firestore.ktx.firestore
+        // import com.google.firebase.ktx.Firebase
+        // return Firebase.firestore
     }
 }

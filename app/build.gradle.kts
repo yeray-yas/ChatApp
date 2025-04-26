@@ -55,7 +55,7 @@ dependencies {
     implementation(libs.androidx.material3)
 
     // Lifecycle viewModel
-    implementation (libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     // Lottie animations
     implementation(libs.lottie.compose)
@@ -64,9 +64,10 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.storage.ktx)
-    implementation (libs.firebase.auth.ktx)
+    implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.database.ktx)
     implementation(libs.firebase.messaging.ktx)
+    implementation("com.google.firebase:firebase-firestore-ktx")
     implementation(libs.firebase.analytics.ktx)
 
     // Extended Icons
@@ -74,10 +75,10 @@ dependencies {
 
     // Viewpager and TabLayout
     implementation(libs.material3)
-    implementation (libs.androidx.foundation)
+    implementation(libs.androidx.foundation)
 
     // Glide
-    implementation (libs.compose)
+    implementation(libs.compose)
 
     // Dagger Hilt
     implementation(libs.hilt.android)
@@ -86,11 +87,15 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     // Retrofit
-    implementation (libs.retrofit)
-    implementation (libs.converter.gson)
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
 
     // WorkManager
-    implementation (libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // --- Coroutines para Firebase/Play Services ---
+    // Necesaria para usar .await()
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Tests
     testImplementation(libs.junit)

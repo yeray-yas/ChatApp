@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.components.ChatListItem
@@ -193,11 +194,25 @@ fun HomeScreen(
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.sign_out_btn)) },
                             onClick = {
-                                viewModel.signOut {
-                                    navController.navigate(Routes.Main.route) {
-                                        popUpTo(0) { inclusive = true }
+                                Log.d("HomeScreenUI", "Sign out menu item clicked. Calling viewModel.signOut...")
+                                viewModel.signOut(onSignOutComplete = {
+                                    Log.d("HomeScreenUI", "viewModel.signOut completed. Attempting navigation to Main route.")
+                                    try {
+                                        navController.navigate(Routes.Main.route) {
+                                            // --- CORRECCIÓN AQUÍ ---
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                inclusive = true // Sí, queremos eliminar también la pantalla de inicio del grafo actual (HomeScreen)
+                                            }
+                                            // --- FIN CORRECCIÓN ---
+                                            launchSingleTop = true // Buena práctica para evitar múltiples MainScreens
+                                        }
+                                        Log.d("HomeScreenUI", "Navigation to Main route successful.")
+                                    } catch (e: Exception) {
+                                        Log.e("HomeScreenUI", "Error during navigation after sign out!", e)
+                                        // Mostrar un Toast podría ser útil para el usuario si falla la navegación
+                                        Toast.makeText(context, "Could not navigate back to login screen.", Toast.LENGTH_SHORT).show()
                                     }
-                                }
+                                })
                                 showMenu = false
                             }
                         )

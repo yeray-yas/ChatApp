@@ -1,7 +1,6 @@
 package com.yerayyas.chatappkotlinproject.presentation.activity
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -11,7 +10,6 @@ import androidx.activity.viewModels
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.navigation.AppContainer
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.annotation.RequiresApi
 
 /**
  * MainActivity is the entry point of the Chat App.

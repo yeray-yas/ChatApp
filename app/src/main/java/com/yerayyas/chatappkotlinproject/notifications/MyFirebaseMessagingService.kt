@@ -5,6 +5,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.yerayyas.chatappkotlinproject.di.ServiceCoroutineScope
 import com.yerayyas.chatappkotlinproject.domain.usecases.UpdateFcmTokenUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.ShouldShowChatNotificationUseCase
 import com.yerayyas.chatappkotlinproject.utils.AppState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -13,66 +14,61 @@ import javax.inject.Inject
 
 private const val TAG = "MyFirebaseMsgService"
 
-
+/**
+ * Service handling Firebase Cloud Messaging events.
+ *
+ * Responsibilities:
+ * 1. Receive and process new FCM tokens.
+ * 2. Persist the token via UpdateFcmTokenUseCase.
+ * 3. Receive data messages and delegate notification display
+ *    decisions to ShouldShowChatNotificationUseCase.
+ * 4. Delegate notification rendering to NotificationHelper.
+ */
 @AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
-    // --- Inyección de Dependencias ---
-    @Inject
-    @ServiceCoroutineScope
+    @Inject @ServiceCoroutineScope
     lateinit var serviceScope: CoroutineScope
 
-    @Inject lateinit var updateFcmToken: UpdateFcmTokenUseCase
-
+    @Inject
+    lateinit var updateFcmToken: UpdateFcmTokenUseCase
 
     @Inject
-    lateinit var appState: AppState // Para saber si la app está en foreground/background
+    lateinit var shouldShowChatNotification: ShouldShowChatNotificationUseCase
 
     @Inject
-    lateinit var notifHelper: NotificationHelper // Para mostrar notificaciones
+    lateinit var appState: AppState
+
+    @Inject
+    lateinit var notifHelper: NotificationHelper
 
     /**
-     * Llamado cuando se genera un nuevo token FCM o se actualiza uno existente.
+     * Called when a new FCM token is generated.
      */
     override fun onNewToken(token: String) {
-        Log.d(TAG, "Refreshed FCM token: $token")
-        super.onNewToken(token) // Llama a super si es necesario (aunque aquí no hace mucho)
-        sendRegistrationToServer(token)
-    }
-
-    /**
-     * Envía el token FCM al servidor/backend para asociarlo con el usuario actual.
-     */
-    private fun sendRegistrationToServer(token: String?) {
-        token?.let {
-            // No lanzar excepciones no controladas desde onNewToken, mejor loggear
-            serviceScope.launch {
-                try {
-                    // Llama a la función del repositorio que guarda el token en la DB
-                    updateFcmToken(it)
-                    Log.i(TAG, "FCM Token successfully sent to server for current user.")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to send FCM token to server", e)
-                    // Considera implementar una lógica de reintento aquí si es crítico
-                }
+        super.onNewToken(token)
+        Log.d(TAG, "FCM token refreshed: $token")
+        serviceScope.launch {
+            try {
+                updateFcmToken(token)
+                Log.i(TAG, "Token sent to server.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send FCM token.", e)
             }
         }
     }
 
     /**
-     * Llamado cuando se recibe un mensaje FCM.
+     * Called when a data message is received from FCM.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         remoteMessage.data.takeIf { it.isNotEmpty() }?.let { data ->
-            val senderId      = data["senderId"]  ?: return
-            val chatId        = data["chatId"]    ?: return
-            val senderName    = data["senderName"] ?: "Someone"
-            val messagePreview= data["messagePreview"] ?: "New message"
+            val senderId       = data["senderId"]       ?: return
+            val chatId         = data["chatId"]         ?: return
+            val senderName     = data["senderName"]     ?: "Someone"
+            val messagePreview = data["messagePreview"] ?: "New message"
 
-            val isBackground = !appState.isAppInForeground
-            val isChatOpen   = appState.currentOpenChatUserId == senderId
-
-            if (isBackground || !isChatOpen) {
+            if (shouldShowChatNotification(senderId)) {
                 notifHelper.sendChatNotification(
                     senderId    = senderId,
                     senderName  = senderName,
@@ -80,16 +76,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     chatId      = chatId
                 )
             } else {
-                Log.d(TAG, "Suppressing notification; chat already open.")
+                Log.d(TAG, "Notification suppressed for chat $senderId.")
             }
         }
     }
-
-    // --- Constantes estáticas para IDs y Grupo ---
- /*   companion object {
-        private const val CHAT_NOTIFICATION_GROUP =
-            "com.yourpackage.CHAT_MESSAGES" // Grupo único para tus notificaciones de chat
-        private const val SUMMARY_NOTIFICATION_ID =
-            0 // ID fijo y estándar para la notificación resumen
-    }*/
 }

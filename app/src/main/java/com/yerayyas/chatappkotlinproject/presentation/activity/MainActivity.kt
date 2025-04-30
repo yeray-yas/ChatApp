@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.app.NotificationManagerCompat
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.ProcessNotificationIntentUseCase
@@ -50,6 +51,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        NotificationManagerCompat.from(this).apply {
+            cancelAll()
+        }
 
         setContent {
             AppContainer(
@@ -98,5 +103,10 @@ class MainActivity : ComponentActivity() {
             removeExtra("userId")
             removeExtra("username")
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        NotificationManagerCompat.from(this).cancelAll()
     }
 }

@@ -13,6 +13,7 @@ import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
 import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
+import com.yerayyas.chatappkotlinproject.domain.repository.ChatRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,24 +28,13 @@ import javax.inject.Singleton
 
 private const val TAG = "ChatRepository"
 
-/**
- * Repository responsible for handling chat-related operations.
- * This includes message retrieval, message sending, and marking messages as read.
- * It abstracts Firebase Realtime Database and Firebase Storage logic.
- *
- * @property context Application context used for error messages.
- * @property auth FirebaseAuth instance to access the current user.
- * @property database Firebase Realtime Database reference.
- * @property storage Firebase Storage reference for uploading images.
- */
 @Singleton
-class ChatRepository @Inject constructor(
+class ChatRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val auth: FirebaseAuth,
     private val database: DatabaseReference,
     private val storage: FirebaseStorage
-) {
-
+) : ChatRepository {
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
     /**
@@ -52,7 +42,7 @@ class ChatRepository @Inject constructor(
      *
      * @return The current user ID, or an empty string if no user is authenticated.
      */
-    fun getCurrentUserId(): String = auth.currentUser?.uid ?: ""
+    override fun getCurrentUserId(): String = auth.currentUser?.uid ?: ""
 
     /**
      * Generates a unique chat ID based on two user IDs.
@@ -76,7 +66,7 @@ class ChatRepository @Inject constructor(
      * @param otherUserId ID of the other user in the chat.
      * @return A Flow emitting a sorted list of [ChatMessage]s by timestamp.
      */
-    fun getMessages(otherUserId: String): Flow<List<ChatMessage>> = callbackFlow {
+    override fun getMessages(otherUserId: String): Flow<List<ChatMessage>> = callbackFlow {
         val currentUserId = requireCurrentUserId()
         val chatId = getChatId(currentUserId, otherUserId)
         val messagesRef = database.child("Chats").child("Messages").child(chatId)
@@ -126,7 +116,7 @@ class ChatRepository @Inject constructor(
      * @param chatId The ID of the chat where messages should be updated.
      * @throws Exception If any database operation fails.
      */
-    suspend fun markMessagesAsRead(chatId: String) {
+    override suspend fun markMessagesAsRead(chatId: String) {
         try {
             val currentUserId = getCurrentUserId()
             if (currentUserId.isEmpty()) return
@@ -160,7 +150,7 @@ class ChatRepository @Inject constructor(
      * @param messageText Content of the text message to send.
      * @throws Exception If message sending fails.
      */
-    suspend fun sendTextMessage(receiverId: String, messageText: String) {
+    override suspend fun sendTextMessage(receiverId: String, messageText: String) {
         if (messageText.isBlank()) return
 
         try {
@@ -193,7 +183,7 @@ class ChatRepository @Inject constructor(
      * @param imageUri URI of the image to upload and send.
      * @throws Exception If image upload or message creation fails.
      */
-    suspend fun sendImageMessage(receiverId: String, imageUri: Uri) {
+    override suspend fun sendImageMessage(receiverId: String, imageUri: Uri) {
         try {
             val currentUserId = requireCurrentUserId()
             val chatId = getChatId(currentUserId, receiverId)
@@ -232,4 +222,5 @@ class ChatRepository @Inject constructor(
         return auth.currentUser?.uid
             ?: throw IllegalStateException(context.getString(R.string.no_authenticated_user))
     }
+
 }

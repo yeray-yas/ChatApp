@@ -1,6 +1,6 @@
 package com.yerayyas.chatappkotlinproject.domain.usecases
 
-import com.yerayyas.chatappkotlinproject.data.repository.ChatRepository
+import com.yerayyas.chatappkotlinproject.domain.repository.ChatRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 

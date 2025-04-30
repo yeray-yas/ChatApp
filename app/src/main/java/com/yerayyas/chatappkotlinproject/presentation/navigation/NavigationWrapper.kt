@@ -1,12 +1,7 @@
 package com.yerayyas.chatappkotlinproject.presentation.navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -14,95 +9,68 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
+import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.LoginScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.SignUpScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.ChatScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenImageScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.home.HomeScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.main.MainScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.ConfirmProfilePhotoScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.EditUserProfileScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsersProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenImageScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsersProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
-import android.util.Log // Import Log
-
-private const val NAV_WRAPPER_TAG = "NavigationWrapper" // Tag para logs
 
 /**
- * A composable function that wraps the navigation logic of the application using Jetpack Compose Navigation.
+ * Hosts the app's navigation graph and handles deep-links such as notification taps.
  *
- * This function defines the navigation graph for the app, setting up all the composable destinations
- * and handling navigation logic after the splash screen based on user authentication status.
- *
- * @param modifier Optional [Modifier] to be applied to the NavHost.
- * @param navController The [NavHostController] used for navigating between composable destinations.
- * @param startDestination The route where navigation starts; defaults to [Routes.Splash.route].
+ * @param navController Controller for navigation actions.
+ * @param mainActivityViewModel ViewModel exposing pending navigation state.
+ * @param handleNotificationNavigation Use case for handling notification-triggered navigation.
+ * @param startDestination Initial route of the NavHost; defaults to the splash screen.
  */
 @Composable
 fun NavigationWrapper(
     modifier: Modifier = Modifier,
     navController: NavHostController,
     mainActivityViewModel: MainActivityViewModel,
-    startDestination: String = Routes.Splash.route,
+    handleNotificationNavigation: HandleNotificationNavigationUseCase,
+    handleDefaultNavigation: HandleDefaultNavigationUseCase,
+    startDestination: String = Routes.Splash.route
 ) {
-    val mainScreenViewModel: MainScreenViewModel = hiltViewModel()
     var hasShownSplash by rememberSaveable { mutableStateOf(false) }
+    val mainScreenViewModel: MainScreenViewModel = hiltViewModel()
     val isUserAuthenticated by mainScreenViewModel.isUserAuthenticated.collectAsState()
-
     val pendingNavState by mainActivityViewModel.pendingNavigation.collectAsState()
 
+    // Handle notification tap navigation
     LaunchedEffect(pendingNavState) {
-        pendingNavState?.let { state ->
-            if (state.navigateTo == "chat" && state.userId != null && state.username != null) {
-                try {
-                    // 1) Limpio Splash (y TO-DO lo anterior) de la pila
-                    navController.navigate(Routes.Home.route) {
-                        popUpTo(Routes.Splash.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                    // 2) Luego voy al Chat
-                    val chatRoute = "chat/${state.userId}/${state.username}"
-                    navController.navigate(chatRoute) {
-                        launchSingleTop = true
-                    }
-                } catch (e: Exception) {
-                    Log.e(NAV_WRAPPER_TAG, "Error navigating from notification: ${e.message}", e)
-                } finally {
-                    mainActivityViewModel.clearPendingNavigation()
-                }
-            }
+        pendingNavState?.let { state: NotificationNavigationState ->
+            handleNotificationNavigation(navController, state)
+            mainActivityViewModel.clearPendingNavigation()
         }
     }
 
-
-    LaunchedEffect(hasShownSplash, isUserAuthenticated) {
-        if (hasShownSplash) {
-            // Solo navega si no hay una navegación pendiente por notificación
-            // O decide qué tiene prioridad
-            if (pendingNavState == null) { // <- Añade esta comprobación si la notificación tiene prioridad
-                val currentRoute = navController.currentBackStackEntry?.destination?.route
-                // Evita navegar si ya estás en una ruta interna o si acabas de navegar por notificación
-                if (currentRoute == Routes.Splash.route || currentRoute == null /* Podría ser null inicialmente */) {
-                    Log.d(NAV_WRAPPER_TAG, "Post-splash navigation: Authenticated=$isUserAuthenticated")
-                    navController.navigate(if (isUserAuthenticated) Routes.Home.route else Routes.Main.route) {
-                        popUpTo(Routes.Splash.route) { inclusive = true }
-                    }
-                } else {
-                    Log.d(NAV_WRAPPER_TAG, "Post-splash navigation skipped, current route: $currentRoute")
-                }
-            } else {
-                Log.d(NAV_WRAPPER_TAG, "Post-splash navigation skipped due to pending notification navigation.")
-            }
+    // Default navigation after splash, only if no pending notification
+    LaunchedEffect(hasShownSplash, pendingNavState, isUserAuthenticated) {
+        if (hasShownSplash && pendingNavState == null) {
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            handleDefaultNavigation(
+                navController    = navController,
+                isUserAuthenticated = isUserAuthenticated,
+                currentRoute     = currentRoute
+            )
         }
     }
 
     NavHost(
         navController = navController,
-        startDestination = startDestination,
-        modifier = modifier
+        startDestination = startDestination
     ) {
         composable(Routes.Splash.route) { SplashScreen { hasShownSplash = true } }
         composable(Routes.Main.route) { MainScreen(navController, hiltViewModel()) }
@@ -113,7 +81,6 @@ fun NavigationWrapper(
         composable(Routes.EditUserProfile.route) { EditUserProfileScreen(navController) }
         composable(Routes.ConfirmPhoto.route) { ConfirmProfilePhotoScreen(navController) }
 
-
         composable(
             route = "chat/{userId}/{username}",
             arguments = listOf(
@@ -123,13 +90,18 @@ fun NavigationWrapper(
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
             val username = backStackEntry.arguments?.getString("username") ?: return@composable
-            Log.d(NAV_WRAPPER_TAG, "Composing ChatScreen for userId=$userId, username=$username")
-            ChatScreen(navController = navController, userId = userId, username = username)
+
+            ChatScreen(
+                navController = navController,
+                userId        = userId,
+                username      = username
+            )
         }
 
-        composable("fullScreenImage/{imageId}") { backStackEntry ->
-            val imageId = backStackEntry.arguments?.getString("imageId") ?: return@composable
-            FullScreenImageScreen(navController = navController, imageId = imageId)
+
+        composable("fullScreenImage/{imageId}") {
+            val imageId = it.arguments?.getString("imageId") ?: return@composable
+            FullScreenImageScreen(navController, imageId)
         }
 
         composable(
@@ -141,15 +113,10 @@ fun NavigationWrapper(
                     defaultValue = "User"
                 }
             )
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId")!!
-            val username = backStackEntry.arguments?.getString("username") ?: "User"
-            OtherUsersProfileScreen(
-                navController = navController,
-                userId = userId,
-                username = username
-            )
+        ) {
+            val userId = it.arguments?.getString("userId")!!
+            val username = it.arguments?.getString("username") ?: "User"
+            OtherUsersProfileScreen(navController, userId, username)
         }
     }
 }
-

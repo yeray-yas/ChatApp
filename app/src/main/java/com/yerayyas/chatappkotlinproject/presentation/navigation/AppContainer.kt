@@ -6,6 +6,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.ui.theme.ChatAppKotlinProjectTheme
 
@@ -13,7 +15,11 @@ import com.yerayyas.chatappkotlinproject.presentation.ui.theme.ChatAppKotlinProj
  * Root composable - Pasa el ViewModel si es necesario, o NavigationWrapper lo obtendrá
  */
 @Composable
-fun AppContainer(activityViewModel: MainActivityViewModel) { // Acepta el ViewModel
+fun AppContainer(
+    activityViewModel: MainActivityViewModel,
+    handleNotificationNavigation: HandleNotificationNavigationUseCase,
+    handleDefaultNavigation: HandleDefaultNavigationUseCase
+    ) { // Acepta el ViewModel
     val navController = rememberNavController()
     ChatAppKotlinProjectTheme {
         // Scaffold no necesita el ViewModel directamente
@@ -22,6 +28,8 @@ fun AppContainer(activityViewModel: MainActivityViewModel) { // Acepta el ViewMo
                 navController = navController,
                 // Pasa el ViewModel a NavigationWrapper
                 mainActivityViewModel = activityViewModel,
+                handleNotificationNavigation  = handleNotificationNavigation,
+                handleDefaultNavigation       = handleDefaultNavigation,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

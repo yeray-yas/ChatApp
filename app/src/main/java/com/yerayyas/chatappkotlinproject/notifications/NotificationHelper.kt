@@ -6,9 +6,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.activity.MainActivity
 import com.yerayyas.chatappkotlinproject.utils.Constants.CHANNEL_ID
@@ -21,16 +24,24 @@ import javax.inject.Singleton
 
 @Singleton
 class NotificationHelper @Inject constructor(
-    @ApplicationContext private val context: Context, // inyectado con @ApplicationContext
+    @ApplicationContext private val context: Context,
 ) {
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun sendChatNotification(
         senderId: String,
         senderName: String,
         messageBody: String,
         chatId: String,
     ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            //Log.w(TAG, "No POST_NOTIFICATIONS permission; skipping notification.")
+            return
+        }
+
         createChannelIfNeeded()
         val pendingIntent = buildChatPendingIntent(senderId, senderName)
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -65,7 +76,7 @@ class NotificationHelper @Inject constructor(
 
     private fun createChannelIfNeeded() {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             && nm.getNotificationChannel(CHANNEL_ID) == null
         ) {
             val channel = NotificationChannel(

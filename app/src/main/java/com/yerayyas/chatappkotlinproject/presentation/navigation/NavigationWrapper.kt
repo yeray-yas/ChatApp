@@ -54,33 +54,29 @@ fun NavigationWrapper(
 
     val pendingNavState by mainActivityViewModel.pendingNavigation.collectAsState()
 
-    LaunchedEffect(pendingNavState) { // Se relanza si pendingNavState cambia
+    LaunchedEffect(pendingNavState) {
         pendingNavState?.let { state ->
-            Log.d(NAV_WRAPPER_TAG, "LaunchedEffect: Detected pending navigation state: $state")
             if (state.navigateTo == "chat" && state.userId != null && state.username != null) {
                 try {
-                    // Asegúrate que la ruta construida coincide EXACTAMENTE con la definición en NavHost
-                    val route = "chat/${state.userId}/${state.username}"
-                    Log.d(NAV_WRAPPER_TAG, "Navigating to chat route: $route")
-                    navController.navigate(route) {
+                    // 1) Limpio Splash (y TO-DO lo anterior) de la pila
+                    navController.navigate(Routes.Home.route) {
+                        popUpTo(Routes.Splash.route) { inclusive = true }
                         launchSingleTop = true
-                        // Considera popUpTo si quieres limpiar el backstack al llegar desde notificación
-                        // popUpTo(Routes.Home.route) { inclusive = false }
+                    }
+                    // 2) Luego voy al Chat
+                    val chatRoute = "chat/${state.userId}/${state.username}"
+                    navController.navigate(chatRoute) {
+                        launchSingleTop = true
                     }
                 } catch (e: Exception) {
-                    Log.e(NAV_WRAPPER_TAG, "Error navigating from pending state: ${e.message}", e)
+                    Log.e(NAV_WRAPPER_TAG, "Error navigating from notification: ${e.message}", e)
                 } finally {
-                    // --- IMPORTANTE: Limpiar el estado después de procesarlo ---
-                    Log.d(NAV_WRAPPER_TAG, "Clearing pending navigation state.")
                     mainActivityViewModel.clearPendingNavigation()
                 }
-            } else {
-                // Limpiar si el estado es inválido o no es de chat (por si acaso)
-                Log.d(NAV_WRAPPER_TAG, "Pending state not for chat or invalid, clearing anyway.")
-                mainActivityViewModel.clearPendingNavigation()
             }
         }
     }
+
 
     LaunchedEffect(hasShownSplash, isUserAuthenticated) {
         if (hasShownSplash) {

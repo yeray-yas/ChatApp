@@ -19,10 +19,12 @@ import javax.inject.Inject
 private const val TAG = "MainActivity"
 
 /**
- * MainActivity is the single, entry point for the Chat App.
+ * MainActivity is the single entry point for the Chat App.
  *
- * Sets up Hilt dependency injection, configures edge-to-edge rendering,
- * and handles navigation Intents originating from push notifications.
+ * - Configures edge-to-edge rendering.
+ * - Ensures the window resizes when the soft keyboard appears (SOFT_INPUT_ADJUST_RESIZE).
+ * - Clears all notifications on start.
+ * - Delegates deep link and notification intent processing to UseCases.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -47,7 +49,14 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var handleDefaultNavigation: HandleDefaultNavigationUseCase
 
-
+    /**
+     * Called when the activity is created.
+     *
+     * - Enables edge-to-edge support.
+     * - Sets soft input mode to ADJUST_RESIZE so the window will shrink and avoid overlapping content when the keyboard appears.
+     * - Cancels any active notifications.
+     * - Sets the Compose content and triggers initial intent handling.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

@@ -92,6 +92,10 @@ dependencies {
     // WorkManager
     implementation (libs.androidx.work.runtime.ktx)
 
+    // Window Insets
+    implementation (libs.accompanist.insets)
+    implementation (libs.accompanist.systemuicontroller)
+
     // Tests
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

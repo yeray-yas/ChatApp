@@ -22,7 +22,8 @@
             android:name=".presentation.activity.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.ChatAppKotlinProject">
+            android:theme="@style/Theme.ChatAppKotlinProject"
+            android:windowSoftInputMode="adjustResize|stateHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

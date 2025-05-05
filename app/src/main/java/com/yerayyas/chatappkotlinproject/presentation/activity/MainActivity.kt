@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.app.NotificationManagerCompat
+import com.google.accompanist.insets.ProvideWindowInsets
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.ProcessNotificationIntentUseCase
@@ -66,13 +67,13 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            AppContainer(
-                activityViewModel = activityViewModel,
-                handleNotificationNavigation = handleNotificationNavigation,
-                handleDefaultNavigation = handleDefaultNavigation
-            )
-
-
+            ProvideWindowInsets {
+                AppContainer(
+                    activityViewModel = activityViewModel,
+                    handleNotificationNavigation = handleNotificationNavigation,
+                    handleDefaultNavigation = handleDefaultNavigation
+                )
+            }
         }
 
         Log.d(TAG, "onCreate: processing initial Intent")

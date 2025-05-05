@@ -1,4 +1,5 @@
 [versions]
+accompanistInsets = "0.30.1"
 agp = "8.7.3"
 compose = "1.0.0-beta01"
 converterGson = "2.11.0"
@@ -26,6 +27,8 @@ activityCompose = "1.10.1"
 
 [libraries]
 
+accompanist-insets = { module = "com.google.accompanist:accompanist-insets", version.ref = "accompanistInsets" }
+accompanist-systemuicontroller = { module = "com.google.accompanist:accompanist-systemuicontroller", version.ref = "accompanistInsets" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "foundation" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }

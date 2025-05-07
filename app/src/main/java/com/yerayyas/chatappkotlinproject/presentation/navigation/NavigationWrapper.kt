@@ -12,7 +12,6 @@ import androidx.navigation.navArgument
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
-import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.LoginScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.SignUpScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.ChatScreen
@@ -27,12 +26,7 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScree
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
 /**
- * Hosts the app's navigation graph and handles deep-links such as notification taps.
- *
- * @param navController Controller for navigation actions.
- * @param mainActivityViewModel ViewModel exposing pending navigation state.
- * @param handleNotificationNavigation Use case for handling notification-triggered navigation.
- * @param startDestination Initial route of the NavHost; defaults to the splash screen.
+ * Hosts the app's navigation graph and handles notification-driven and default navigation.
  */
 @Composable
 fun NavigationWrapper(
@@ -44,43 +38,59 @@ fun NavigationWrapper(
     startDestination: String = Routes.Splash.route
 ) {
     var hasShownSplash by rememberSaveable { mutableStateOf(false) }
+
+    // Authentication state
     val mainScreenViewModel: MainScreenViewModel = hiltViewModel()
     val isUserAuthenticated by mainScreenViewModel.isUserAuthenticated.collectAsState()
-    val pendingNavState by mainActivityViewModel.pendingNavigation.collectAsState()
 
-    // Handle notification tap navigation
-    LaunchedEffect(pendingNavState) {
-        pendingNavState?.let { state: NotificationNavigationState ->
+    // Collect one-shot notification navigation events
+    LaunchedEffect(Unit) {
+        mainActivityViewModel.pendingNavigation.collect { state ->
             handleNotificationNavigation(navController, state)
-            mainActivityViewModel.clearPendingNavigation()
         }
     }
 
-    // Default navigation after splash, only if no pending notification
-    LaunchedEffect(hasShownSplash, pendingNavState, isUserAuthenticated) {
-        if (hasShownSplash && pendingNavState == null) {
+    // Handle default navigation once splash is shown and no immediate notification is in flight
+    LaunchedEffect(hasShownSplash, isUserAuthenticated) {
+        if (hasShownSplash) {
             val currentRoute = navController.currentBackStackEntry?.destination?.route
             handleDefaultNavigation(
-                navController    = navController,
+                navController = navController,
                 isUserAuthenticated = isUserAuthenticated,
-                currentRoute     = currentRoute
+                currentRoute = currentRoute
             )
         }
     }
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
+        modifier = modifier
     ) {
-        composable(Routes.Splash.route) { SplashScreen { hasShownSplash = true } }
-        composable(Routes.Main.route) { MainScreen(navController, hiltViewModel()) }
-        composable(Routes.SignUp.route) { SignUpScreen(navController) }
-        composable(Routes.Login.route) { LoginScreen(navController) }
-        composable(Routes.Home.route) { HomeScreen(navController) }
-        composable(Routes.UserProfile.route) { UserProfileScreen(navController) }
-        composable(Routes.EditUserProfile.route) { EditUserProfileScreen(navController) }
-        composable(Routes.ConfirmPhoto.route) { ConfirmProfilePhotoScreen(navController) }
-
+        composable(Routes.Splash.route) {
+            SplashScreen { hasShownSplash = true }
+        }
+        composable(Routes.Main.route) {
+            MainScreen(navController, hiltViewModel())
+        }
+        composable(Routes.SignUp.route) {
+            SignUpScreen(navController)
+        }
+        composable(Routes.Login.route) {
+            LoginScreen(navController)
+        }
+        composable(Routes.Home.route) {
+            HomeScreen(navController)
+        }
+        composable(Routes.UserProfile.route) {
+            UserProfileScreen(navController)
+        }
+        composable(Routes.EditUserProfile.route) {
+            EditUserProfileScreen(navController)
+        }
+        composable(Routes.ConfirmPhoto.route) {
+            ConfirmProfilePhotoScreen(navController)
+        }
         composable(
             route = "chat/{userId}/{username}",
             arguments = listOf(
@@ -93,17 +103,14 @@ fun NavigationWrapper(
 
             ChatScreen(
                 navController = navController,
-                userId        = userId,
-                username      = username
+                userId = userId,
+                username = username
             )
         }
-
-
         composable("fullScreenImage/{imageId}") {
             val imageId = it.arguments?.getString("imageId") ?: return@composable
             FullScreenImageScreen(navController, imageId)
         }
-
         composable(
             route = Routes.OtherUsersProfile.route,
             arguments = listOf(

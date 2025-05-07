@@ -4,45 +4,45 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel responsible for emitting one-shot navigation events
+ * triggered by incoming notifications.
+ */
 @HiltViewModel
 class MainActivityViewModel @Inject constructor() : ViewModel() {
 
-    private val _pendingNavigation = MutableStateFlow<NotificationNavigationState?>(null)
-    val pendingNavigation: StateFlow<NotificationNavigationState?> = _pendingNavigation.asStateFlow()
+    // SharedFlow for one-time navigation emissions (no replay)
+    private val _pendingNavigation = MutableSharedFlow<NotificationNavigationState>(replay = 0)
+    val pendingNavigation: SharedFlow<NotificationNavigationState> = _pendingNavigation.asSharedFlow()
 
     /**
-     * Llamado desde MainActivity cuando llega un intent de notificación relevante.
+     * Emits a navigation event when a valid "chat" notification arrives.
+     * Only non-null userId and username are accepted.
+     * @param navigateTo expected "chat" to trigger navigation.
+     * @param userId identifier of the chat recipient.
+     * @param username display name of the chat recipient.
      */
-    fun setPendingNavigation(navigateTo: String?, userId: String?, username: String?) {
-        if (navigateTo == "chat" && userId != null && username != null) {
-            viewModelScope.launch { // Usar viewModelScope
-                _pendingNavigation.update {
-                    // Crea un nuevo estado para asegurar que el StateFlow emita
+    fun setPendingNavigation(
+        navigateTo: String?,
+        userId: String?,
+        username: String?
+    ) {
+        if (navigateTo == "chat" && !userId.isNullOrEmpty() && !username.isNullOrEmpty()) {
+            viewModelScope.launch {
+                _pendingNavigation.emit(
                     NotificationNavigationState(
                         navigateTo = navigateTo,
                         userId = userId,
                         username = username,
-                        eventId = System.currentTimeMillis() // Asegura la emisión
+                        eventId = System.currentTimeMillis()
                     )
-                }
-            }
-        }
-    }
-
-    /**
-     * Llamado desde NavigationWrapper después de que la navegación ha sido procesada.
-     */
-    fun clearPendingNavigation() {
-        viewModelScope.launch { // Usar viewModelScope
-            if (_pendingNavigation.value != null) { // Solo actualiza si hay algo que limpiar
-                _pendingNavigation.update { null }
+                )
             }
         }
     }

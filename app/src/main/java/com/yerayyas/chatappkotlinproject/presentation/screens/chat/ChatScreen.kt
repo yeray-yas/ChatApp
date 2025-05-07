@@ -70,11 +70,18 @@ import com.yerayyas.chatappkotlinproject.data.cache.ImageUrlStore
 import com.yerayyas.chatappkotlinproject.data.model.ChatInputState
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
-import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
 import java.util.Locale
 
+/**
+ * Main composable for the chat screen.
+ *
+ * @param navController navigation controller for screen transitions.
+ * @param chatViewModel ViewModel driving chat data and actions.
+ * @param userId unique identifier of the chat partner.
+ * @param username display name of the chat partner.
+ */
 @Composable
 fun ChatScreen(
     navController: NavHostController,
@@ -82,23 +89,20 @@ fun ChatScreen(
     userId: String,
     username: String
 ) {
-    // Collect view model state
     val messages by chatViewModel.messages.collectAsState()
     val isLoading by chatViewModel.isLoading.collectAsState()
     val error by chatViewModel.error.collectAsState()
     val currentUserId = remember { chatViewModel.getCurrentUserId() }
 
-    // Local UI state
     var messageText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
-    // Measure IME and NavBar heights
+    // Listen to window insets for keyboard and navigation bar heights
     val view = LocalView.current
     var imeBottomPx by remember { mutableIntStateOf(0) }
     var navBarHeightPx by remember { mutableIntStateOf(0) }
-
     DisposableEffect(view) {
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             imeBottomPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
@@ -109,18 +113,15 @@ fun ChatScreen(
         onDispose { ViewCompat.setOnApplyWindowInsetsListener(view, null) }
     }
 
-    // Calculate offset to bring input just above keyboard
+    // Compute vertical offset so input stays above keyboard
     val offsetY = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? -> uri?.let { chatViewModel.sendImage(userId, it) } }
 
-    // Load messages & handle errors
     LaunchedEffect(userId) { chatViewModel.loadMessages(userId) }
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.scrollToItem(messages.size - 1)
-    }
+    LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.scrollToItem(messages.size - 1) }
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -128,6 +129,10 @@ fun ChatScreen(
         }
     }
 
+    /**
+     * Sends the typed message and clears the input field.
+     * Keeps focus to support continuous typing.
+     */
     val sendMessageAction = {
         if (!isLoading && messageText.isNotBlank()) {
             chatViewModel.sendMessage(userId, messageText.trim())
@@ -136,20 +141,17 @@ fun ChatScreen(
     }
     val attachFileAction = { imagePickerLauncher.launch("image/*") }
 
-    // Track open chat
     DisposableEffect(userId) {
         val appState = chatViewModel.appState
         appState.currentOpenChatUserId = userId
         onDispose { if (appState.currentOpenChatUserId == userId) appState.currentOpenChatUserId = null }
     }
 
-    // UI
     Column(
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
     ) {
-        // TopAppBar fixed above content
         ChatTopAppBar(
             modifier = Modifier.zIndex(1f),
             username = username,
@@ -157,7 +159,6 @@ fun ChatScreen(
             actions = { UserStatusAndActions(navController, userId, username) }
         )
 
-        // Scrollable content with offset
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -168,15 +169,14 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp),
-                    reverseLayout = false
+                        .padding(horizontal = 8.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
                         ChatMessageItem(
                             message = message,
                             currentUserId = currentUserId,
                             navController = navController,
-                            isLastMessage = message.isSentBy(currentUserId) && messages.lastIndexOf(message) == messages.lastIndex
+                            isLastMessage = message.isSentBy(currentUserId)
                         )
                     }
                 }
@@ -199,6 +199,9 @@ fun ChatScreen(
     }
 }
 
+/**
+ * Top app bar for the chat screen with back navigation and additional actions.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatTopAppBar(
@@ -211,21 +214,28 @@ private fun ChatTopAppBar(
         modifier = modifier,
         title = {
             Text(
-                text = username.replaceFirstChar {
-                    if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
-                },
+                text = username.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() },
                 style = MaterialTheme.typography.titleMedium
             )
         },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Navigate back")
             }
         },
         actions = actions
     )
 }
 
+/**
+ * Input area for composing and sending text or attachments.
+ *
+ * @param state state holder for input text and focus handling.
+ * @param onSendMessage callback triggered on send action.
+ * @param onAttachFile callback triggered to attach a file.
+ * @param isLoading disables inputs when true.
+ * @param modifier styling modifier.
+ */
 @Composable
 private fun ChatInputArea(
     state: ChatInputState,
@@ -257,13 +267,20 @@ private fun ChatInputArea(
         IconButton(onClick = onSendMessage, enabled = isSendEnabled) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send",
+                contentDescription = "Send message",
                 tint = if (isSendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
     }
 }
 
+/**
+ * Displays an image message that can be opened in full-screen mode.
+ *
+ * @param url URL of the image to display.
+ * @param navController controller for navigation actions.
+ * @param modifier styling modifier.
+ */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 private fun MessageImage(
@@ -283,13 +300,21 @@ private fun MessageImage(
                     navController.navigate("fullScreenImage/$imageId")
                     ImageUrlStore.addImageUrl(imageId, url)
                 } catch (e: Exception) {
-                    Log.e("ChatMessageItem", "Navigation error: ${e.message}")
+                    Log.e("MessageImage", "Navigation error: ${e.message}")
                 }
             },
         contentScale = ContentScale.Crop
     )
 }
 
+/**
+ * Renders a chat bubble for text or image messages.
+ *
+ * @param message message data model.
+ * @param currentUserId ID of the current user for styling.
+ * @param navController navigation controller for interactions.
+ * @param isLastMessage true if this is the last message sent by the user.
+ */
 @Composable
 private fun ChatMessageItem(
     message: ChatMessage,
@@ -307,10 +332,7 @@ private fun ChatMessageItem(
         Column(
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .background(
-                    color = getBubbleColor(isMe),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                .background(color = getBubbleColor(isMe), shape = RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             when (message.messageType) {
@@ -323,13 +345,9 @@ private fun ChatMessageItem(
             }
             if (isMe && isLastMessage) {
                 Text(
-                    text = when (message.readStatus) {
-                        ReadStatus.SENT -> "Sent"
-                        ReadStatus.DELIVERED -> "Delivered"
-                        ReadStatus.READ -> "Read"
-                    },
+                    text = message.readStatus.name.lowercase().replaceFirstChar { it.titlecase(Locale.ROOT) },
                     style = MaterialTheme.typography.labelSmall,
-                    color = getTextColor(isMe = true).copy(alpha = 0.7f),
+                    color = getTextColor(true).copy(alpha = 0.7f),
                     modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
                 )
             }
@@ -337,8 +355,16 @@ private fun ChatMessageItem(
     }
 }
 
+/**
+ * Returns the background color for a message bubble based on sender.
+ */
 @Composable
-private fun getBubbleColor(isMe: Boolean): Color = if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+private fun getBubbleColor(isMe: Boolean): Color =
+    if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
 
+/**
+ * Returns the text color for a message bubble based on sender.
+ */
 @Composable
-private fun getTextColor(isMe: Boolean): Color = if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+private fun getTextColor(isMe: Boolean): Color =
+    if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant

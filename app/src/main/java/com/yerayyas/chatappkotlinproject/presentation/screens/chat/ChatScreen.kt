@@ -3,6 +3,7 @@ package com.yerayyas.chatappkotlinproject.presentation.screens.chat
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -71,16 +72,19 @@ import com.yerayyas.chatappkotlinproject.data.model.ChatInputState
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
 import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
 import java.util.Locale
 
 /**
- * Main composable for the chat screen.
+ * Composable for displaying and interacting with a chat conversation.
+ * It handles loading messages, sending text and image messages,
+ * responding to UI events, and adjusting layout for system insets.
  *
- * @param navController navigation controller for screen transitions.
- * @param chatViewModel ViewModel driving chat data and actions.
- * @param userId unique identifier of the chat partner.
- * @param username display name of the chat partner.
+ * @param navController Controller for navigation actions.
+ * @param chatViewModel ViewModel powering chat state and operations.
+ * @param userId Unique identifier of the chat partner.
+ * @param username Display name of the chat partner.
  */
 @Composable
 fun ChatScreen(
@@ -94,12 +98,17 @@ fun ChatScreen(
     val error by chatViewModel.error.collectAsState()
     val currentUserId = remember { chatViewModel.getCurrentUserId() }
 
+    val isDirectChat = remember {
+        navController.currentBackStackEntry?.destination?.route
+            ?.startsWith("direct_chat") == true
+    }
+
     var messageText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
-    // Listen to window insets for keyboard and navigation bar heights
+    // Observe window insets to adjust input area above keyboard and navigation bar.
     val view = LocalView.current
     var imeBottomPx by remember { mutableIntStateOf(0) }
     var navBarHeightPx by remember { mutableIntStateOf(0) }
@@ -112,16 +121,20 @@ fun ChatScreen(
         ViewCompat.requestApplyInsets(view)
         onDispose { ViewCompat.setOnApplyWindowInsetsListener(view, null) }
     }
-
-    // Compute vertical offset so input stays above keyboard
     val offsetY = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
+    // Launcher for selecting an image to send
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? -> uri?.let { chatViewModel.sendImage(userId, it) } }
 
+    // Load messages on start
     LaunchedEffect(userId) { chatViewModel.loadMessages(userId) }
-    LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.scrollToItem(messages.size - 1) }
+    // Scroll to newest message when list updates
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
+    }
+    // Display errors via Toast
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -129,22 +142,35 @@ fun ChatScreen(
         }
     }
 
-    /**
-     * Sends the typed message and clears the input field.
-     * Keeps focus to support continuous typing.
-     */
-    val sendMessageAction = {
+    // Defines actions for sending text and attaching images
+    val sendMessage = {
         if (!isLoading && messageText.isNotBlank()) {
             chatViewModel.sendMessage(userId, messageText.trim())
             messageText = ""
         }
     }
-    val attachFileAction = { imagePickerLauncher.launch("image/*") }
+    val attachFile = { imagePickerLauncher.launch("image/*") }
 
+    // Customize back navigation behavior
+    BackHandler {
+        if (isDirectChat) {
+            navController.navigate(Routes.Home.route) {
+                popUpTo("direct_chat/{userId}/{username}") { inclusive = true }
+            }
+        } else {
+            navController.popBackStack()
+        }
+    }
+
+    // Track currently open chat in global app state
     DisposableEffect(userId) {
         val appState = chatViewModel.appState
         appState.currentOpenChatUserId = userId
-        onDispose { if (appState.currentOpenChatUserId == userId) appState.currentOpenChatUserId = null }
+        onDispose {
+            if (appState.currentOpenChatUserId == userId) {
+                appState.currentOpenChatUserId = null
+            }
+        }
     }
 
     Column(
@@ -155,14 +181,22 @@ fun ChatScreen(
         ChatTopAppBar(
             modifier = Modifier.zIndex(1f),
             username = username,
-            onNavigateBack = { navController.popBackStack() },
+            onNavigateBack = {
+                if (isDirectChat) {
+                    navController.navigate(Routes.Home.route) {
+                        popUpTo("direct_chat/{userId}/{username}") { inclusive = true }
+                    }
+                } else {
+                    navController.popBackStack()
+                }
+            },
             actions = { UserStatusAndActions(navController, userId, username) }
         )
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(0, offsetY) }
+                .offset { IntOffset(x = 0, y = offsetY) }
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -187,8 +221,8 @@ fun ChatScreen(
                         onMessageChange = { messageText = it },
                         focusRequester = focusRequester
                     ),
-                    onSendMessage = sendMessageAction,
-                    onAttachFile = attachFileAction,
+                    onSendMessage = sendMessage,
+                    onAttachFile = attachFile,
                     isLoading = isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -200,7 +234,12 @@ fun ChatScreen(
 }
 
 /**
- * Top app bar for the chat screen with back navigation and additional actions.
+ * Top app bar for the chat screen, displaying the partner’s name and navigation controls.
+ *
+ * @param modifier Modifier for styling and layout.
+ * @param username The chat partner’s display name.
+ * @param onNavigateBack Callback executed when back navigation is triggered.
+ * @param actions Additional action icons to display in the app bar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -220,7 +259,10 @@ private fun ChatTopAppBar(
         },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Navigate back")
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Navigate back"
+                )
             }
         },
         actions = actions
@@ -228,13 +270,13 @@ private fun ChatTopAppBar(
 }
 
 /**
- * Input area for composing and sending text or attachments.
+ * Area for composing and sending chat messages and attachments.
  *
- * @param state state holder for input text and focus handling.
- * @param onSendMessage callback triggered on send action.
- * @param onAttachFile callback triggered to attach a file.
- * @param isLoading disables inputs when true.
- * @param modifier styling modifier.
+ * @param state Holds the current input text and focus requester.
+ * @param onSendMessage Invoked when the send action is triggered.
+ * @param onAttachFile Invoked when the attach file action is triggered.
+ * @param isLoading Disables inputs when true.
+ * @param modifier Modifier for styling and layout.
  */
 @Composable
 private fun ChatInputArea(
@@ -275,11 +317,11 @@ private fun ChatInputArea(
 }
 
 /**
- * Displays an image message that can be opened in full-screen mode.
+ * Displays an image message and navigates to full-screen view on click.
  *
  * @param url URL of the image to display.
- * @param navController controller for navigation actions.
- * @param modifier styling modifier.
+ * @param navController Controller to handle navigation actions.
+ * @param modifier Modifier for styling and layout.
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
@@ -308,12 +350,12 @@ private fun MessageImage(
 }
 
 /**
- * Renders a chat bubble for text or image messages.
+ * Renders a chat bubble for text or image messages with styling based on sender.
  *
- * @param message message data model.
- * @param currentUserId ID of the current user for styling.
- * @param navController navigation controller for interactions.
- * @param isLastMessage true if this is the last message sent by the user.
+ * @param message The chat message data.
+ * @param currentUserId ID of the current user.
+ * @param navController Controller to handle image navigation.
+ * @param isLastMessage True if this is the last message sent by the user, to display read status.
  */
 @Composable
 private fun ChatMessageItem(
@@ -341,14 +383,18 @@ private fun ChatMessageItem(
                     color = getTextColor(isMe),
                     modifier = Modifier.wrapContentWidth()
                 )
-                MessageType.IMAGE -> message.imageUrl?.let { url -> MessageImage(url = url, navController = navController) }
+                MessageType.IMAGE -> message.imageUrl?.let { url ->
+                    MessageImage(url = url, navController = navController)
+                }
             }
             if (isMe && isLastMessage) {
                 Text(
                     text = message.readStatus.name.lowercase().replaceFirstChar { it.titlecase(Locale.ROOT) },
                     style = MaterialTheme.typography.labelSmall,
                     color = getTextColor(true).copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 4.dp)
                 )
             }
         }
@@ -356,14 +402,14 @@ private fun ChatMessageItem(
 }
 
 /**
- * Returns the background color for a message bubble based on sender.
+ * Returns the background color for a chat bubble based on the sender.
  */
 @Composable
 private fun getBubbleColor(isMe: Boolean): Color =
     if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
 
 /**
- * Returns the text color for a message bubble based on sender.
+ * Returns the text color for a chat bubble based on the sender.
  */
 @Composable
 private fun getTextColor(isMe: Boolean): Color =

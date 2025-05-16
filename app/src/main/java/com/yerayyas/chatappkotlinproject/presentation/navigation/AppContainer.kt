@@ -8,28 +8,42 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
+import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.ui.theme.ChatAppKotlinProjectTheme
 
 /**
- * Root composable - Pasa el ViewModel si es necesario, o NavigationWrapper lo obtendrá
+ * Root composable for the application. Applies the app theme, configures the scaffold,
+ * and initializes navigation.
+ *
+ * @param activityViewModel The ViewModel associated with the main activity.
+ * @param handleNotificationNavigation Use case to navigate based on notification actions.
+ * @param handleDefaultNavigation Use case to handle the app's default navigation flow.
+ * @param skipSplash When true, bypasses the splash screen on startup.
+ * @param initialNavState Optional initial navigation state derived from a notification.
  */
 @Composable
 fun AppContainer(
     activityViewModel: MainActivityViewModel,
     handleNotificationNavigation: HandleNotificationNavigationUseCase,
-    handleDefaultNavigation: HandleDefaultNavigationUseCase
-    ) { // Acepta el ViewModel
+    handleDefaultNavigation: HandleDefaultNavigationUseCase,
+    skipSplash: Boolean = false,
+    initialNavState: NotificationNavigationState? = null
+) {
     val navController = rememberNavController()
+
     ChatAppKotlinProjectTheme {
-        // Scaffold no necesita el ViewModel directamente
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+        ) { innerPadding ->
             NavigationWrapper(
                 navController = navController,
-                // Pasa el ViewModel a NavigationWrapper
                 mainActivityViewModel = activityViewModel,
-                handleNotificationNavigation  = handleNotificationNavigation,
-                handleDefaultNavigation       = handleDefaultNavigation,
+                handleNotificationNavigation = handleNotificationNavigation,
+                handleDefaultNavigation = handleDefaultNavigation,
+                skipSplash = skipSplash,
+                initialNavState = initialNavState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

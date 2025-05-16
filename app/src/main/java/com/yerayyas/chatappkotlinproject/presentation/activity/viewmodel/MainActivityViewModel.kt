@@ -1,49 +1,75 @@
 package com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private const val TAG = "MainActivityVM"
+
 /**
- * ViewModel responsible for emitting one-shot navigation events
- * triggered by incoming notifications.
+ * ViewModel for MainActivity that manages one-shot navigation events
+ * triggered by incoming notification intents.
+ *
+ * Uses a [MutableStateFlow] to emit [NotificationNavigationState] when valid
+ * navigation parameters are provided, and resets the state after handling.
  */
 @HiltViewModel
 class MainActivityViewModel @Inject constructor() : ViewModel() {
 
-    // SharedFlow for one-time navigation emissions (no replay)
-    private val _pendingNavigation = MutableSharedFlow<NotificationNavigationState>(replay = 0)
-    val pendingNavigation: SharedFlow<NotificationNavigationState> = _pendingNavigation.asSharedFlow()
+    private val _pendingNavigation = MutableStateFlow<NotificationNavigationState?>(null)
+    /**
+     * Emits navigation state for pending notification-driven navigation.
+     * Observers should consume and clear this state after handling.
+     */
+    val pendingNavigation: StateFlow<NotificationNavigationState?> = _pendingNavigation.asStateFlow()
 
     /**
-     * Emits a navigation event when a valid "chat" notification arrives.
-     * Only non-null userId and username are accepted.
-     * @param navigateTo expected "chat" to trigger navigation.
-     * @param userId identifier of the chat recipient.
-     * @param username display name of the chat recipient.
+     * Queues a navigation event based on notification parameters.
+     * Only valid when [navigateTo] equals "chat" and both [userId] and [username]
+     * are non-null and non-empty.
+     *
+     * @param navigateTo Expected destination identifier (e.g., "chat").
+     * @param userId ID of the chat recipient.
+     * @param username Display name of the chat recipient.
+     * @param skipSplash If true, bypasses the splash screen during navigation.
      */
     fun setPendingNavigation(
         navigateTo: String?,
         userId: String?,
-        username: String?
+        username: String?,
+        skipSplash: Boolean = false
     ) {
-        if (navigateTo == "chat" && !userId.isNullOrEmpty() && !username.isNullOrEmpty()) {
-            viewModelScope.launch {
-                _pendingNavigation.emit(
-                    NotificationNavigationState(
-                        navigateTo = navigateTo,
-                        userId = userId,
-                        username = username,
-                        eventId = System.currentTimeMillis()
-                    )
-                )
-            }
+        Log.d(TAG, "setPendingNavigation: navigateTo=$navigateTo, userId=$userId, skipSplash=$skipSplash")
+
+        if (navigateTo == "chat" && !userId.isNullOrBlank() && !username.isNullOrBlank()) {
+            val state = NotificationNavigationState(
+                navigateTo = navigateTo,
+                userId = userId,
+                username = username,
+                eventId = System.currentTimeMillis(),
+                skipSplash = skipSplash
+            )
+            Log.d(TAG, "setPendingNavigation: Emitting state $state")
+            // Emit on main scope though no suspend functions are used
+            viewModelScope.launch { _pendingNavigation.value = state }
+        } else {
+            Log.d(TAG, "setPendingNavigation: Invalid parameters, ignoring event")
         }
+    }
+
+    /**
+     * Clears the current pending navigation state.
+     * Should be called after the navigation event is consumed.
+     */
+    fun clearPendingNavigation() {
+        Log.d(TAG, "clearPendingNavigation: Clearing state")
+        _pendingNavigation.value = null
     }
 }

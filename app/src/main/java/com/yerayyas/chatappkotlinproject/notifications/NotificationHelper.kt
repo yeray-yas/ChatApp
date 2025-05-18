@@ -48,7 +48,8 @@ class NotificationHelper @Inject constructor(
     fun sendChatNotification(
         senderId: String,
         senderName: String,
-        messageBody: String
+        messageBody: String,
+        chatId: String
     ) {
         if (!hasNotificationPermission()) {
             Log.w(TAG, "Missing POST_NOTIFICATIONS permission; skipping notification.")
@@ -56,7 +57,7 @@ class NotificationHelper @Inject constructor(
         }
 
         createChannelIfNeeded()
-        val pendingIntent = buildChatPendingIntent(senderId, senderName)
+        val pendingIntent = buildChatPendingIntent(senderId, senderName, chatId)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_chat)
             .setContentTitle(senderName)
@@ -131,16 +132,25 @@ class NotificationHelper @Inject constructor(
         }
     }
 
-    private fun buildChatPendingIntent(senderId: String, senderName: String): PendingIntent {
+    private fun buildChatPendingIntent(
+        senderId: String,
+        senderName: String,
+        chatId: String
+    ): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigateTo", "chat")
             putExtra("userId", senderId)
             putExtra("username", senderName)
+            putExtra("chatId", chatId)
         }
+
+        // Ensure unique request code for each notification
+        val requestCode = (senderId + chatId).hashCode()
+
         return PendingIntent.getActivity(
             context,
-            senderId.hashCode(),
+            requestCode,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -191,7 +201,8 @@ class NotificationHelper @Inject constructor(
 
     private fun getActiveChatNotificationsCount(): Int {
         return try {
-            val systemManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val systemManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             systemManager.activeNotifications
                 .count { it.notification.group == GROUP_KEY && it.id != SUMMARY_ID }
         } catch (e: Exception) {

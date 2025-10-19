@@ -1,4 +1,4 @@
-package com.yerayyas.chatappkotlinproject.presentation.screens.intro
+package com.yerayyas.chatappkotlinproject.presentation.screens.main
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,21 +15,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.yerayyas.chatappkotlinproject.R
-import com.yerayyas.chatappkotlinproject.presentation.viewmodel.MainScreenViewModel
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
-
+/**
+ * Displays the main entry screen of the app.
+ *
+ * This composable determines if the user is authenticated and navigates
+ * to the home screen if they are. Otherwise, it shows two buttons that
+ * allow the user to navigate to the Sign Up or Log In screens.
+ *
+ * @param navController Navigation controller used to handle screen transitions.
+ * @param viewModel ViewModel that provides authentication state.
+ */
 @Composable
-fun MainScreen(navController: NavController, viewModel: MainScreenViewModel) {
-    // Estado actualizado automáticamente
+fun MainScreen(navController: NavController, viewModel: MainScreenViewModel = hiltViewModel()) {
     val isAuthenticated by viewModel.isUserAuthenticated.collectAsState()
 
     LaunchedEffect(isAuthenticated) {
         if (isAuthenticated) navController.navigate("home_screen") { popUpTo(0) }
     }
 
-    // Mostrar los botones para navegar a la pantalla de login o registro
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -37,7 +45,6 @@ fun MainScreen(navController: NavController, viewModel: MainScreenViewModel) {
     ) {
         Button(
             onClick = {
-                // Navegar a la pantalla de SignUp
                 navController.navigate(route = "signup_screen")
             }
         ) {
@@ -46,7 +53,6 @@ fun MainScreen(navController: NavController, viewModel: MainScreenViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
-                // Navegar a la pantalla de Log In
                 navController.navigate(route = "login_screen")
             }
         ) {

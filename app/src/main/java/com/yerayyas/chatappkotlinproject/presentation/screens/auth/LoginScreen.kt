@@ -27,16 +27,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.yerayyas.chatappkotlinproject.Routes
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.components.PasswordTextField
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.auth.LoginViewModel
 import kotlinx.coroutines.delay
 
+/**
+ * Composable that displays the login screen UI.
+ *
+ * This screen provides input fields for the user's email and password, handles form validation,
+ * shows error messages as toast notifications and inline text, and displays a loading indicator during authentication.
+ * Upon successful login, the user is navigated to the Home screen.
+ *
+ * @param navController NavController used for navigating between composable destinations.
+ */
 @Composable
 fun LoginScreen(navController: NavController) {
-    val viewModel: LoginViewModel = viewModel()
+    val viewModel: LoginViewModel = hiltViewModel()
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -52,7 +61,9 @@ fun LoginScreen(navController: NavController) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -60,7 +71,9 @@ fun LoginScreen(navController: NavController) {
             value = email,
             onValueChange = { email = it },
             placeholder = { Text("Email") },
-            modifier = Modifier.fillMaxWidth().padding(5.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp),
             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Email)
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -68,7 +81,9 @@ fun LoginScreen(navController: NavController) {
             value = password,
             onValueChange = { password = it },
             placeholder = "Password",
-            modifier = Modifier.fillMaxWidth().padding(5.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Box(
@@ -108,7 +123,9 @@ fun LoginScreen(navController: NavController) {
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth().padding(5.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp)
         ) {
             Text("Log In")
         }

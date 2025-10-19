@@ -13,12 +13,8 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
-class UserProfileViewModel @Inject constructor() : ViewModel() {
-    // Instancias de Firebase para autenticación y base de datos
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
+class UserProfileViewModel @Inject constructor(private val auth: FirebaseAuth, private val database: DatabaseReference) : ViewModel() {
 
-    // StateFlows para exponer la información del usuario de forma reactiva
     private val _username = MutableStateFlow("")
     val username: StateFlow<String> = _username
 
@@ -46,7 +42,6 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
     private val _phone = MutableStateFlow("")
     val phone: StateFlow<String> = _phone
 
-    // Listener para mantener actualizada la información del usuario
     private var userListener: ValueEventListener? = null
 
     init {
@@ -54,27 +49,30 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Configura el listener para obtener los datos actuales del usuario
-     * desde Firebase y actualizarlos en los StateFlow correspondientes.
+     * Sets up the listener to fetch the current user's data from Firebase
+     * and updates the corresponding StateFlows.
      */
     private fun setupCurrentUserListener() {
         auth.currentUser?.uid?.let { uid ->
             userListener = database.child("Users").child(uid)
                 .addValueEventListener(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
-                        _username.value = snapshot.child("username").getValue(String::class.java)?.replaceFirstChar {
+                        val publicData = snapshot.child("public")
+                        val privateData = snapshot.child("private")
+
+                        _username.value = publicData.child("username").getValue(String::class.java)?.replaceFirstChar {
                             if (it.isLowerCase()) it.titlecase(
                                 Locale.ROOT
                             ) else it.toString()
                         } ?: ""
-                        _email.value = snapshot.child("email").getValue(String::class.java) ?: ""
-                        _names.value = snapshot.child("names").getValue(String::class.java) ?: ""
-                        _lastNames.value = snapshot.child("lastNames").getValue(String::class.java) ?: ""
-                        _profession.value = snapshot.child("profession").getValue(String::class.java) ?: ""
-                        _address.value = snapshot.child("address").getValue(String::class.java) ?: ""
-                        _age.value = snapshot.child("age").getValue(String::class.java) ?: ""
-                        _phone.value = snapshot.child("phone").getValue(String::class.java) ?: ""
-                        _image.value = snapshot.child("image").getValue(String::class.java) ?: ""
+                        _email.value = privateData.child("email").getValue(String::class.java) ?: ""
+                        _names.value = privateData.child("names").getValue(String::class.java) ?: ""
+                        _lastNames.value = privateData.child("lastNames").getValue(String::class.java) ?: ""
+                        _profession.value = privateData.child("profession").getValue(String::class.java) ?: ""
+                        _address.value = privateData.child("address").getValue(String::class.java) ?: ""
+                        _age.value = privateData.child("age").getValue(String::class.java) ?: ""
+                        _phone.value = privateData.child("phone").getValue(String::class.java) ?: ""
+                        _image.value = publicData.child("profileImage").getValue(String::class.java) ?: ""
                     }
 
                     override fun onCancelled(error: DatabaseError) {
@@ -85,14 +83,14 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Actualiza la información personal del usuario en Firebase.
+     * Updates the user's personal information in Firebase.
      *
-     * @param names Nuevo nombre(s).
-     * @param lastNames Nuevos apellidos.
-     * @param profession Nueva profesión.
-     * @param address Nueva dirección.
-     * @param age Nueva edad.
-     * @param phone Nuevo número de teléfono.
+     * @param names The new names.
+     * @param lastNames The new last names.
+     * @param profession The new profession.
+     * @param address The new address.
+     * @param age The new age.
+     * @param phone The new phone number.
      */
     fun updatePersonalInformation(
         names: String,
@@ -104,12 +102,12 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
     ) {
         auth.currentUser?.uid?.let { uid ->
             val updates = mapOf(
-                "names" to names,
-                "lastNames" to lastNames,
-                "profession" to profession,
-                "address" to address,
-                "age" to age,
-                "phone" to phone
+                "private/names" to names,
+                "private/lastNames" to lastNames,
+                "private/profession" to profession,
+                "private/address" to address,
+                "private/age" to age,
+                "private/phone" to phone
             )
             database.child("Users").child(uid).updateChildren(updates)
                 .addOnCompleteListener { task ->
@@ -123,8 +121,10 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Actualiza la foto de perfil subiendo la imagen a Firebase Storage y actualizando
-     * la URL en la base de datos en la rama "image".
+     * Updates the user's profile image by uploading the image to Firebase Storage
+     * and updating the URL in the database under the "profileImage" field.
+     *
+     * @param imageUri The URI of the new profile image.
      */
     fun updateProfileImage(imageUri: Uri) {
         val uid = auth.currentUser?.uid ?: return
@@ -132,28 +132,27 @@ class UserProfileViewModel @Inject constructor() : ViewModel() {
             .reference.child("profileImages/$uid")
 
         storageReference.putFile(imageUri)
-            .addOnSuccessListener { taskSnapshot ->
-                // Una vez subida la imagen, obtenemos la URL de descarga
+            .addOnSuccessListener { _ ->
                 storageReference.downloadUrl.addOnSuccessListener { downloadUrl ->
-                    // Actualizamos el campo "image" en la base de datos
-                    database.child("Users").child(uid).child("image").setValue(downloadUrl.toString())
+                    database.child("Users").child(uid).child("public").child("profileImage")
+                        .setValue(downloadUrl.toString())
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                Log.d("UpdateImage", "Imagen actualizada correctamente")
+                                Log.d("UpdateImage", "Image updated successfully")
                             } else {
-                                Log.e("UpdateImage", "Error actualizando la imagen", task.exception)
+                                Log.e("UpdateImage", "Error updating image", task.exception)
                             }
                         }
                 }
             }
             .addOnFailureListener {
-                Log.e("UpdateImage", "Error al subir la imagen", it)
+                Log.e("UpdateImage", "Error uploading image", it)
             }
     }
 
     override fun onCleared() {
         super.onCleared()
-        // Removemos el listener para evitar fugas de memoria
+        // Remove the listener to prevent memory leaks
         userListener?.let { database.removeEventListener(it) }
     }
 }

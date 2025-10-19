@@ -29,17 +29,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
 
+/**
+ * Composable function for the screen where the user can edit their personal profile information.
+ *
+ * This screen allows the user to update their first name, last name, profession, address,
+ * age, and phone number. It uses a ViewModel to handle the user profile data and updates the
+ * information in the backend (e.g., Firebase).
+ *
+ * @param navController The navigation controller used to navigate between screens.
+ * @param userProfileViewModel The ViewModel that holds and manages the user profile data.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditUserProfileScreen(
     navController: NavHostController,
-    userProfileViewModel: UserProfileViewModel = viewModel()
+    userProfileViewModel: UserProfileViewModel = hiltViewModel()
 ) {
-    // Estados del ViewModel
     val names by userProfileViewModel.names.collectAsState()
     val lastNames by userProfileViewModel.lastNames.collectAsState()
     val profession by userProfileViewModel.profession.collectAsState()
@@ -47,7 +56,6 @@ fun EditUserProfileScreen(
     val age by userProfileViewModel.age.collectAsState()
     val phone by userProfileViewModel.phone.collectAsState()
 
-    // Estados locales MUTABLES para edición
     var editedNames by rememberSaveable { mutableStateOf(names) }
     var editedLastNames by rememberSaveable { mutableStateOf(lastNames) }
     var editedProfession by rememberSaveable { mutableStateOf(profession) }
@@ -55,7 +63,6 @@ fun EditUserProfileScreen(
     var editedAge by rememberSaveable { mutableStateOf(age) }
     var editedPhone by rememberSaveable { mutableStateOf(phone) }
 
-    // Sincroniza los estados locales cuando el ViewModel se actualiza
     LaunchedEffect(names, lastNames, profession, address, age, phone) {
         editedNames = names
         editedLastNames = lastNames
@@ -129,7 +136,6 @@ fun EditUserProfileScreen(
 
             Button(
                 onClick = {
-                    // Actualizamos la información en Firebase (o en el ViewModel)
                     userProfileViewModel.updatePersonalInformation(
                         names = editedNames,
                         lastNames = editedLastNames,
@@ -138,7 +144,6 @@ fun EditUserProfileScreen(
                         age = editedAge,
                         phone = editedPhone
                     )
-                    // Una vez guardado, volvemos a la pantalla anterior
                     navController.popBackStack()
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)

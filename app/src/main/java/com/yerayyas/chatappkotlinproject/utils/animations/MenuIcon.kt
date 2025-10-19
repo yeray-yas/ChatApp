@@ -13,6 +13,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
+/**
+ * A composable function that animates the transformation of a hamburger menu icon to an arrow icon.
+ *
+ * This function displays a hamburger menu icon that, when clicked, animates into an arrow icon and vice versa.
+ * The transition is smooth, and the icon changes by rotating, scaling, and translating its lines.
+ *
+ * @param modifier A Modifier to be applied to the root Box element. Defaults to [Modifier].
+ * @param color The color of the hamburger lines and background. Defaults to dark gray (0xFF333333).
+ */
 @Composable
 fun HamburgerToArrowAnimation(
     modifier: Modifier = Modifier,
@@ -72,7 +81,18 @@ fun HamburgerToArrowAnimation(
     }
 }
 
-
+/**
+ * A helper composable function that renders a line for the hamburger-to-arrow animation.
+ *
+ * This function takes care of rendering each line that is part of the hamburger icon, applying the necessary
+ * transformations (rotation, scaling, and translation) based on the animation state.
+ *
+ * @param color The color of the line.
+ * @param rotation The rotation applied to the line, in degrees.
+ * @param scaleX The scaling factor applied to the line along the X-axis.
+ * @param translationY The vertical translation applied to the line.
+ * @param modifier A Modifier to be applied to the line. Defaults to [Modifier].
+ */
 @Composable
 private fun Line(color: Color, rotation: Float, scaleX: Float, translationY: Float, modifier: Modifier = Modifier) {
     Box(
@@ -88,4 +108,3 @@ private fun Line(color: Color, rotation: Float, scaleX: Float, translationY: Flo
             .background(color)
     )
 }
-

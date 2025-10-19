@@ -8,26 +8,27 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Convierte un Bitmap en un archivo temporal y devuelve su URI.
+ * Converts a Bitmap into a temporary file and returns its URI.
  *
- * @param context El contexto de la aplicación o actividad.
- * @param bitmap El Bitmap a convertir.
- * @return La URI del archivo temporal o null si ocurre algún error.
+ * This function takes a Bitmap object, saves it as a temporary file in the app's cache directory,
+ * and returns the URI of the saved file. The URI is generated using FileProvider to securely share
+ * the file with other applications.
+ *
+ * @param context The application or activity context.
+ * @param bitmap The Bitmap object to be converted.
+ * @return The URI of the temporary file, or null if an error occurs.
  */
 fun bitmapToUri(context: Context, bitmap: Bitmap): Uri? {
-    // Genera un nombre único para el archivo temporal.
     val filename = "temp_profile_image_${System.currentTimeMillis()}.png"
     val file = File(context.cacheDir, filename)
 
     return try {
-        // Guarda el bitmap en el archivo como PNG.
         FileOutputStream(file).use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
-        // Retorna la URI usando FileProvider.
         FileProvider.getUriForFile(
             context,
-            "${context.packageName}.provider", // Asegúrate de declarar este provider en el AndroidManifest.xml
+            "${context.packageName}.provider",
             file
         )
     } catch (e: Exception) {

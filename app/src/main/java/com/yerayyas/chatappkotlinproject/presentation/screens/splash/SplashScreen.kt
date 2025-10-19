@@ -12,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -29,16 +28,24 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
+/**
+ * Composable function that represents the splash screen of the application.
+ * It shows a loader animation and the app name along with the developer's name.
+ * After a delay of 3 seconds, it navigates to the main screen.
+ *
+ * @param modifier A [Modifier] to customize the layout of the splash screen.
+ * @param onNavigateToMain A lambda function that will be invoked to navigate to the main screen.
+ */
 @Composable
 fun SplashScreen(
     modifier: Modifier = Modifier,
     onNavigateToMain: () -> Unit
 ) {
-    var shouldNavigate by remember { mutableStateOf(true) }
+    val shouldNavigate by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         if (shouldNavigate) {
-            delay(3000) // Solo espera en primer inicio
+            delay(3000)
             onNavigateToMain()
         }
     }
@@ -64,7 +71,10 @@ fun SplashScreen(
     }
 }
 
-
+/**
+ * Composable function that displays a loader animation using Lottie.
+ * The animation will loop infinitely.
+ */
 @Composable
 fun Loader() {
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.chat_animation))
@@ -81,4 +91,3 @@ fun Loader() {
         contentScale = ContentScale.Fit
     )
 }
-

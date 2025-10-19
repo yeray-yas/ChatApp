@@ -27,16 +27,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.yerayyas.chatappkotlinproject.Routes
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.components.PasswordTextField
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.auth.SignUpViewModel
 import kotlinx.coroutines.delay
 
+/**
+ * Composable function for the sign-up screen in the chat application.
+ *
+ * This screen allows a new user to create an account by providing a username, email,
+ * and password.
+ *
+ * It includes input validation, error handling via toast messages, and visual feedback
+ * (such as loading indicators) during the sign-up process.
+ *
+ * @param navController Controller used to navigate between composable screens.
+ */
 @Composable
 fun SignUpScreen(navController: NavController) {
-    val viewModel: SignUpViewModel = viewModel()
+    val viewModel: SignUpViewModel = hiltViewModel()
     var username by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }

@@ -46,20 +46,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
-import com.yerayyas.chatappkotlinproject.utils.animations.HamburgerToArrowAnimation
-import com.yerayyas.chatappkotlinproject.Routes
-import com.yerayyas.chatappkotlinproject.utils.bitmapToUri
+import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.profile.UserProfileViewModel
+import com.yerayyas.chatappkotlinproject.utils.bitmapToUri
 
+/**
+ * Composable function that displays the user's profile screen.
+ *
+ * This screen shows the user's profile details such as username, name, email, profession, address,
+ * age, and phone number. It also allows the user to edit their personal information and profile image.
+ * The profile image can either be selected from the gallery or taken using the camera.
+ *
+ * @param navController The NavHostController to navigate between screens.
+ * @param viewModel The UserProfileViewModel used to manage and observe the user's profile data.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
 @Composable
 fun UserProfileScreen(
     navController: NavHostController,
-    viewModel: UserProfileViewModel = viewModel()
+    viewModel: UserProfileViewModel = hiltViewModel()
 ) {
     val username by viewModel.username.collectAsState()
     val names by viewModel.names.collectAsState()
@@ -75,7 +84,6 @@ fun UserProfileScreen(
     var showImagePickerDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Launcher para seleccionar imagen desde la galería
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -85,7 +93,7 @@ fun UserProfileScreen(
         }
     }
 
-    // Launcher para tomar foto con la cámara
+    // Launcher to take a photo with the camera
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
@@ -96,7 +104,7 @@ fun UserProfileScreen(
         }
     }
 
-    // Interceptamos el botón de retroceso del sistema para navegar a HomeScreen
+    // Intercepts the back button to navigate to HomeScreen
     BackHandler {
         navController.navigate(Routes.Home.route) {
             popUpTo(Routes.Home.route) { inclusive = false }
@@ -162,7 +170,6 @@ fun UserProfileScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            HamburgerToArrowAnimation()
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start,
@@ -241,8 +248,8 @@ fun UserProfileScreen(
         if (showImagePickerDialog) {
             AlertDialog(
                 onDismissRequest = { showImagePickerDialog = false },
-                title = { Text("Seleccionar imagen") },
-                text = { Text("Elige una imagen desde la galería o toma una nueva foto.") },
+                title = { Text("Select Image") },
+                text = { Text("Choose an image from the gallery or take a new photo.") },
                 confirmButton = {
                     Button(
                         onClick = {
@@ -267,4 +274,3 @@ fun UserProfileScreen(
         }
     }
 }
-

@@ -12,21 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +36,14 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+/**
+ * A composable that displays a user item in a list, typically used to represent
+ * a chat contact or selectable user in the UI.
+ *
+ * @param user The [User] data to display in the list item.
+ * @param onItemClick Callback to be triggered when the item is clicked.
+ * @param modifier Optional [Modifier] for styling and layout.
+ */
 @Composable
 fun UserListItem(
     user: User,
@@ -69,11 +67,15 @@ fun UserListItem(
         ) {
             ProfileImage(user.profileImage)
             UserInfoSection(user, Modifier.weight(1f))
-            UserStatusAndActions()
         }
     }
 }
 
+/**
+ * A composable that displays the online status or last seen timestamp for a user.
+ *
+ * @param user The [User] whose status is shown.
+ */
 @Composable
 private fun ConnectionStatusRow(user: User) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -89,6 +91,12 @@ private fun ConnectionStatusRow(user: User) {
     }
 }
 
+/**
+ * Formats a timestamp into a human-readable date string.
+ *
+ * @param timestamp The last seen time in milliseconds.
+ * @return A formatted string or "Never" if the timestamp is 0.
+ */
 private fun formatLastSeen(timestamp: Long): String {
     return if (timestamp == 0L) {
         "Never"
@@ -100,6 +108,13 @@ private fun formatLastSeen(timestamp: Long): String {
     }
 }
 
+/**
+ * A composable that displays a circular profile image.
+ *
+ * Uses a placeholder image in preview mode or when loading/failing to load.
+ *
+ * @param profileImage The URL of the image to display.
+ */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 private fun ProfileImage(profileImage: String) {
@@ -127,14 +142,18 @@ private fun ProfileImage(profileImage: String) {
     }
 }
 
+/**
+ * A composable that displays the user's name, email, and connection status.
+ *
+ * @param user The [User] whose info is displayed.
+ * @param modifier Optional [Modifier] for layout customization.
+ */
 @Composable
 private fun UserInfoSection(user: User, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(
             text = user.username.replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(
-                    Locale.ROOT
-                ) else it.toString()
+                if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
             },
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
@@ -151,6 +170,11 @@ private fun UserInfoSection(user: User, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * A small circular indicator to show whether the user is online (green) or offline (gray).
+ *
+ * @param isOnline Boolean indicating the online status.
+ */
 @Composable
 private fun OnlineStatusIndicator(isOnline: Boolean) {
     Box(
@@ -167,33 +191,3 @@ private fun OnlineStatusIndicator(isOnline: Boolean) {
             )
     )
 }
-
-@Composable
-private fun UserStatusAndActions() {
-    var showMenu by remember { mutableStateOf(false) }
-
-    Box {
-        IconButton(onClick = { showMenu = true }) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Options",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Start chat") },
-                onClick = { showMenu = false /* Acción para iniciar chat */ }
-            )
-            DropdownMenuItem(
-                text = { Text("See profile") },
-                onClick = { showMenu = false /* Acción para ver perfil */ }
-            )
-        }
-    }
-}
-

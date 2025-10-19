@@ -7,11 +7,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.Query
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.yerayyas.chatappkotlinproject.data.model.User
+import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
+import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,184 +20,245 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.Locale
 import javax.inject.Inject
 
+private const val TAG = "HomeViewModel"
+
+/**
+ * ViewModel for the home screen. Manages loading and searching users,
+ * updates presence status in Firebase Realtime Database,
+ * and handles sign-out and account deletion.
+ *
+ * @property auth        FirebaseAuth instance for user session management.
+ * @property database    Reference to Firebase Realtime Database.
+ * @property userRepository Repository for user-related data operations.
+ * @property notificationHelper Helper for managing app notifications.
+ */
 @HiltViewModel
 @OptIn(FlowPreview::class)
-class HomeViewModel @Inject constructor() : ViewModel() {
+class HomeViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val database: DatabaseReference,
+    private val userRepository: UserRepository,
+    private val notificationHelper: NotificationHelper
+) : ViewModel() {
 
-    // Instancias de Firebase
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
-
-    // Estado de carga
     private val _isLoading = MutableStateFlow(true)
+    /** Emits true while loading user data. */
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    // Nombre de usuario (para mostrar en el TopAppBar)
     private val _username = MutableStateFlow("")
+    /** Emits the current user's display name. */
     val username: StateFlow<String> = _username
 
-    // Listener para la gestión de presencia
-    private var connectionListener: ValueEventListener? = null
-
-    // StateFlow para la lista de usuarios (se excluye al usuario actual)
     private val _users = MutableStateFlow<List<User>>(emptyList())
+    /** Emits the list of other users matching the search. */
     val users: StateFlow<List<User>> = _users
 
-    // StateFlow para el término de búsqueda
     private val _searchQuery = MutableStateFlow("")
+    /** Holds the current search query. */
     val searchQuery: StateFlow<String> = _searchQuery
 
+    private var connectionListener: ValueEventListener? = null
+
     init {
-        setupPresenceManagement()
-        loadCurrentUserData() // Cargamos los datos del usuario para actualizar el nombre y finalizar la carga
-        // Se lanza una corrutina para observar los cambios en el término de búsqueda
+        initializePresenceListener()
+        loadCurrentUserProfile()
+        notificationHelper.cancelAllNotifications()
         viewModelScope.launch {
             _searchQuery
-                .debounce(300)         // Espera 300ms tras la última escritura
-                .distinctUntilChanged() // Evita emitir el mismo valor de forma consecutiva
+                .debounce(300)
+                .distinctUntilChanged()
                 .collect { query ->
-                    loadUsers(query.lowercase())
+                    fetchUsers(query.lowercase(Locale.getDefault()))
                 }
         }
     }
 
     /**
-     * Actualiza el StateFlow con la nueva consulta de búsqueda.
+     * Updates the search query to trigger user list refresh.
+     *
+     * @param query The new search text.
      */
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
     /**
-     * Configura la gestión de presencia del usuario, actualizando su estado a "online"
-     * y programando su cambio a "offline" cuando se desconecte.
+     * Sets up Firebase presence tracking: marks user online when connected,
+     * and schedules offline status on disconnect.
      */
-    private fun setupPresenceManagement() {
-        auth.currentUser?.uid?.let { uid ->
-            val userRef = database.child("Users").child(uid)
-            val connectedRef = database.child(".info/connected")
-            connectionListener = connectedRef.addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if (snapshot.getValue(Boolean::class.java) == true) {
-                        // Configura los valores que se actualizarán al desconectarse
-                        userRef.child("status").onDisconnect().setValue("offline")
-                        userRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
-                        // Actualiza el estado a "online" de forma inmediata
-                        userRef.updateChildren(
-                            mapOf(
-                                "status" to "online",
-                                "lastSeen" to ServerValue.TIMESTAMP
-                            )
+    private fun initializePresenceListener() {
+        val uid = auth.currentUser?.uid ?: return
+        val userRef = database.child("Users").child(uid)
+        val connectedRef = database.child(".info/connected")
+
+        // Schedule offline status on disconnect
+        userRef.child("private/status").onDisconnect().setValue("offline")
+        userRef.child("private/lastSeen").onDisconnect()
+            .setValue(ServerValue.TIMESTAMP)
+
+        // Listen for connection changes
+        connectionListener = connectedRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val connected = snapshot.getValue(Boolean::class.java) == true
+                if (connected) {
+                    userRef.child("private").updateChildren(
+                        mapOf(
+                            "status" to "online",
+                            "lastSeen" to ServerValue.TIMESTAMP
                         )
+                    ).addOnFailureListener { e ->
+                        Log.e(TAG, "Failed to set user online", e)
                     }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Presence listener cancelled", error.toException())
+            }
+        })
+    }
+
+    /**
+     * Retrieves the current user's public profile (username) from Firebase.
+     */
+    private fun loadCurrentUserProfile() {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            _isLoading.value = false
+            return
+        }
+        database.child("Users").child(uid)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val publicData = snapshot.child("public")
+                    val rawName = publicData.child("username").getValue(String::class.java) ?: ""
+                    _username.value = rawName.replaceFirstChar {
+                        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                    }
+                    _isLoading.value = false
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e("Presence", "Connection error", error.toException())
+                    Log.e(TAG, "Failed to load user profile", error.toException())
+                    _isLoading.value = false
                 }
             })
-        }
     }
 
     /**
-     * Carga los datos del usuario actual desde Firebase (por ejemplo, el nombre de usuario)
-     * y actualiza el StateFlow correspondiente.
+     * Fetches other users from Firebase, filtering by [searchQuery] if provided.
+     * Excludes the current user and sorts by online status and last seen time.
+     *
+     * @param searchQuery Lowercased text used to match against the "public/find" field.
      */
-    private fun loadCurrentUserData() {
-        auth.currentUser?.uid?.let { uid ->
-            database.child("Users").child(uid)
-                .addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        _username.value = snapshot.child("username").getValue(String::class.java)
-                            ?.replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(
-                                    Locale.ROOT
-                                ) else it.toString()
-                            }
-                            ?: ""
-                        _isLoading.value = false
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        Log.e("LoadUser", "Error loading user data", error.toException())
-                        _isLoading.value = false
-                    }
-                })
-        } ?: run {
-            _isLoading.value = false
+    private fun fetchUsers(searchQuery: String = "") {
+        val currentUserId = auth.currentUser?.uid ?: return
+        val usersRef = database.child("Users")
+        val queryRef: Query = if (searchQuery.isNotEmpty()) {
+            usersRef.orderByChild("public/find")
+                .startAt(searchQuery)
+                .endAt("$searchQuery\uf8ff")
+        } else {
+            usersRef
         }
-    }
-
-    /**
-     * Carga la lista de usuarios desde Firebase.
-     * Si [searchQuery] no está vacío, realiza una búsqueda parcial (basada en el campo "find").
-     */
-    private fun loadUsers(searchQuery: String = "") {
-        auth.currentUser?.uid?.let { currentUserId ->
-            val baseRef = database.child("Users")
-            val queryRef: Query = if (searchQuery.isNotEmpty()) {
-                baseRef.orderByChild("find")
-                    .startAt(searchQuery)
-                    .endAt("$searchQuery\uf8ff")
-            } else {
-                baseRef
-            }
-            queryRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val usersList = snapshot.children.mapNotNull { userSnapshot ->
-                        val userId = userSnapshot.key ?: return@mapNotNull null
-                        // Se excluye el usuario actual
-                        if (userId == currentUserId) return@mapNotNull null
-                        User(
-                            id = userId,
-                            username = userSnapshot.child("username").getValue(String::class.java) ?: "",
-                            email = userSnapshot.child("email").getValue(String::class.java) ?: "",
-                            profileImage = userSnapshot.child("image").getValue(String::class.java) ?: "",
-                            status = userSnapshot.child("status").getValue(String::class.java) ?: "offline",
-                            isOnline = userSnapshot.child("status").getValue(String::class.java) == "online",
-                            lastSeen = userSnapshot.child("lastSeen").getValue(Long::class.java) ?: 0L
-                        )
-                    }
-                    // Ordena los usuarios: primero los online y luego por el último visto
-                    _users.value = usersList.sortedWith(
-                        compareByDescending<User> { it.isOnline }
-                            .thenByDescending { it.lastSeen }
+        queryRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val list = snapshot.children.mapNotNull { child ->
+                    val id = child.key ?: return@mapNotNull null
+                    if (id == currentUserId) return@mapNotNull null
+                    val publicData = child.child("public")
+                    val privateData = child.child("private")
+                    User(
+                        id = id,
+                        username = publicData.child("username").getValue(String::class.java) ?: "",
+                        email = privateData.child("email").getValue(String::class.java) ?: "",
+                        profileImage = publicData.child("profileImage").getValue(String::class.java) ?: "",
+                        status = privateData.child("status").getValue(String::class.java) ?: "offline",
+                        isOnline = privateData.child("status").getValue(String::class.java) == "online",
+                        lastSeen = privateData.child("lastSeen").getValue(Long::class.java) ?: 0L
                     )
                 }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e("LoadUsers", "Error loading users", error.toException())
-                }
-            })
-        }
-    }
-
-    /**
-     * Función para cerrar la sesión del usuario.
-     * Actualiza el estado a "offline" antes de llamar a [FirebaseAuth.signOut].
-     */
-    fun signOut() {
-        auth.currentUser?.uid?.let { uid ->
-            database.child("Users").child(uid).updateChildren(
-                mapOf(
-                    "status" to "offline",
-                    "lastSeen" to ServerValue.TIMESTAMP
+                _users.value = list.sortedWith(
+                    compareByDescending<User> { it.isOnline }
+                        .thenByDescending { it.lastSeen }
                 )
-            ).addOnCompleteListener {
-                auth.signOut()
-                cleanupListeners()
             }
-        } ?: run {
-            auth.signOut()
-            cleanupListeners()
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to load users", error.toException())
+            }
+        })
+    }
+
+    /**
+     * Signs out the current user, updates their presence to offline,
+     * clears FCM token, and cleans up listeners.
+     *
+     * @param onSignOutComplete Callback invoked when sign-out flow finishes.
+     */
+    fun signOut(onSignOutComplete: () -> Unit) {
+        val uid = auth.currentUser?.uid
+        viewModelScope.launch {
+            if (uid == null) {
+                Log.w(TAG, "No user signed in")
+                cleanupListeners()
+                onSignOutComplete()
+                return@launch
+            }
+            try {
+                Log.d(TAG, "Setting user offline: $uid")
+                database.child("Users").child(uid).child("private")
+                    .updateChildren(
+                        mapOf(
+                            "status" to "offline",
+                            "lastSeen" to ServerValue.TIMESTAMP
+                        )
+                    ).await()
+                Log.d(TAG, "Clearing FCM token for: $uid")
+                userRepository.clearCurrentUserFCMToken()
+                Log.d(TAG, "Signing out from FirebaseAuth")
+                auth.signOut()
+                Log.i(TAG, "Sign-out successful: $uid")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during sign-out for $uid", e)
+                // Ensure auth signOut even if prior steps fail
+                if (auth.currentUser?.uid == uid) auth.signOut()
+            } finally {
+                cleanupListeners()
+                onSignOutComplete()
+            }
         }
     }
 
     /**
-     * Elimina los listeners de Firebase para evitar fugas de memoria.
+     * Deletes the current user's account and associated data from Firebase.
+     *
+     * @param onComplete Callback receiving success flag and error message if any.
+     */
+    fun deleteUser(onComplete: (Boolean, String?) -> Unit) {
+        val user = auth.currentUser ?: return onComplete(false, "No authenticated user")
+        database.child("Users").child(user.uid).removeValue()
+            .addOnSuccessListener {
+                user.delete()
+                    .addOnSuccessListener {
+                        cleanupListeners()
+                        onComplete(true, null)
+                    }
+                    .addOnFailureListener { e ->
+                        onComplete(false, "Account deletion failed: ${'$'}{e.message}")
+                    }
+            }
+            .addOnFailureListener { e ->
+                onComplete(false, "Data removal failed: ${'$'}{e.message}")
+            }
+    }
+
+    /**
+     * Removes Firebase event listeners to avoid memory leaks.
      */
     private fun cleanupListeners() {
         connectionListener?.let { database.removeEventListener(it) }

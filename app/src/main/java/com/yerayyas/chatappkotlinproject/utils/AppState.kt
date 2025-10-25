@@ -9,47 +9,47 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Singleton que rastrea el estado global de la aplicación.
- * Proporciona información sobre si la app está en primer plano
- * y qué pantalla de chat está actualmente visible (si alguna).
- * Es crucial para decidir si se debe mostrar una notificación push.
+ * Singleton that tracks the global state of the application.
+ * It provides information on whether the app is in the foreground
+ * and which chat screen is currently visible (if any).
+ * This is crucial for deciding whether to show a push notification.
  */
-@Singleton // Asegura que solo haya una instancia en toda la app (gracias a Hilt)
-class AppState @Inject constructor() { // Hilt se encarga de la creación
+@Singleton // Ensures there is only one instance throughout the app (thanks to Hilt)
+class AppState @Inject constructor() { // Hilt handles the creation
 
-    // Indica si algún componente de la app (Activity) está visible.
-    @Volatile // Asegura visibilidad entre hilos
+    // Indicates if any app component (Activity) is visible.
+    @Volatile // Ensures visibility across threads
     var isAppInForeground: Boolean = false
-        private set // Solo modificable desde dentro de esta clase
+        private set // Can only be modified from within this class
 
-    // Almacena el ID del usuario con el que se está chateando activamente.
-    // Se establece desde ChatScreen y se limpia al salir. Null si no hay chat abierto.
-    @Volatile // Asegura visibilidad entre hilos
+    // Stores the ID of the user being actively chatted with.
+    // It is set from ChatScreen and cleared upon exit. Null if no chat is open.
+    @Volatile // Ensures visibility across threads
     var currentOpenChatUserId: String? = null
 
-    // Observador del ciclo de vida de to-do el proceso de la aplicación
+    // Lifecycle observer for the entire application process
     private val lifecycleEventObserver = LifecycleEventObserver { _: LifecycleOwner, event: Lifecycle.Event ->
         when (event) {
             Lifecycle.Event.ON_START -> {
                 isAppInForeground = true
-                Log.d("AppState1", "App entered foreground.")
+                Log.d("AppState", "App entered foreground.")
             }
             Lifecycle.Event.ON_STOP -> {
                 isAppInForeground = false
-                Log.d("AppState1", "App entered background.")
+                Log.d("AppState", "App entered background.")
             }
-            // Otros eventos del ciclo de vida no son necesarios para este propósito
+            // Other lifecycle events are not needed for this purpose
             else -> Unit
         }
     }
 
     init {
-        // Registra el observador para recibir eventos del ciclo de vida del proceso
+        // Register the observer to receive process lifecycle events
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
         Log.d("AppState", "AppState Initialized and Lifecycle Observer added.")
     }
 
-    // Méto-do para limpiar el observador si fuera necesario (aunque como Singleton, vive con la app)
+    // Method to clean up the observer if needed (though as a Singleton, it lives with the app)
     // fun cleanup() {
     //     ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleEventObserver)
     // }

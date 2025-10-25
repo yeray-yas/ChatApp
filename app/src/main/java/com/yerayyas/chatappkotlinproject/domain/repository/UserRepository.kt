@@ -1,25 +1,22 @@
 package com.yerayyas.chatappkotlinproject.domain.repository
 
 /**
- * Interfaz para operaciones relacionadas con los datos del usuario,
- * incluyendo la gestión del token FCM.
+ * Interface for user data-related operations,
+ * including FCM token management.
  */
 interface UserRepository {
     /**
-     * Actualiza (o guarda si no existe) el token FCM para el usuario actualmente logueado
-     * en la base de datos del backend.
-     * @param token El nuevo token FCM a guardar.
-     * @throws Exception si ocurre un error durante la operación de base de datos.
+     * Updates (or saves if it doesn't exist) the FCM token for the currently logged-in user
+     * in the backend database.
+     * @param token The new FCM token to save.
+     * @throws Exception if an error occurs during the database operation.
      */
     suspend fun updateCurrentUserFCMToken(token: String)
 
     /**
-     * Elimina el token FCM asociado al usuario actualmente logueado
-     * de la base de datos del backend (útil al cerrar sesión).
-     * @throws Exception si ocurre un error durante la operación de base de datos.
+     * Deletes the FCM token associated with the currently logged-in user
+     * from the backend database (useful on logout).
+     * @throws Exception if an error occurs during the database operation.
      */
     suspend fun clearCurrentUserFCMToken()
-
-    // Podrías añadir otras funciones relacionadas con el usuario aquí si es necesario
-    // suspend fun getCurrentUserProfile(): UserProfile?
 }

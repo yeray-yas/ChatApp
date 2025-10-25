@@ -15,14 +15,16 @@ import javax.inject.Inject
 private const val TAG = "MyFirebaseMsgService"
 
 /**
- * Service handling Firebase Cloud Messaging events.
+ * A service that extends [FirebaseMessagingService] to handle Firebase Cloud Messaging (FCM) events.
  *
- * Responsibilities:
- * 1. Receive and process new FCM tokens.
- * 2. Persist the token via UpdateFcmTokenUseCase.
- * 3. Receive data messages and delegate notification display
- *    decisions to ShouldShowChatNotificationUseCase.
- * 4. Delegate notification rendering to NotificationHelper.
+ * This service is responsible for two main tasks:
+ * 1.  **Token Management**: It captures newly generated FCM tokens and updates them on the backend
+ *     server using the [UpdateFcmTokenUseCase].
+ * 2.  **Message Handling**: It intercepts incoming data messages from FCM, determines if a push
+ *     notification should be displayed using [ShouldShowChatNotificationUseCase], and then uses
+ *     [NotificationHelper] to build and show the notification.
+ *
+ * This class is annotated with `@AndroidEntryPoint` to enable Hilt dependency injection.
  */
 @AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
@@ -43,25 +45,37 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     lateinit var notifHelper: NotificationHelper
 
     /**
-     * Called when a new FCM token is generated.
+     * Called when a new FCM registration token is generated.
+     *
+     * This method is invoked by the Firebase SDK whenever a new token is created or an existing one is
+     * refreshed. The new token is then sent to the backend server to keep it up-to-date.
+     *
+     * @param token The new FCM token as a [String].
      */
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "FCM token refreshed: $token")
+        Log.d(TAG, "New FCM token received: ${token.take(10)}...")
         serviceScope.launch {
             try {
                 updateFcmToken(token)
-                Log.i(TAG, "Token sent to server.")
+                Log.i(TAG, "FCM token update successfully sent to server.")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send FCM token.", e)
+                Log.e(TAG, "Failed to send FCM token to server.", e)
             }
         }
     }
 
     /**
-     * Called when a data message is received from FCM.
+     * Called when a new data message is received from FCM.
+     *
+     * This method processes incoming data messages. It first checks if the notification should be shown
+     * based on the current app state (e.g., if the user is already in the specific chat screen).
+     * If the notification is warranted, it delegates the display logic to [NotificationHelper].
+     *
+     * @param remoteMessage The [RemoteMessage] object containing the message data from FCM.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        Log.d(TAG, "New FCM data message received from: ${remoteMessage.from}")
         remoteMessage.data.takeIf { it.isNotEmpty() }?.let { data ->
             val senderId       = data["senderId"]       ?: return
             val chatId         = data["chatId"]         ?: return
@@ -69,6 +83,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val messagePreview = data["messagePreview"] ?: "New message"
 
             if (shouldShowChatNotification(senderId)) {
+                Log.d(TAG, "Notification condition met. Displaying notification for sender: $senderId")
                 notifHelper.sendChatNotification(
                     senderId    = senderId,
                     senderName  = senderName,
@@ -76,7 +91,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     chatId      = chatId
                 )
             } else {
-                Log.d(TAG, "Notification suppressed for chat $senderId.")
+                Log.d(TAG, "Notification suppressed for sender: $senderId as chat is likely open.")
             }
         }
     }

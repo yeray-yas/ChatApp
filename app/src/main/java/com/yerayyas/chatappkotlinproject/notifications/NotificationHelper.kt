@@ -26,10 +26,17 @@ import javax.inject.Singleton
 private const val TAG = "NotificationHelper"
 
 /**
- * Helper for sending and managing chat notifications.
- * Tracks active notifications and displays grouped summaries.
+ * A singleton helper class responsible for creating, displaying, and managing chat notifications.
  *
- * @param context Application context for notification operations.
+ * This class handles the complexities of:
+ * - Checking for notification permissions.
+ * - Creating a notification channel for Android 8.0+.
+ * - Building and displaying individual chat notifications.
+ * - Grouping notifications under a single summary notification.
+ * - Canceling individual or all notifications.
+ * - Tracking the set of active notifications to manage the summary state correctly.
+ *
+ * @property context The application context, injected by Hilt.
  */
 @Singleton
 class NotificationHelper @Inject constructor(
@@ -38,12 +45,15 @@ class NotificationHelper @Inject constructor(
     private val activeNotifications = Collections.synchronizedSet(HashSet<String>())
 
     /**
-     * Sends a high-priority chat notification for an incoming message.
-     * Creates notification channel if needed and updates summary.
+     * Displays a high-priority notification for an incoming chat message and updates the summary.
      *
-     * @param senderId Unique identifier of the message sender.
-     * @param senderName Display name of the sender.
-     * @param messageBody Preview text of the message.
+     * Before sending, it checks for notification permissions. It creates the notification channel if it doesn't exist.
+     * After displaying the notification, it calls [sendSummaryNotification] to update the grouped notification.
+     *
+     * @param senderId A unique identifier for the sender, used as the notification tag and for tracking.
+     * @param senderName The name of the sender to be displayed in the notification.
+     * @param messageBody The content of the message to be displayed.
+     * @param chatId The ID of the chat, used to construct the navigation intent.
      */
     fun sendChatNotification(
         senderId: String,
@@ -71,6 +81,7 @@ class NotificationHelper @Inject constructor(
         try {
             activeNotifications.add(senderId)
             val manager = NotificationManagerCompat.from(context)
+            // The tag and ID are derived from senderId to ensure uniqueness per user
             manager.notify(senderId.hashCode(), notification)
             sendSummaryNotification(manager)
             Log.d(TAG, "Notification sent for user: $senderId")
@@ -82,9 +93,12 @@ class NotificationHelper @Inject constructor(
     }
 
     /**
-     * Cancels notifications for a specific user and updates summary.
+     * Cancels a specific user's notification and updates the summary notification.
      *
-     * @param userId Identifier of the user whose notifications will be canceled.
+     * If the specified user has an active notification, it is removed. If other notifications remain,
+     * the summary is updated. If no notifications are left, the summary is also removed.
+     *
+     * @param userId The unique identifier of the user whose notifications should be canceled.
      */
     fun cancelNotificationsForUser(userId: String) {
         if (!hasNotificationPermission()) {
@@ -102,6 +116,7 @@ class NotificationHelper @Inject constructor(
                 if (activeNotifications.isNotEmpty()) {
                     sendSummaryNotification(NotificationManagerCompat.from(context))
                 } else {
+                    // If no more notifications, cancel the summary as well
                     NotificationManagerCompat.from(context).cancel(SUMMARY_ID)
                 }
             }
@@ -113,7 +128,7 @@ class NotificationHelper @Inject constructor(
     }
 
     /**
-     * Cancels all chat notifications and clears internal tracking.
+     * Cancels all chat-related notifications shown by this helper and clears the active notification tracker.
      */
     fun cancelAllNotifications() {
         if (!hasNotificationPermission()) {
@@ -132,6 +147,14 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    /**
+     * Builds a [PendingIntent] that navigates to the [MainActivity] and instructs it to open the relevant chat screen.
+     *
+     * @param senderId The ID of the user who sent the message.
+     * @param senderName The name of the sender.
+     * @param chatId The ID of the chat.
+     * @return A configured [PendingIntent].
+     */
     private fun buildChatPendingIntent(
         senderId: String,
         senderName: String,
@@ -145,7 +168,7 @@ class NotificationHelper @Inject constructor(
             putExtra("chatId", chatId)
         }
 
-        // Ensure unique request code for each notification
+        // Ensure a unique request code for each sender/chat combination to avoid PendingIntent collisions
         val requestCode = (senderId + chatId).hashCode()
 
         return PendingIntent.getActivity(
@@ -156,35 +179,47 @@ class NotificationHelper @Inject constructor(
         )
     }
 
+    /**
+     * Creates the notification channel for chat messages if it does not already exist.
+     * This is required for Android 8.0 (API level 26) and higher.
+     */
     private fun createChannelIfNeeded() {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            manager.getNotificationChannel(CHANNEL_ID) == null
-        ) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Channel for chat notifications"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Channel for incoming chat messages"
+                }
+                manager.createNotificationChannel(channel)
+                Log.d(TAG, "Notification channel created: $CHANNEL_ID")
             }
-            manager.createNotificationChannel(channel)
         }
     }
 
+    /**
+     * Creates and displays a summary notification for all active chat notifications.
+     *
+     * @param manager The [NotificationManagerCompat] instance used to send the notification.
+     */
     private fun sendSummaryNotification(manager: NotificationManagerCompat) {
         if (!hasNotificationPermission()) return
 
         try {
             val count = getActiveChatNotificationsCount()
+            val summaryText = "You have $count unread messages"
+
             val summary = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(context.getString(R.string.app_name))
-                .setContentText("You have $count unread messages")
+                .setContentText(summaryText)
                 .setSmallIcon(R.drawable.ic_chat)
                 .setStyle(
                     NotificationCompat.InboxStyle()
                         .setBigContentTitle("$count new messages")
-                        .setSummaryText("Chat messages summary")
+                        .setSummaryText("Chat messages")
                 )
                 .setGroup(GROUP_KEY)
                 .setGroupSummary(true)
@@ -199,21 +234,29 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    /**
+     * Safely retrieves the count of currently visible notifications belonging to the chat group.
+     *
+     * @return The number of active chat notifications.
+     */
     private fun getActiveChatNotificationsCount(): Int {
         return try {
-            val systemManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val systemManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             systemManager.activeNotifications
                 .count { it.notification.group == GROUP_KEY && it.id != SUMMARY_ID }
         } catch (e: Exception) {
             Log.e(TAG, "Error retrieving active notifications count.", e)
-            activeNotifications.size
+            activeNotifications.size // Fallback to our internal tracker
         }
     }
 
     /**
-     * Checks if the app has POST_NOTIFICATIONS permission (Android 13+).
-     * Returns true on older platforms where permission is not required.
+     * Checks if the app has the necessary permission to post notifications.
+     *
+     * On Android 13 (API 33) and higher, this checks for [Manifest.permission.POST_NOTIFICATIONS].
+     * On older versions, this always returns true as the permission is granted at install time.
+     *
+     * @return `true` if notifications can be posted, `false` otherwise.
      */
     private fun hasNotificationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

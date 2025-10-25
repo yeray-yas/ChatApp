@@ -85,30 +85,28 @@ fun HomeScreen(
     val unreadMessagesCount by chatsListViewModel.unreadMessagesCount.collectAsState()
     val context = LocalContext.current
 
-    // --- Inicio: Lógica para solicitar permiso de notificación ---
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
                 Log.i("HomeScreen", "POST_NOTIFICATIONS permission granted.")
-                // Puedes mostrar un mensaje de agradecimiento si quieres
                 // Toast.makeText(context, "Notifications enabled!", Toast.LENGTH_SHORT).show()
             } else {
                 Log.w("HomeScreen", "POST_NOTIFICATIONS permission denied.")
-                // Informar al usuario por qué son útiles las notificaciones (opcional pero recomendado)
+                // Inform the user why notifications are useful (optional but recommended)
                 Toast.makeText(
                     context,
                     "Notifications disabled. You might miss new messages.",
                     Toast.LENGTH_LONG
                 ).show()
-                // Aquí podrías mostrar un diálogo explicando cómo habilitarlas manualmente en ajustes
+                // Here you could show a dialog explaining how to enable them manually in settings
             }
         }
     )
 
-    // Efecto para solicitar el permiso UNA VEZ cuando HomeScreen se muestra por primera vez (si es necesario)
-    LaunchedEffect(Unit) { // Clave Unit para que se ejecute solo una vez
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Solo para Android 13+
+    // Effect to request permission ONCE when HomeScreen is first displayed (if needed)
+    LaunchedEffect(Unit) { // The 'Unit' key ensures this runs only once
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Only for Android 13+
             val permissionStatus = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -182,7 +180,7 @@ fun HomeScreen(
                                     } else {
                                         Toast.makeText(
                                             context,
-                                            "Error erasing the count: $error",
+                                            "Error deleting account: $error",
                                             Toast.LENGTH_LONG
                                         ).show()
                                     }
@@ -193,7 +191,7 @@ fun HomeScreen(
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.sign_out_btn)) },
                             onClick = {
-                                viewModel.signOut {
+                                viewModel.signOut { 
                                     navController.navigate(Routes.Main.route) {
                                         popUpTo(0) { inclusive = true }
                                     }
@@ -216,12 +214,13 @@ fun HomeScreen(
                         onClick = {
                             coroutineScope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        text = {
-                            if (index == 1 && unreadMessagesCount > 0) {
-                                Text("[$unreadMessagesCount] $title")
+                        text = { 
+                            val tabTitle = if (index == 1 && unreadMessagesCount > 0) {
+                                "[$unreadMessagesCount] $title"
                             } else {
-                                Text(title)
+                                title
                             }
+                            Text(tabTitle)
                         }
                     )
                 }
@@ -260,7 +259,7 @@ private fun UsersScreen(
         SearchBar(
             query = searchQuery,
             onQueryChange = { viewModel.onSearchQueryChanged(it) },
-            onSearch = { /* Implement search functionality */ },
+            onSearch = { isActive = false },
             active = isActive,
             onActiveChange = { isActive = it },
             modifier = Modifier.fillMaxWidth(),
@@ -302,15 +301,13 @@ private fun UsersList(
         items(users) { user ->
             UserListItem(
                 user = user,
-                onItemClick = {   // --- CORRECCIÓN AQUÍ ---
-                    // Construye la ruta usando slashes, igual que en NavHost
+                onItemClick = {
+                    // Build the route using slashes, same as in the NavHost
                     val route = "chat/${user.id}/${user.username}"
-                    Log.d("UsersList", "Navigating to route: $route") // Log para verificar
-                    try { // Añadir try-catch por si acaso durante la depuración
+                    try {
                         navController.navigate(route)
                     } catch (e: Exception) {
                         Log.e("UsersList", "Navigation failed for route: $route", e)
-                        // Puedes mostrar un Toast o mensaje si falla
                     }
                 }
             )
@@ -340,7 +337,6 @@ private fun ChatsList(
                 chat = chat,
                 onClick = {
                     val route = "chat/${chat.otherUserId}/${chat.otherUsername}"
-                    Log.d("ChatsList", "Navigating to route: $route") // Log para verificar
                     try {
                         navController.navigate(route)
                     } catch (e: Exception) {

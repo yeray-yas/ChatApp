@@ -181,6 +181,44 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     /**
+     * Sends a plain text message as a reply to another message.
+     *
+     * @param receiverId The ID of the user who will receive the message.
+     * @param messageText The non-blank content of the text message.
+     * @param replyToMessage The original message being replied to.
+     * @throws IllegalStateException if the current user is not authenticated.
+     * @throws Exception if the database operation fails.
+     */
+    override suspend fun sendTextMessageReply(
+        receiverId: String,
+        messageText: String,
+        replyToMessage: ChatMessage
+    ) {
+        if (messageText.isBlank()) return
+
+        val currentUserId = requireCurrentUserId()
+        val chatId = getChatId(currentUserId, receiverId)
+        val messageRef = database.child("Chats").child("Messages").child(chatId).push()
+
+        val message = ChatMessage(
+            id = messageRef.key ?: UUID.randomUUID().toString(),
+            senderId = currentUserId,
+            receiverId = receiverId,
+            message = messageText,
+            timestamp = System.currentTimeMillis(),
+            messageType = MessageType.TEXT,
+            readStatus = ReadStatus.SENT,
+            replyToMessageId = replyToMessage.id,
+            replyToMessage = if (replyToMessage.messageType == MessageType.IMAGE) "Image" else replyToMessage.message,
+            replyToSenderId = replyToMessage.senderId,
+            replyToMessageType = replyToMessage.messageType,
+            replyToImageUrl = if (replyToMessage.messageType == MessageType.IMAGE) replyToMessage.imageUrl else null
+        )
+
+        messageRef.setValue(message).await()
+    }
+
+    /**
      * Uploads an image to Firebase Storage and then sends a message containing the image URL.
      *
      * @param receiverId The ID of the user who will receive the image message.
@@ -210,6 +248,51 @@ class ChatRepositoryImpl @Inject constructor(
             imageUrl = imageUrl,
             messageType = MessageType.IMAGE,
             readStatus = ReadStatus.SENT
+        )
+
+        messageRef.setValue(message).await()
+    }
+
+    /**
+     * Uploads an image to Firebase Storage and then sends a message containing the image URL as a reply.
+     *
+     * @param receiverId The ID of the user who will receive the image message.
+     * @param imageUri The local [Uri] of the image to upload.
+     * @param replyToMessage The original message being replied to.
+     * @throws IllegalStateException if the current user is not authenticated.
+     * @throws Exception if the image upload or database operation fails.
+     */
+    override suspend fun sendImageMessageReply(
+        receiverId: String,
+        imageUri: Uri,
+        replyToMessage: ChatMessage
+    ) {
+        val currentUserId = requireCurrentUserId()
+        val chatId = getChatId(currentUserId, receiverId)
+
+        // Define the path and name for the image in Firebase Storage.
+        val imageFileName = "chat_images/${UUID.randomUUID()}.jpg"
+        val imageRef = storage.reference.child(imageFileName)
+
+        // Upload the file and get its public URL.
+        imageRef.putFile(imageUri).await()
+        val imageUrl = imageRef.downloadUrl.await().toString()
+
+        val messageRef = database.child("Chats").child("Messages").child(chatId).push()
+        val message = ChatMessage(
+            id = messageRef.key ?: UUID.randomUUID().toString(),
+            senderId = currentUserId,
+            receiverId = receiverId,
+            message = "Image", // Fallback text for notifications or previews
+            timestamp = System.currentTimeMillis(),
+            imageUrl = imageUrl,
+            messageType = MessageType.IMAGE,
+            readStatus = ReadStatus.SENT,
+            replyToMessageId = replyToMessage.id,
+            replyToMessage = if (replyToMessage.messageType == MessageType.IMAGE) "Image" else replyToMessage.message,
+            replyToSenderId = replyToMessage.senderId,
+            replyToMessageType = replyToMessage.messageType,
+            replyToImageUrl = if (replyToMessage.messageType == MessageType.IMAGE) replyToMessage.imageUrl else null
         )
 
         messageRef.setValue(message).await()

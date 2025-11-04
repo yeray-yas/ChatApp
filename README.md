@@ -22,9 +22,12 @@ El propósito de esta aplicación es demostrar el desarrollo de una solución de
 - Registro e inicio de sesión con correo y contraseña (Firebase Authentication)
 
 ### Mensajería en tiempo real
-- Envío de mensajes
+
+- Envío de mensajes de texto e imágenes
+- **Funcionalidad de respuesta (Reply)** - Responder a mensajes específicos como en WhatsApp
 - Recepción automática de mensajes sin recargar la interfaz
 - Almacenamiento en Firebase Realtime Database
+- Estado de lectura de mensajes
 
 ### Notificaciones Push
 - Envío de notificaciones mediante Cloud Messaging
@@ -34,6 +37,9 @@ El propósito de esta aplicación es demostrar el desarrollo de una solución de
 - Diseño completamente declarativo con Jetpack Compose
 - Navegación entre pantallas con Navigation Compose
 - Actualización automática de estado con ViewModel + State/Flow
+- **Vista previa de respuestas** con indicadores visuales
+- **Long press** en mensajes para activar respuesta
+- **Diseño adaptativo** para mensajes propios y de otros usuarios
 
 ---
 
@@ -42,15 +48,22 @@ El propósito de esta aplicación es demostrar el desarrollo de una solución de
 Se utiliza el patrón de diseño MVVM (Model View Viewmodel) para mantener una separación clara entre interfaz, lógica de presentación y acceso a datos.
 Esta estructura facilita la escalabilidad, la reutilización de lógica y la capacidad de testear componentes.
 
+### Capas implementadas:
+
+- **Presentation**: Compose UI, ViewModels, Estados
+- **Domain**: Use Cases, Repository Interfaces
+- **Data**: Repository Implementations, Firebase Integration
+
 ---
 
 ## Tecnologías y herramientas
 
 **Lenguaje:** Kotlin  
 **UI:** Jetpack Compose, Material 3  
-**Arquitectura:** MVVM, ViewModel, StateFlow  
-**Backend:** Firebase Authentication, Realtime Database, Cloud Messaging  
+**Arquitectura:** MVVM, Clean Architecture, ViewModel, StateFlow  
+**Backend:** Firebase Authentication, Realtime Database, Cloud Messaging, Storage  
 **Navegación:** Navigation Compose  
+**Inyección de dependencias:** Hilt  
 **Concurrencia:** Kotlin Coroutines / Flow  
 **Control de versiones:** Git + GitHub  
 **IDE:** Android Studio
@@ -64,9 +77,8 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
 1. Pantalla de inicio de sesión / registro  
 2. Lista o vista de chat  
 3. Envío y recepción de mensajes en tiempo real  
-4. Notificación push recibida
-
-
+4. **Funcionalidad de respuesta con vista previa**
+5. Notificación push recibida
 
 ---
 
@@ -81,6 +93,7 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
   - Authentication (Email/Password)
   - Realtime Database
   - Cloud Messaging
+- Storage (para imágenes)
 7. Sincronizar Gradle.
 8. Ejecutar la aplicación en un dispositivo o emulador.
 
@@ -90,35 +103,71 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
 
 Ejemplo de cómo se almacenan los mensajes:
 
-messages/
-chatId/
-messageId/
-senderId: String
-text: String
-timestamp: Long
+```
+Chats/
+  Messages/
+    chatId/
+      messageId/
+        senderId: String
+        receiverId: String
+        message: String
+        timestamp: Long
+        messageType: "TEXT" | "IMAGE"
+        readStatus: "SENT" | "READ"
+        replyToMessageId: String? (nuevo)
+        replyToMessage: String? (nuevo)
+        replyToSenderId: String? (nuevo)
+        replyToMessageType: "TEXT" | "IMAGE"? (nuevo)
+```
 
+---
+
+## Funcionalidad de Reply
+
+### Cómo usar:
+1. **Mantén presionado** cualquier mensaje
+2. Escribe tu respuesta en el campo de texto
+3. El mensaje se enviará como respuesta al mensaje original
+4. **✨ NUEVO**: **Toca** la vista previa del reply para ir al mensaje original
+
+### Características:
+
+- ✅ Vista previa del mensaje original con miniaturas de imagen
+- ✅ Indicadores visuales distintivos
+- ✅ Soporte para responder a texto e imágenes
+- ✅ Botón de cancelar respuesta
+- ✅ **Navegación al mensaje original** con scroll automático
+- ✅ **Animación de highlight avanzada**: fondo dorado + texto negro para máximo contraste
+- ✅ **Transiciones sincronizadas** de 500ms para experiencia fluida
+- ✅ Compatibilidad total con mensajes existentes
+
+**📖 Para más detalles técnicos, consulta: [REPLY_FUNCTIONALITY.md](REPLY_FUNCTIONALITY.md)**
 
 ---
 
 ## Buenas prácticas aplicadas
 
-- Separación de responsabilidades (MVVM)
+- Separación de responsabilidades (MVVM + Clean Architecture)
 - Uso de ViewModel para gestión del ciclo de vida
 - UI declarativa con Compose
 - Gestión reactiva de estado con Flow
 - Abstracción de acceso a datos con Repository
 - Navegación desacoplada entre pantallas
+- **Inyección de dependencias** con Hilt
+- **Use Cases** para lógica de dominio
+- **Estados inmutables** y programación reactiva
 
 ---
 
 ## Mejoras planificadas
 
-- Implementación de casos de uso en capa domain
-- Manejo de estados avanzados (loading, error, vacío)
+- Scroll automático al mensaje original al tocar una respuesta
+- Respuestas anidadas (responder a una respuesta)
 - Encriptación de mensajes
-- Envío de archivos multimedia
-- Chats grupales
+- Chats grupales con menciones
 - Tests unitarios para ViewModels y lógica de dominio
+- Estados avanzados (loading, error, vacío)
+- Modo oscuro mejorado
 
 ---
 
@@ -129,6 +178,7 @@ Este proyecto forma parte de mi portafolio como desarrollador Android, con el ob
 - Integración con servicios backend (Firebase)
 - Aplicación de arquitectura limpia
 - Buenas prácticas de código y escalabilidad
+- **Implementación de funcionalidades complejas** como el sistema de respuestas
 
 ---
 
@@ -136,7 +186,4 @@ Este proyecto forma parte de mi portafolio como desarrollador Android, con el ob
 
 [<img src="https://avatars.githubusercontent.com/u/84556441?s=400&u=9c2e1e6d95d361a45bb3fda23ebdf5b403e754ee&v=4" width=115><br><sub>Yeray Yas</sub>](https://github.com/yeray-yas)
 :---:
-Android Developer  
-
-
-
+Android Developer   

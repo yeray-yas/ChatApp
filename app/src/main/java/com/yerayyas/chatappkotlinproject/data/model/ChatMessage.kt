@@ -12,6 +12,11 @@ package com.yerayyas.chatappkotlinproject.data.model
  * @property imageUrl The URL of the image, only present if `messageType` is [MessageType.IMAGE].
  * @property messageType The type of the message, either [MessageType.TEXT] or [MessageType.IMAGE].
  * @property readStatus The delivery and read status of the message, see [ReadStatus].
+ * @property replyToMessageId The ID of the message this message is replying to, null if not a reply.
+ * @property replyToMessage The content of the message being replied to, for display purposes.
+ * @property replyToSenderId The ID of the sender of the message being replied to.
+ * @property replyToMessageType The type of the message being replied to.
+ * @property replyToImageUrl The URL of the image being replied to, if it's an image message.
  */
 data class ChatMessage(
     val id: String = "",
@@ -21,10 +26,29 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val imageUrl: String? = null,
     val messageType: MessageType = MessageType.TEXT,
-    val readStatus: ReadStatus = ReadStatus.SENT
+    val readStatus: ReadStatus = ReadStatus.SENT,
+    val replyToMessageId: String? = null,
+    val replyToMessage: String? = null,
+    val replyToSenderId: String? = null,
+    val replyToMessageType: MessageType? = null,
+    val replyToImageUrl: String? = null
 ) {
     // A no-argument constructor is required by Firebase for deserialization.
-    constructor() : this("", "", "", "", 0L, null, MessageType.TEXT, ReadStatus.SENT)
+    constructor() : this(
+        "",
+        "",
+        "",
+        "",
+        0L,
+        null,
+        MessageType.TEXT,
+        ReadStatus.SENT,
+        null,
+        null,
+        null,
+        null,
+        null
+    )
 
     /**
      * A convenience method to check if this message was sent by a specific user.
@@ -41,6 +65,13 @@ data class ChatMessage(
      * @return `true` if the `receiverId` matches the provided `userId`, `false` otherwise.
      */
     fun isReceivedBy(userId: String): Boolean = receiverId == userId
+
+    /**
+     * A convenience method to check if this message is a reply to another message.
+     *
+     * @return `true` if this message has reply information, `false` otherwise.
+     */
+    fun isReply(): Boolean = replyToMessageId != null
 }
 
 /**

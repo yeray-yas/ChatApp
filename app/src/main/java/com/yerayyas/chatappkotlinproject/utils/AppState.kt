@@ -26,17 +26,27 @@ class AppState @Inject constructor() { // Hilt handles the creation
     // It is set from ChatScreen and cleared upon exit. Null if no chat is open.
     @Volatile // Ensures visibility across threads
     var currentOpenChatUserId: String? = null
+        set(value) {
+            Log.d("AppState", "CurrentOpenChatUserId changed from '${field}' to '$value'")
+            field = value
+        }
 
     // Lifecycle observer for the entire application process
     private val lifecycleEventObserver = LifecycleEventObserver { _: LifecycleOwner, event: Lifecycle.Event ->
         when (event) {
             Lifecycle.Event.ON_START -> {
                 isAppInForeground = true
-                Log.d("AppState", "App entered foreground.")
+                Log.d(
+                    "AppState",
+                    "App entered foreground. isAppInForeground=$isAppInForeground, currentOpenChatUserId=$currentOpenChatUserId"
+                )
             }
             Lifecycle.Event.ON_STOP -> {
                 isAppInForeground = false
-                Log.d("AppState", "App entered background.")
+                Log.d(
+                    "AppState",
+                    "App entered background. isAppInForeground=$isAppInForeground, currentOpenChatUserId=$currentOpenChatUserId"
+                )
             }
             // Other lifecycle events are not needed for this purpose
             else -> Unit

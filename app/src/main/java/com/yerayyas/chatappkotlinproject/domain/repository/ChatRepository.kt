@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
  * Abstraction over chat data operations.
  */
 interface ChatRepository {
-    /** Returns current signed-in user’s ID or empty if none. */
+    /** Returns current signed-in user's ID or empty if none. */
     fun getCurrentUserId(): String
 
     /** Streams the messages in the chat with [otherUserId]. */
@@ -22,4 +22,18 @@ interface ChatRepository {
 
     /** Sends an image message. */
     suspend fun sendImageMessage(receiverId: String, imageUri: Uri)
+
+    /** Sends a text message as a reply to another message. */
+    suspend fun sendTextMessageReply(
+        receiverId: String,
+        messageText: String,
+        replyToMessage: ChatMessage
+    )
+
+    /** Sends an image message as a reply to another message. */
+    suspend fun sendImageMessageReply(
+        receiverId: String,
+        imageUri: Uri,
+        replyToMessage: ChatMessage
+    )
 }

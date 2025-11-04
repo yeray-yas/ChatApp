@@ -1,8 +1,11 @@
 package com.yerayyas.chatappkotlinproject.domain.usecases
 
+import android.util.Log
 import com.yerayyas.chatappkotlinproject.utils.AppState
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ShouldShowChatNotif"
 
 /**
  * Decides whether a chat notification should be shown.
@@ -23,6 +26,26 @@ class ShouldShowChatNotificationUseCase @Inject constructor(
     operator fun invoke(senderId: String): Boolean {
         val isAppBackground = !appState.isAppInForeground
         val isChatOpenForSender = appState.currentOpenChatUserId == senderId
-        return isAppBackground || !isChatOpenForSender
+
+        Log.d(TAG, "=== NOTIFICATION DECISION ===")
+        Log.d(TAG, "SenderId: $senderId")
+        Log.d(TAG, "isAppInForeground: ${appState.isAppInForeground}")
+        Log.d(TAG, "isAppBackground: $isAppBackground")
+        Log.d(TAG, "currentOpenChatUserId: ${appState.currentOpenChatUserId}")
+        Log.d(TAG, "isChatOpenForSender: $isChatOpenForSender")
+
+        val shouldShow = isAppBackground || !isChatOpenForSender
+
+        // TEMPORARY: Force notifications for debugging
+        val forcedDecision = true
+        Log.d(TAG, "Original decision - shouldShowNotification: $shouldShow")
+        Log.d(TAG, "TEMPORARY OVERRIDE - forcing notification: $forcedDecision")
+        Log.d(
+            TAG,
+            "Reason: ${if (isAppBackground) "App is in background" else if (!isChatOpenForSender) "Chat is not open for this sender" else "Chat is currently open for this sender"}"
+        )
+        Log.d(TAG, "=========================")
+
+        return forcedDecision // TEMPORARY: Always show notifications
     }
 }

@@ -6,8 +6,12 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +74,8 @@ import com.yerayyas.chatappkotlinproject.data.cache.ImageUrlStore
 import com.yerayyas.chatappkotlinproject.data.model.ChatInputState
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
+import com.yerayyas.chatappkotlinproject.presentation.components.ReplyInputPreview
+import com.yerayyas.chatappkotlinproject.presentation.components.ReplyMessagePreview
 import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
@@ -95,6 +101,9 @@ fun ChatScreen(
     val messages by chatViewModel.messages.collectAsState()
     val isLoading by chatViewModel.isLoading.collectAsState()
     val error by chatViewModel.error.collectAsState()
+    val replyToMessage by chatViewModel.replyToMessage.collectAsState()
+    val scrollToMessageId by chatViewModel.scrollToMessageId.collectAsState()
+    val highlightedMessageId by chatViewModel.highlightedMessageId.collectAsState()
     val currentUserId = remember { chatViewModel.getCurrentUserId() }
 
     val isDirectChat = remember {
@@ -132,6 +141,15 @@ fun ChatScreen(
     // Scroll to newest message when list updates
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
+    }
+    // Scroll to specific message if needed
+    LaunchedEffect(scrollToMessageId) {
+        if (scrollToMessageId != null) {
+            val index = messages.indexOfFirst { it.id == scrollToMessageId }
+            if (index != -1) {
+                listState.scrollToItem(index)
+            }
+        }
     }
     // Display errors via Toast
     LaunchedEffect(error) {
@@ -208,7 +226,12 @@ fun ChatScreen(
                             message = message,
                             currentUserId = currentUserId,
                             navController = navController,
-                            isLastMessage = message.isSentBy(currentUserId)
+                            isLastMessage = message.isSentBy(currentUserId),
+                            onLongPress = { chatViewModel.setReplyToMessage(message) },
+                            onReplyClick = { originalMessageId ->
+                                chatViewModel.scrollToOriginalMessage(originalMessageId)
+                            },
+                            highlightedMessageId = highlightedMessageId
                         )
                     }
                 }
@@ -217,10 +240,12 @@ fun ChatScreen(
                     state = ChatInputState(
                         messageText = messageText,
                         onMessageChange = { messageText = it },
-                        focusRequester = focusRequester
+                        focusRequester = focusRequester,
+                        replyToMessage = replyToMessage
                     ),
                     onSendMessage = sendMessage,
                     onAttachFile = attachFile,
+                    onClearReply = { chatViewModel.clearReply() },
                     isLoading = isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -269,10 +294,12 @@ private fun ChatTopAppBar(
 
 /**
  * Area for composing and sending chat messages and attachments.
+ * Now includes reply preview functionality.
  *
- * @param state Holds the current input text and focus requester.
+ * @param state Holds the current input text, focus requester, and reply state.
  * @param onSendMessage Invoked when the send action is triggered.
  * @param onAttachFile Invoked when the attach file action is triggered.
+ * @param onClearReply Invoked when the clear reply action is triggered.
  * @param isLoading Disables inputs when true.
  * @param modifier Modifier for styling and layout.
  */
@@ -281,35 +308,50 @@ private fun ChatInputArea(
     state: ChatInputState,
     onSendMessage: () -> Unit,
     onAttachFile: () -> Unit,
+    onClearReply: () -> Unit,
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
     val isSendEnabled = !isLoading && state.messageText.isNotBlank()
-    Row(
-        modifier = modifier.padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onAttachFile, enabled = !isLoading) {
-            Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
-        }
-        TextField(
-            value = state.messageText,
-            onValueChange = state.onMessageChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(state.focusRequester),
-            placeholder = { Text("Type a message...") },
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { if (isSendEnabled) onSendMessage() }),
-            enabled = !isLoading,
-            shape = RoundedCornerShape(20.dp)
-        )
-        IconButton(onClick = onSendMessage, enabled = isSendEnabled) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send message",
-                tint = if (isSendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+
+    Column(modifier = modifier) {
+        // Show reply preview if replying to a message
+        state.replyToMessage?.let { replyMessage ->
+            ReplyInputPreview(
+                replyToMessage = replyMessage,
+                onClearReply = onClearReply,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
+        }
+
+        Row(
+            modifier = Modifier.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onAttachFile, enabled = !isLoading) {
+                Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
+            }
+            TextField(
+                value = state.messageText,
+                onValueChange = state.onMessageChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(state.focusRequester),
+                placeholder = { Text("Type a message...") },
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { if (isSendEnabled) onSendMessage() }),
+                enabled = !isLoading,
+                shape = RoundedCornerShape(20.dp)
+            )
+            IconButton(onClick = onSendMessage, enabled = isSendEnabled) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send message",
+                    tint = if (isSendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.5f
+                    )
+                )
+            }
         }
     }
 }
@@ -349,20 +391,51 @@ private fun MessageImage(
 
 /**
  * Renders a chat bubble for text or image messages with styling based on sender.
+ * Now supports long press for reply functionality and displays reply previews.
  *
  * @param message The chat message data.
  * @param currentUserId ID of the current user.
  * @param navController Controller to handle image navigation.
  * @param isLastMessage True if this is the last message sent by the user, to display read status.
+ * @param onLongPress Callback for long press events to trigger reply.
+ * @param onReplyClick Callback for clicking on the reply preview.
+ * @param highlightedMessageId ID of the message to highlight.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatMessageItem(
     message: ChatMessage,
     currentUserId: String,
     navController: NavHostController,
-    isLastMessage: Boolean = false
+    isLastMessage: Boolean = false,
+    onLongPress: () -> Unit,
+    onReplyClick: (String) -> Unit,
+    highlightedMessageId: String?
 ) {
     val isMe = message.isSentBy(currentUserId)
+    val isHighlighted = message.id == highlightedMessageId
+
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isHighlighted) {
+            Color(0xFFFFE082) // Light amber/yellow for highlight
+        } else {
+            getBubbleColor(isMe)
+        },
+        animationSpec = tween(durationMillis = 500),
+        label = "MessageHighlight"
+    )
+
+    // Animate text color for highlighted message and normal messages
+    val textColor by animateColorAsState(
+        targetValue = if (isHighlighted) {
+            Color.Black // Black text for better contrast on amber background
+        } else {
+            getTextColor(isMe)
+        },
+        animationSpec = tween(durationMillis = 500),
+        label = "TextColorHighlight"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -372,13 +445,34 @@ private fun ChatMessageItem(
         Column(
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .background(color = getBubbleColor(isMe), shape = RoundedCornerShape(12.dp))
+                .background(
+                    color = backgroundColor,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .combinedClickable(
+                    onClick = { },
+                    onLongClick = onLongPress
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
+            // Show reply preview if this message is a reply
+            if (message.isReply() && message.replyToMessage != null && message.replyToMessageType != null) {
+                ReplyMessagePreview(
+                    replyToMessage = message.replyToMessage,
+                    replyToMessageType = message.replyToMessageType,
+                    replyToImageUrl = message.replyToImageUrl,
+                    replyToMessageId = message.replyToMessageId,
+                    currentUserId = currentUserId,
+                    isMyMessage = isMe,
+                    onReplyClick = onReplyClick,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             when (message.messageType) {
                 MessageType.TEXT -> Text(
                     text = message.message,
-                    color = getTextColor(isMe),
+                    color = textColor,
                     modifier = Modifier.wrapContentWidth()
                 )
                 MessageType.IMAGE -> message.imageUrl?.let { url ->
@@ -389,7 +483,7 @@ private fun ChatMessageItem(
                 Text(
                     text = message.readStatus.name.lowercase().replaceFirstChar { it.titlecase(Locale.ROOT) },
                     style = MaterialTheme.typography.labelSmall,
-                    color = getTextColor(true).copy(alpha = 0.7f),
+                    color = textColor.copy(alpha = 0.7f),
                     modifier = Modifier
                         .align(Alignment.End)
                         .padding(top = 4.dp)

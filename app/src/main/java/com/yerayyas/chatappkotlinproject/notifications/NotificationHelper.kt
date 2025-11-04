@@ -7,11 +7,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.yerayyas.chatappkotlinproject.R
 import com.yerayyas.chatappkotlinproject.presentation.activity.MainActivity
 import com.yerayyas.chatappkotlinproject.utils.Constants.CHANNEL_ID
@@ -35,6 +38,7 @@ private const val TAG = "NotificationHelper"
  * - Grouping notifications under a single summary notification.
  * - Canceling individual or all notifications.
  * - Tracking the set of active notifications to manage the summary state correctly.
+ * - Special handling for Xiaomi and other OEM devices with aggressive battery optimization.
  *
  * @property context The application context, injected by Hilt.
  */
@@ -43,6 +47,102 @@ class NotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val activeNotifications = Collections.synchronizedSet(HashSet<String>())
+
+    init {
+        // Verify Google Play Services and notification setup on initialization
+        verifyGooglePlayServices()
+        verifyNotificationSetup()
+        logDeviceSpecificInfo()
+    }
+
+    /**
+     * Logs device-specific information to help debug notification issues on different OEMs.
+     */
+    private fun logDeviceSpecificInfo() {
+        Log.d(TAG, "=== DEVICE INFORMATION ===")
+        Log.d(TAG, "Manufacturer: ${Build.MANUFACTURER}")
+        Log.d(TAG, "Brand: ${Build.BRAND}")
+        Log.d(TAG, "Model: ${Build.MODEL}")
+        Log.d(TAG, "Device: ${Build.DEVICE}")
+        Log.d(TAG, "Android Version: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+
+        // Check if it's a Xiaomi device with MIUI
+        val isXiaomi = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
+                Build.BRAND.equals("Xiaomi", ignoreCase = true) ||
+                Build.BRAND.equals("Redmi", ignoreCase = true)
+
+        if (isXiaomi) {
+            Log.w(TAG, "XIAOMI DEVICE DETECTED - Special notification handling required")
+            Log.w(
+                TAG,
+                "User may need to manually enable autostart and notifications in MIUI settings"
+            )
+        }
+
+        Log.d(TAG, "=== END DEVICE INFORMATION ===")
+    }
+
+    /**
+     * Verifies that Google Play Services is available and up to date.
+     */
+    private fun verifyGooglePlayServices() {
+        val googleApiAvailability = GoogleApiAvailability.getInstance()
+        val resultCode = googleApiAvailability.isGooglePlayServicesAvailable(context)
+
+        Log.d(TAG, "=== GOOGLE PLAY SERVICES CHECK ===")
+        Log.d(TAG, "Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+        Log.d(TAG, "Android version: ${Build.VERSION.SDK_INT}")
+        Log.d(TAG, "Result code: $resultCode")
+
+        when (resultCode) {
+            ConnectionResult.SUCCESS -> {
+                Log.d(TAG, "Google Play Services is available and up to date")
+            }
+
+            ConnectionResult.SERVICE_MISSING -> {
+                Log.e(TAG, "Google Play Services is missing")
+            }
+
+            ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED -> {
+                Log.e(TAG, "Google Play Services needs to be updated")
+            }
+
+            ConnectionResult.SERVICE_DISABLED -> {
+                Log.e(TAG, "Google Play Services is disabled")
+            }
+
+            else -> {
+                Log.e(TAG, "Google Play Services error: $resultCode")
+            }
+        }
+    }
+
+    /**
+     * Verifies notification setup including permissions and channels.
+     */
+    private fun verifyNotificationSetup() {
+        Log.d(TAG, "=== NOTIFICATION SETUP VERIFICATION ===")
+        Log.d(TAG, "Has notification permission: ${hasNotificationPermission()}")
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            Log.d(TAG, "NotificationManager available: ${manager != null}")
+
+            val existingChannel = manager.getNotificationChannel(CHANNEL_ID)
+            Log.d(TAG, "Existing notification channel: ${existingChannel != null}")
+            if (existingChannel != null) {
+                Log.d(TAG, "Channel importance: ${existingChannel.importance}")
+                Log.d(TAG, "Channel can bypass DND: ${existingChannel.canBypassDnd()}")
+            }
+        }
+
+        // Check if notifications are enabled at system level
+        val notificationManagerCompat = NotificationManagerCompat.from(context)
+        Log.d(TAG, "Notifications enabled: ${notificationManagerCompat.areNotificationsEnabled()}")
+
+        Log.d(TAG, "=== NOTIFICATION SETUP COMPLETE ===")
+    }
 
     /**
      * Displays a high-priority notification for an incoming chat message and updates the summary.
@@ -61,35 +161,59 @@ class NotificationHelper @Inject constructor(
         messageBody: String,
         chatId: String
     ) {
+        Log.d(TAG, "=== NOTIFICATION HELPER - SEND CHAT NOTIFICATION ===")
+        Log.d(
+            TAG,
+            "SenderId: $senderId, SenderName: $senderName, MessageBody: $messageBody, ChatId: $chatId"
+        )
+
         if (!hasNotificationPermission()) {
             Log.w(TAG, "Missing POST_NOTIFICATIONS permission; skipping notification.")
             return
         }
+        Log.d(TAG, "Notification permission granted")
 
         createChannelIfNeeded()
+        Log.d(TAG, "Notification channel created/verified")
+
         val pendingIntent = buildChatPendingIntent(senderId, senderName, chatId)
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_chat)
-            .setContentTitle(senderName)
-            .setContentText(messageBody)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setGroup(GROUP_KEY)
-            .build()
+        Log.d(TAG, "PendingIntent created successfully")
+
+        val notification = createNotificationWithDeviceCompatibility(
+            senderName, messageBody, pendingIntent
+        )
+
+        Log.d(TAG, "Notification built successfully")
 
         try {
             activeNotifications.add(senderId)
             val manager = NotificationManagerCompat.from(context)
+
+            val notificationId = senderId.hashCode()
+            Log.d(TAG, "Notification ID: $notificationId")
+
+            // Verify notification manager
+            Log.d(
+                TAG,
+                "NotificationManager areNotificationsEnabled: ${manager.areNotificationsEnabled()}"
+            )
+
             // The tag and ID are derived from senderId to ensure uniqueness per user
-            manager.notify(senderId.hashCode(), notification)
+            manager.notify(notificationId, notification)
+            Log.d(TAG, "Notification sent successfully with ID: $notificationId")
+
             sendSummaryNotification(manager)
+            Log.d(TAG, "Summary notification sent")
+
+            Log.d(TAG, "Active notifications count: ${activeNotifications.size}")
             Log.d(TAG, "Notification sent for user: $senderId")
         } catch (e: SecurityException) {
             Log.e(TAG, "Permission denied when sending notification.", e)
         } catch (e: Exception) {
             Log.e(TAG, "Error sending notification.", e)
         }
+
+        Log.d(TAG, "=== NOTIFICATION HELPER - COMPLETE ===")
     }
 
     /**
@@ -182,22 +306,177 @@ class NotificationHelper @Inject constructor(
     /**
      * Creates the notification channel for chat messages if it does not already exist.
      * This is required for Android 8.0 (API level 26) and higher.
+     * For Xiaomi devices, applies more aggressive settings to bypass MIUI optimizations.
      */
     private fun createChannelIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
-                val channel = NotificationChannel(
+
+            Log.d(TAG, "Creating notification channel for API ${Build.VERSION.SDK_INT}")
+
+            val isXiaomi = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
+                    Build.BRAND.equals("Xiaomi", ignoreCase = true) ||
+                    Build.BRAND.equals("Redmi", ignoreCase = true)
+
+            var channel = manager.getNotificationChannel(CHANNEL_ID)
+            if (channel == null) {
+                Log.d(TAG, "Creating new notification channel: $CHANNEL_ID")
+
+                // For Xiaomi devices, use IMPORTANCE_MAX to bypass MIUI restrictions
+                val importance = if (isXiaomi) {
+                    Log.d(TAG, "Using IMPORTANCE_MAX for Xiaomi device")
+                    NotificationManager.IMPORTANCE_MAX
+                } else {
+                    NotificationManager.IMPORTANCE_HIGH
+                }
+
+                channel = NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_HIGH
+                    importance
                 ).apply {
                     description = "Channel for incoming chat messages"
+                    enableLights(true)
+                    enableVibration(true)
+                    setShowBadge(true)
+
+                    if (isXiaomi) {
+                        // Xiaomi-specific settings
+                        Log.d(TAG, "Applying Xiaomi-specific channel settings")
+                        setBypassDnd(true) // Try to bypass Do Not Disturb
+                        lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                        setSound(
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                            null
+                        )
+                        vibrationPattern = longArrayOf(0, 300, 300, 300)
+                    } else {
+                        setBypassDnd(false)
+                    }
                 }
                 manager.createNotificationChannel(channel)
-                Log.d(TAG, "Notification channel created: $CHANNEL_ID")
+                Log.d(TAG, "Notification channel created: $CHANNEL_ID with importance: $importance")
+            } else {
+                Log.d(TAG, "Notification channel already exists: $CHANNEL_ID")
+                Log.d(TAG, "Channel importance: ${channel.importance}")
+                Log.d(TAG, "Channel can show badge: ${channel.canShowBadge()}")
+
+                // For existing channels on Xiaomi, check if we need to update importance
+                if (isXiaomi && channel.importance < NotificationManager.IMPORTANCE_MAX) {
+                    Log.w(
+                        TAG,
+                        "Xiaomi channel has low importance (${channel.importance}), consider updating manually"
+                    )
+                }
+            }
+        } else {
+            Log.d(TAG, "Android version ${Build.VERSION.SDK_INT} - No channel needed")
+        }
+    }
+
+    /**
+     * Creates a notification with device-specific compatibility adjustments.
+     * Some devices (Xiaomi, OnePlus, etc.) require specific settings to show notifications properly.
+     */
+    private fun createNotificationWithDeviceCompatibility(
+        senderName: String,
+        messageBody: String,
+        pendingIntent: PendingIntent
+    ): android.app.Notification {
+        val isXiaomi = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
+                Build.BRAND.equals("Xiaomi", ignoreCase = true) ||
+                Build.BRAND.equals("Redmi", ignoreCase = true)
+        val isOnePlus = Build.MANUFACTURER.equals("OnePlus", ignoreCase = true)
+        val isPixel = Build.MODEL.contains("Pixel", ignoreCase = true)
+        val isHuawei = Build.MANUFACTURER.equals("HUAWEI", ignoreCase = true) ||
+                Build.BRAND.equals("HONOR", ignoreCase = true)
+
+        Log.d(TAG, "Device compatibility check:")
+        Log.d(TAG, "  Manufacturer: ${Build.MANUFACTURER}")
+        Log.d(TAG, "  Brand: ${Build.BRAND}")
+        Log.d(TAG, "  Model: ${Build.MODEL}")
+        Log.d(
+            TAG,
+            "  isXiaomi: $isXiaomi, isOnePlus: $isOnePlus, isPixel: $isPixel, isHuawei: $isHuawei"
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_chat)
+            .setContentTitle(senderName)
+            .setContentText(messageBody)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setGroup(GROUP_KEY)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
+
+        // Device-specific optimizations
+        when {
+            isXiaomi -> {
+                Log.d(TAG, "Applying Xiaomi-specific notification settings")
+                builder.setPriority(NotificationCompat.PRIORITY_MAX) // Xiaomi needs MAX priority
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setVibrate(longArrayOf(0, 300, 300, 300)) // Explicit vibration
+                    .setLights(0xFF0000FF.toInt(), 300, 300) // Explicit lights
+                    .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // Show on lock screen
+
+                // For Xiaomi, add a big text style to make the notification more prominent
+                if (messageBody.length > 30) {
+                    builder.setStyle(
+                        NotificationCompat.BigTextStyle()
+                            .bigText(messageBody)
+                            .setBigContentTitle(senderName)
+                    )
+                }
+
+                // Add heads-up notification capability for Xiaomi
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    builder.setFullScreenIntent(pendingIntent, false)
+                }
+            }
+
+            isHuawei -> {
+                Log.d(TAG, "Applying Huawei-specific notification settings")
+                builder.setPriority(NotificationCompat.PRIORITY_MAX) // Huawei also needs high priority
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            }
+
+            isOnePlus -> {
+                Log.d(TAG, "Applying OnePlus-specific notification settings")
+                builder.setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            }
+
+            isPixel -> {
+                Log.d(TAG, "Applying Pixel-specific notification settings")
+                builder.setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE) // Important for Pixel
+            }
+
+            else -> {
+                Log.d(TAG, "Applying standard notification settings")
+                builder.setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             }
         }
+
+        val notification = builder.build()
+
+        // Log final notification properties for debugging
+        Log.d(TAG, "Final notification properties:")
+        Log.d(TAG, "  Priority: ${notification.priority}")
+        Log.d(TAG, "  Flags: ${notification.flags}")
+        Log.d(TAG, "  Category: ${notification.category}")
+        Log.d(TAG, "  Visibility: ${notification.visibility}")
+
+        return notification
     }
 
     /**

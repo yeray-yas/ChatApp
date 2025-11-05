@@ -18,18 +18,16 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.ProcessNotificationIntentUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.UpdateFcmTokenUseCase
 import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
 import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.navigation.AppContainer
-import com.yerayyas.chatappkotlinproject.utils.XiaomiPermissionHelper
-import com.yerayyas.chatappkotlinproject.utils.FCMDiagnostics
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.yerayyas.chatappkotlinproject.notifications.diagnostics.NotificationDiagnostics
 import com.google.firebase.messaging.FirebaseMessaging
 
 private const val TAG = "MainActivity"
@@ -63,6 +61,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var notificationHelper: NotificationHelper
 
+    @Inject
+    lateinit var updateFcmTokenUseCase: UpdateFcmTokenUseCase
+
     // Request notification permission launcher
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -90,50 +91,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // TEMPORARY DEBUG LOGGING - VERY VISIBLE
-        Log.e("XIAOMI_DEBUG", "=".repeat(60))
-        Log.e("XIAOMI_DEBUG", "APP STARTING ON DEVICE: ${Build.MANUFACTURER} ${Build.MODEL}")
-        Log.e("XIAOMI_DEBUG", "Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
-        Log.e("XIAOMI_DEBUG", "Package: $packageName")
-        Log.e("XIAOMI_DEBUG", "Time: ${System.currentTimeMillis()}")
-        Log.e("XIAOMI_DEBUG", "=".repeat(60))
-
         val isAppAlreadyRunning = isAppInitialized || savedInstanceState != null
         Log.d(TAG, "onCreate: isAppAlreadyRunning=$isAppAlreadyRunning, isAppInitialized=$isAppInitialized, savedInstanceState=${savedInstanceState != null}")
 
         // Mark app as initialized on its first creation
         isAppInitialized = true
 
-        // Log device information for debugging - especially important for Xiaomi
-        XiaomiPermissionHelper.logDeviceInfo()
-
-        // Verify notification permissions and Google Play Services
+        // Setup notifications and permissions
         verifyGooglePlayServices()
-        requestNotificationPermissionIfNeeded()
-
-        // Check Xiaomi-specific settings
-        checkXiaomiSpecificSettings()
-
-        // Dismiss all notifications to ensure a clean slate when the app is brought to the foreground.
+        checkAndRequestNotificationPermissions()
         notificationHelper.cancelAllNotifications()
 
-        // Check notification permissions and setup
-        checkAndRequestNotificationPermissions()
-
-        // Run notification diagnostics
-        runNotificationDiagnostics()
-
-        // FORCE LOG THE FCM TOKEN IMMEDIATELY
+        // Get FCM token and update it
         lifecycleScope.launch {
             try {
-                Log.e("XIAOMI_DEBUG", "FORCING FCM TOKEN RETRIEVAL...")
                 val token = FirebaseMessaging.getInstance().token.await()
-                Log.e("XIAOMI_DEBUG", " FCM TOKEN SUCCESS!")
-                Log.e("XIAOMI_DEBUG", "Token length: ${token.length}")
-                Log.e("XIAOMI_DEBUG", "Token start: ${token.take(30)}")
-                Log.e("XIAOMI_DEBUG", "Token end: ${token.takeLast(30)}")
+                Log.d(TAG, "FCM token retrieved successfully")
+                updateFcmTokenUseCase(token)
+                Log.d(TAG, "FCM token updated successfully")
             } catch (e: Exception) {
-                Log.e("XIAOMI_DEBUG", " FCM TOKEN FAILED: ${e.message}", e)
+                Log.e(TAG, "Failed to retrieve or update FCM token: ${e.message}")
             }
         }
 
@@ -160,8 +137,7 @@ class MainActivity : ComponentActivity() {
         val googleApiAvailability = GoogleApiAvailability.getInstance()
         val resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this)
 
-        Log.d(TAG, "=== MAIN ACTIVITY - GOOGLE PLAY SERVICES CHECK ===")
-        Log.d(TAG, "Result code: $resultCode")
+        Log.d(TAG, "Google Play Services check - Result code: $resultCode")
 
         if (resultCode != ConnectionResult.SUCCESS) {
             if (googleApiAvailability.isUserResolvableError(resultCode)) {
@@ -172,126 +148,6 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             Log.d(TAG, "Google Play Services is ready")
-        }
-    }
-
-    /**
-     * Requests notification permission on Android 13+ if not already granted.
-     */
-    private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val hasPermission = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-
-            Log.d(
-                TAG,
-                "Notification permission status: $hasPermission (API ${Build.VERSION.SDK_INT})"
-            )
-
-            if (!hasPermission) {
-                Log.d(TAG, "Requesting notification permission")
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        } else {
-            Log.d(
-                TAG,
-                "Android version ${Build.VERSION.SDK_INT} - notification permission not required"
-            )
-        }
-    }
-
-    /**
-     * Checks Xiaomi-specific settings and requests necessary permissions if on a Xiaomi device.
-     */
-    private fun checkXiaomiSpecificSettings() {
-        if (XiaomiPermissionHelper.isXiaomiDevice()) {
-            Log.w(TAG, "Xiaomi device detected - checking special settings")
-
-            lifecycleScope.launch {
-                try {
-                    // Run comprehensive FCM diagnostics
-                    Log.d(TAG, "Running comprehensive FCM diagnostics...")
-                    val diagnosticsReport = FCMDiagnostics.runCompleteDiagnostics(this@MainActivity)
-
-                    // Also run quick status check
-                    FCMDiagnostics.logCurrentStatus(this@MainActivity)
-
-                    // Test FCM connectivity
-                    val fcmTest = FCMDiagnostics.testFCMConnectivity()
-                    Log.d(
-                        TAG,
-                        "FCM Connectivity Test: ${if (fcmTest.success) "SUCCESS" else "FAILED"}"
-                    )
-                    if (fcmTest.success) {
-                        Log.d(TAG, "FCM Token Preview: ${fcmTest.token?.take(20)}...")
-                        Log.d(TAG, "Token retrieval time: ${fcmTest.responseTimeMs}ms")
-                    } else {
-                        Log.e(TAG, "FCM Connectivity Error: ${fcmTest.error}")
-
-                        // Try to refresh token on Xiaomi devices if connectivity fails
-                        Log.w(TAG, "Attempting FCM token refresh for Xiaomi device...")
-                        val refreshSuccess = FCMDiagnostics.forceTokenRefresh()
-                        Log.d(
-                            TAG,
-                            "FCM Token refresh: ${if (refreshSuccess) "SUCCESS" else "FAILED"}"
-                        )
-                    }
-
-                    val status =
-                        XiaomiPermissionHelper.checkXiaomiNotificationSettings(this@MainActivity)
-
-                    Log.d(TAG, "Xiaomi notification status: $status")
-
-                    if (!status.isFullyConfigured()) {
-                        val missing = status.getMissingConfigurations()
-                        Log.w(TAG, "Missing Xiaomi configurations: $missing")
-
-                        // For now, just log the issue. In a production app, you might want to show a dialog
-                        // guiding the user to manually configure these settings
-                        Log.w(TAG, "User needs to manually configure Xiaomi settings:")
-                        Log.w(
-                            TAG,
-                            "1. Settings > Apps > ${packageName} > Battery > No restrictions"
-                        )
-                        Log.w(
-                            TAG,
-                            "2. Settings > Apps > Manage apps > ${packageName} > Autostart > Enable"
-                        )
-                        Log.w(TAG, "3. Settings > Notifications > ${packageName} > Enable all")
-                        Log.w(TAG, "4. Security app > Apps > ${packageName} > Enable autostart")
-                        Log.w(TAG, "5. RESTART DEVICE after making these changes")
-
-                        // Optionally request battery optimization exception
-                        if (!status.batteryOptimizationDisabled) {
-                            Log.d(
-                                TAG,
-                                "Requesting battery optimization exception for Xiaomi device"
-                            )
-                            XiaomiPermissionHelper.requestXiaomiPermissions(this@MainActivity)
-                        }
-                    } else {
-                        Log.d(TAG, "All Xiaomi settings properly configured")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error checking Xiaomi settings", e)
-                }
-            }
-        } else {
-            // For non-Xiaomi devices, still run basic FCM diagnostics
-            lifecycleScope.launch {
-                try {
-                    FCMDiagnostics.logCurrentStatus(this@MainActivity)
-                    val fcmTest = FCMDiagnostics.testFCMConnectivity()
-                    Log.d(
-                        TAG,
-                        "FCM Test (Non-Xiaomi): ${if (fcmTest.success) "SUCCESS" else "FAILED"}"
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error running FCM diagnostics", e)
-                }
-            }
         }
     }
 
@@ -312,25 +168,6 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             Log.d(TAG, "POST_NOTIFICATIONS not required for API level < 33")
-        }
-    }
-
-    private fun runNotificationDiagnostics() {
-        lifecycleScope.launch {
-            try {
-                val diagnostics = NotificationDiagnostics(this@MainActivity)
-                val report = diagnostics.runFullDiagnostics()
-                Log.d(TAG, "Notification Diagnostics Report:")
-                Log.d(TAG, report)
-
-                // If there are critical issues, try to fix them
-                if (!diagnostics.areNotificationsEnabled()) {
-                    Log.w(TAG, "Notifications disabled - requesting permissions")
-                    checkAndRequestNotificationPermissions()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error running notification diagnostics", e)
-            }
         }
     }
 

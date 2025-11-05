@@ -27,25 +27,13 @@ class ShouldShowChatNotificationUseCase @Inject constructor(
         val isAppBackground = !appState.isAppInForeground
         val isChatOpenForSender = appState.currentOpenChatUserId == senderId
 
-        Log.d(TAG, "=== NOTIFICATION DECISION ===")
-        Log.d(TAG, "SenderId: $senderId")
-        Log.d(TAG, "isAppInForeground: ${appState.isAppInForeground}")
-        Log.d(TAG, "isAppBackground: $isAppBackground")
-        Log.d(TAG, "currentOpenChatUserId: ${appState.currentOpenChatUserId}")
-        Log.d(TAG, "isChatOpenForSender: $isChatOpenForSender")
-
         val shouldShow = isAppBackground || !isChatOpenForSender
 
-        // TEMPORARY: Force notifications for debugging
-        val forcedDecision = true
-        Log.d(TAG, "Original decision - shouldShowNotification: $shouldShow")
-        Log.d(TAG, "TEMPORARY OVERRIDE - forcing notification: $forcedDecision")
         Log.d(
             TAG,
-            "Reason: ${if (isAppBackground) "App is in background" else if (!isChatOpenForSender) "Chat is not open for this sender" else "Chat is currently open for this sender"}"
+            "Notification decision for $senderId: $shouldShow (app in background: $isAppBackground, chat open: $isChatOpenForSender)"
         )
-        Log.d(TAG, "=========================")
 
-        return forcedDecision // TEMPORARY: Always show notifications
+        return shouldShow
     }
 }

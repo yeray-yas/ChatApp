@@ -48,3 +48,4 @@ object CoroutineScopeModule {
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class ServiceCoroutineScope
+

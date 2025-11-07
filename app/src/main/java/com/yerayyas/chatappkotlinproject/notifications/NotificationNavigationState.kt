@@ -23,3 +23,4 @@ data class NotificationNavigationState(
     val skipSplash: Boolean = false,
     val isInitialDestination: Boolean = false
 )
+

@@ -149,6 +149,3 @@ fun SignUpScreen(navController: NavController) {
         }
     }
 }
-
-
-

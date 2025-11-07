@@ -26,6 +26,7 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
+@Suppress("unused") // This module is used by Hilt's dependency injection system
 abstract class NotificationModule {
 
     @Binds

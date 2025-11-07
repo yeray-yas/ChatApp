@@ -18,4 +18,3 @@ class LoadChatMessagesUseCase @Inject constructor(
     operator fun invoke(otherUserId: String): Flow<List<ChatMessage>> =
         repository.getMessages(otherUserId)
 }
-

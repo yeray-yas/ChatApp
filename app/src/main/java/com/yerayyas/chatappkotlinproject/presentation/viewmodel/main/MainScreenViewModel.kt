@@ -43,4 +43,3 @@ class MainScreenViewModel @Inject constructor(private val auth: FirebaseAuth) : 
         auth.removeAuthStateListener(authListener)
     }
 }
-

@@ -4,11 +4,24 @@ import androidx.compose.ui.unit.dp
 
 /**
  * This object contains constant values used throughout the application.
- *
- * Constants include error messages for loading and sending messages or images,
- * as well as a constant for animation duration.
+ * Constants are organized by domain: UI, Business Logic, and Notifications.
  */
 object Constants {
+
+    // ========== UI CONSTANTS ==========
+
+    /**
+     * The duration of animations in milliseconds.
+     */
+    const val ANIMATION_DURATION = 300
+
+    /**
+     * Standard height for TopAppBar components in dp.
+     */
+    val TOP_APP_BAR_HEIGHT = 64.dp
+
+    // ========== BUSINESS LOGIC CONSTANTS ==========
+
     /**
      * Error message displayed when there is an issue loading messages.
      */
@@ -24,20 +37,30 @@ object Constants {
      */
     const val ERROR_SENDING_IMAGE = "Error sending image"
 
-    /**
-     * The duration of animations in milliseconds.
-     */
-    const val ANIMATION_DURATION = 300
+    // ========== NOTIFICATION CONSTANTS ==========
 
     /**
-     * Standard height for TopAppBar components in dp.
+     * Channel ID for chat message notifications.
      */
-    val TOP_APP_BAR_HEIGHT = 64.dp
-
     const val CHANNEL_ID = "chat_messages_channel"
+
+    /**
+     * Display name for the notification channel.
+     */
     const val CHANNEL_NAME = "Chat Messages"
+
+    /**
+     * Summary notification ID for grouped notifications.
+     */
     const val SUMMARY_ID = 0
 
+    /**
+     * Firebase path for storing FCM tokens.
+     */
     const val FCM_TOKENS_PATH = "user_fcm_tokens"
+
+    /**
+     * Group key for notification grouping.
+     */
     const val GROUP_KEY = "com.yerayyas.CHAT_MESSAGES"
 }

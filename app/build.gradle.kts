@@ -72,11 +72,10 @@ dependencies {
     // Extended Icons
     implementation(libs.androidx.material.icons.extended)
 
-    // Viewpager and TabLayout
-    implementation(libs.material3)
+    // Foundation for Compose
     implementation (libs.androidx.foundation)
 
-    // Glide
+    // Glide for image loading
     implementation (libs.compose)
 
     // Dagger Hilt
@@ -85,19 +84,8 @@ dependencies {
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Retrofit
-    implementation (libs.retrofit)
-    implementation (libs.converter.gson)
-
-    // WorkManager
-    implementation (libs.androidx.work.runtime.ktx)
-
-    // Window Insets
-    implementation (libs.accompanist.insets)
-    implementation (libs.accompanist.systemuicontroller)
-
     // TESTS
-     // Mockito
+    // Mockito
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
 

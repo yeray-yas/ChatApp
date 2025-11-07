@@ -60,7 +60,6 @@ class AndroidNotificationBuilder @Inject constructor(
 
         // Log final notification properties for debugging
         Log.d(TAG, "Final notification properties:")
-        Log.d(TAG, "  Priority: ${notification.priority}")
         Log.d(TAG, "  Flags: ${notification.flags}")
         Log.d(TAG, "  Category: ${notification.category}")
         Log.d(TAG, "  Visibility: ${notification.visibility}")

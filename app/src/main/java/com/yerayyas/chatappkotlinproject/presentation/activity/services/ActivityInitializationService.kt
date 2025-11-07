@@ -5,7 +5,7 @@ import android.util.Log
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.google.firebase.messaging.FirebaseMessaging
 import com.yerayyas.chatappkotlinproject.domain.usecases.UpdateFcmTokenUseCase
-import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
+import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.permissions.NotificationPermissionManager
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.permissions.PermissionAction
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.permissions.PlayServicesManager
@@ -25,7 +25,7 @@ private const val TAG = "ActivityInitService"
 class ActivityInitializationService @Inject constructor(
     private val playServicesManager: PlayServicesManager,
     private val notificationPermissionManager: NotificationPermissionManager,
-    private val notificationHelper: NotificationHelper,
+    private val notificationCanceller: NotificationCanceller,
     private val updateFcmTokenUseCase: UpdateFcmTokenUseCase
 ) {
 
@@ -53,7 +53,7 @@ class ActivityInitializationService @Inject constructor(
         }
 
         // Clear all notifications when app starts
-        notificationHelper.cancelAllNotifications()
+        notificationCanceller.cancelAllNotifications()
 
         // Get and update FCM token
         updateFcmToken(lifecycleScope)

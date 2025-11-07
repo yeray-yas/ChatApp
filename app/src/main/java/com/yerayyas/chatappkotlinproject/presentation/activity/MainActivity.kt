@@ -12,7 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.accompanist.insets.ProvideWindowInsets
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
-import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
+import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.ActivityInitializationService
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.NotificationIntentService
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
@@ -28,7 +28,7 @@ private const val TAG = "MainActivity"
  * This refactored activity now delegates most responsibilities to specialized services:
  * - ActivityInitializationService: Handles Google Play Services, permissions, FCM tokens
  * - NotificationIntentService: Processes notification intents and navigation
- * - NotificationHelper: Manages notification clearing
+ * - NotificationCanceller: Manages notification clearing
  *
  * The activity now focuses primarily on:
  * - Setting up the Compose UI
@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
     lateinit var handleDefaultNavigation: HandleDefaultNavigationUseCase
 
     @Inject
-    lateinit var notificationHelper: NotificationHelper
+    lateinit var notificationCanceller: NotificationCanceller
 
     // Request notification permission launcher
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -127,6 +127,6 @@ class MainActivity : ComponentActivity() {
      */
     override fun onStart() {
         super.onStart()
-        notificationHelper.cancelAllNotifications()
+        notificationCanceller.cancelAllNotifications()
     }
 }

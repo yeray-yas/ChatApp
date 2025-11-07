@@ -2,7 +2,7 @@ package com.yerayyas.chatappkotlinproject.di
 
 import com.yerayyas.chatappkotlinproject.domain.usecases.ProcessNotificationIntentUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.UpdateFcmTokenUseCase
-import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
+import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.ActivityInitializationService
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.NotificationIntentService
 import com.yerayyas.chatappkotlinproject.presentation.activity.services.permissions.NotificationPermissionManager
@@ -34,13 +34,13 @@ object ActivityServicesModule {
     fun provideActivityInitializationService(
         playServicesManager: PlayServicesManager,
         notificationPermissionManager: NotificationPermissionManager,
-        notificationHelper: NotificationHelper,
+        notificationCanceller: NotificationCanceller,
         updateFcmTokenUseCase: UpdateFcmTokenUseCase
     ): ActivityInitializationService {
         return ActivityInitializationService(
             playServicesManager,
             notificationPermissionManager,
-            notificationHelper,
+            notificationCanceller,
             updateFcmTokenUseCase
         )
     }

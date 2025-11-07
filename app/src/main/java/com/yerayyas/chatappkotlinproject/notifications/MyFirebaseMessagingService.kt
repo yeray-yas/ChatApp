@@ -5,6 +5,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.yerayyas.chatappkotlinproject.domain.usecases.ShouldShowChatNotificationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.UpdateFcmTokenUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.notification.ShowChatNotificationUseCase
 import com.yerayyas.chatappkotlinproject.utils.AppState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -16,22 +17,23 @@ import javax.inject.Inject
 private const val TAG = "MyFirebaseMsgService"
 
 /**
- * A service that extends [FirebaseMessagingService] to handle Firebase Cloud Messaging (FCM) events.
+ * **UPDATED** - Firebase Cloud Messaging service using Clean Architecture
  *
- * This service is responsible for two main tasks:
- * 1.  **Token Management**: It captures newly generated FCM tokens and updates them on the backend
- *     server using the [UpdateFcmTokenUseCase].
- * 2.  **Message Handling**: It intercepts incoming data messages from FCM, determines if a push
- *     notification should be displayed using [ShouldShowChatNotificationUseCase], and then uses
- *     [NotificationHelper] to build and show the notification.
+ * This service now uses the new Clean Architecture notification system
+ * while maintaining the same functionality. It handles:
+ * 1. **Token Management**: Updates FCM tokens using UpdateFcmTokenUseCase
+ * 2. **Message Handling**: Shows notifications using ShowChatNotificationUseCase
  *
- * This class is annotated with `@AndroidEntryPoint` to enable Hilt dependency injection.
+ * **Key Changes:**
+ * - Replaced NotificationCanceller with ShowChatNotificationUseCase
+ * - Added proper error handling with Result types
+ * - Maintains backward compatibility
  */
 @AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject
-    lateinit var notificationHelper: NotificationHelper
+    lateinit var showChatNotificationUseCase: ShowChatNotificationUseCase
 
     @Inject
     lateinit var shouldShowChatNotification: ShouldShowChatNotificationUseCase
@@ -49,7 +51,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
      */
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Firebase Messaging Service created")
+        Log.d(TAG, "Firebase Messaging Service created with Clean Architecture implementation")
     }
 
     /**
@@ -92,9 +94,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * Process notification with proper error handling
+     * Process notification using the new Clean Architecture implementation
      */
-    private fun processNotification(
+    private suspend fun processNotification(
         senderId: String,
         senderName: String,
         message: String?,
@@ -105,13 +107,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             Log.d(TAG, "Should show notification: $shouldShow")
 
             if (shouldShow) {
-                notificationHelper.sendChatNotification(
+                val result = showChatNotificationUseCase(
                     senderId = senderId,
                     senderName = senderName,
                     messageBody = message ?: "New message",
                     chatId = chatId ?: "unknown"
                 )
-                Log.d(TAG, "Notification sent for: $senderName")
+
+                if (result.isSuccess) {
+                    Log.d(TAG, "Notification sent successfully for: $senderName")
+                } else {
+                    Log.e(
+                        TAG,
+                        "Failed to send notification for: $senderName",
+                        result.exceptionOrNull()
+                    )
+                }
             } else {
                 Log.d(TAG, "Notification suppressed - chat is currently open")
             }

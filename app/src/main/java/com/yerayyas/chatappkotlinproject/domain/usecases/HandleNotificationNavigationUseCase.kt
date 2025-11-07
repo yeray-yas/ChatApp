@@ -2,7 +2,7 @@ package com.yerayyas.chatappkotlinproject.domain.usecases
 
 import android.util.Log
 import androidx.navigation.NavController
-import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
+import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
 import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import kotlinx.coroutines.CoroutineScope
@@ -23,11 +23,11 @@ private const val TAG = "NotificationNavigation"
  * 3.  Orchestrating the navigation to the correct chat screen, either immediately or after a delay
  *     to allow the splash screen to display.
  *
- * @property notificationHelper The helper class used to dismiss the relevant notification.
+ * @property notificationCanceller The helper class used to dismiss the relevant notification.
  */
 @Singleton
 class HandleNotificationNavigationUseCase @Inject constructor(
-    private val notificationHelper: NotificationHelper
+    private val notificationCanceller: NotificationCanceller
 ) {
     /**
      * Executes the navigation logic based on the provided [NotificationNavigationState].
@@ -50,7 +50,7 @@ class HandleNotificationNavigationUseCase @Inject constructor(
 
         // First, always try to cancel the notification that triggered this navigation.
         try {
-            state.userId.let { notificationHelper.cancelNotificationsForUser(it) }
+            state.userId.let { notificationCanceller.cancelNotificationsForUser(it) }
         } catch (e: Exception) {
             Log.e(TAG, "Error canceling notification for user: ${state.userId}", e)
             // Suppress exception to ensure navigation is not blocked.

@@ -90,8 +90,10 @@ class ChatViewModel @Inject constructor(
         _isLoading.value = true
         _error.value = null
 
-        // Cancel system notifications for this chat
-        cancelChatNotificationsUseCase(otherUserId)
+        // Cancel system notifications for this chat in a separate coroutine
+        viewModelScope.launch {
+            cancelChatNotificationsUseCase(otherUserId)
+        }
 
         loadChatMessagesUseCase(otherUserId)
             .onEach { messagesList ->

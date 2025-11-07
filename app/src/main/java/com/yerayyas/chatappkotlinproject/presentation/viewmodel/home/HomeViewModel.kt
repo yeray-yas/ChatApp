@@ -12,7 +12,7 @@ import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.yerayyas.chatappkotlinproject.data.model.User
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
-import com.yerayyas.chatappkotlinproject.notifications.NotificationHelper
+import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +34,7 @@ private const val TAG = "HomeViewModel"
  * @property auth        FirebaseAuth instance for user session management.
  * @property database    Reference to Firebase Realtime Database.
  * @property userRepository Repository for user-related data operations.
- * @property notificationHelper Helper for managing app notifications.
+ * @property notificationCanceller Helper for managing app notifications.
  */
 @HiltViewModel
 @OptIn(FlowPreview::class)
@@ -42,7 +42,7 @@ class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val database: DatabaseReference,
     private val userRepository: UserRepository,
-    private val notificationHelper: NotificationHelper
+    private val notificationCanceller: NotificationCanceller
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
@@ -66,7 +66,7 @@ class HomeViewModel @Inject constructor(
     init {
         initializePresenceListener()
         loadCurrentUserProfile()
-        notificationHelper.cancelAllNotifications()
+        notificationCanceller.cancelAllNotifications()
         viewModelScope.launch {
             _searchQuery
                 .debounce(300)

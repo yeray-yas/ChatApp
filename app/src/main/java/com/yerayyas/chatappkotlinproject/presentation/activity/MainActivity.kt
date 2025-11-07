@@ -9,7 +9,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.google.accompanist.insets.ProvideWindowInsets
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
@@ -96,15 +95,13 @@ class MainActivity : ComponentActivity() {
             notificationIntentService.processInitialIntent(intent, isAppAlreadyRunning)
 
         setContent {
-            ProvideWindowInsets {
-                AppContainer(
-                    activityViewModel = activityViewModel,
-                    handleNotificationNavigation = handleNotificationNavigation,
-                    handleDefaultNavigation = handleDefaultNavigation,
-                    skipSplash = isAppAlreadyRunning,
-                    initialNavState = initialNavState
-                )
-            }
+            AppContainer(
+                activityViewModel = activityViewModel,
+                handleNotificationNavigation = handleNotificationNavigation,
+                handleDefaultNavigation = handleDefaultNavigation,
+                skipSplash = isAppAlreadyRunning,
+                initialNavState = initialNavState
+            )
         }
     }
 

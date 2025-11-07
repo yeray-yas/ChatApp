@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,15 +60,16 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.data.cache.ImageUrlStore
@@ -79,6 +81,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.ReplyMessagePre
 import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatViewModel
+import com.yerayyas.chatappkotlinproject.utils.Constants
 import java.util.Locale
 
 /**
@@ -115,21 +118,60 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
+    val density = LocalDensity.current
 
     // Observe window insets to adjust input area above keyboard and navigation bar.
     val view = LocalView.current
     var imeBottomPx by remember { mutableIntStateOf(0) }
     var navBarHeightPx by remember { mutableIntStateOf(0) }
+
+    // Track if user is at the bottom of the message list
+    var isAtBottom by remember { mutableStateOf(true) }
+
+    // Track if keyboard is currently open
+    var isKeyboardOpen by remember { mutableStateOf(false) }
+
     DisposableEffect(view) {
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             imeBottomPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
             navBarHeightPx = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            isKeyboardOpen = imeBottomPx > 0
             insets
         }
         ViewCompat.requestApplyInsets(view)
         onDispose { ViewCompat.setOnApplyWindowInsetsListener(view, null) }
     }
-    val offsetY = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
+
+    // Calculate smart dynamic padding
+    val smartBottomPadding = if (isKeyboardOpen && isAtBottom) {
+        with(density) {
+            // Get keyboard height in dp
+            val keyboardHeightDp = (imeBottomPx / density.density).dp
+            // Get input area height (estimated with some padding)
+            val inputAreaHeight = 100.dp // Slightly more realistic estimate
+
+            // Simple calculation: keyboard height + input area height + small margin
+            keyboardHeightDp + inputAreaHeight - Constants.TOP_APP_BAR_HEIGHT
+        }
+    } else {
+        80.dp // Normal padding
+    }
+
+    // Monitor scroll position to determine if user is at the bottom
+    // Only update isAtBottom when keyboard is not open to prevent closing it
+    LaunchedEffect(listState.isScrollInProgress, isKeyboardOpen) {
+        if (!listState.isScrollInProgress && messages.isNotEmpty() && !isKeyboardOpen) {
+            val visibleInfo = listState.layoutInfo.visibleItemsInfo
+            val lastVisibleIndex = visibleInfo.lastOrNull()?.index ?: -1
+            val totalItems = messages.size
+
+            // Consider "at bottom" if we can see the last message or the second-to-last
+            isAtBottom = lastVisibleIndex >= totalItems - 2
+        }
+    }
+
+    // Calculate simple offset for input area
+    val inputOffset = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
     // Launcher for selecting an image to send
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -140,7 +182,11 @@ fun ChatScreen(
     LaunchedEffect(userId) { chatViewModel.loadMessages(userId) }
     // Scroll to newest message when list updates
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
+        if (messages.isNotEmpty()) {
+            listState.scrollToItem(messages.lastIndex)
+            // When auto-scrolling to newest message, user is at bottom
+            isAtBottom = true
+        }
     }
     // Scroll to specific message if needed
     LaunchedEffect(scrollToMessageId) {
@@ -159,11 +205,21 @@ fun ChatScreen(
         }
     }
 
+    // Auto-scroll to bottom when keyboard opens and user is at bottom
+    LaunchedEffect(isKeyboardOpen, isAtBottom) {
+        if (isKeyboardOpen && isAtBottom && messages.isNotEmpty()) {
+            // Scroll to last message to make it stick above the input area
+            listState.scrollToItem(messages.lastIndex)
+        }
+    }
+
     // Defines actions for sending text and attaching images
     val sendMessage = {
         if (!isLoading && messageText.isNotBlank()) {
             chatViewModel.sendMessage(userId, messageText.trim())
             messageText = ""
+            // When sending a message, user should be considered at bottom
+            isAtBottom = true
         }
     }
     val attachFile = { imagePickerLauncher.launch("image/*") }
@@ -190,12 +246,68 @@ fun ChatScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
     ) {
+        // Chat content - positioned behind TopAppBar
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            // Add top padding equivalent to TopAppBar height to avoid overlap
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp)
+                    .padding(top = Constants.TOP_APP_BAR_HEIGHT) // TopAppBar height
+                    .padding(
+                        bottom = smartBottomPadding
+                    )
+            ) {
+                items(messages, key = { it.id }) { message ->
+                    ChatMessageItem(
+                        message = message,
+                        currentUserId = currentUserId,
+                        navController = navController,
+                        isLastMessage = message.isSentBy(currentUserId),
+                        onLongPress = { chatViewModel.setReplyToMessage(message) },
+                        onReplyClick = { originalMessageId ->
+                            chatViewModel.scrollToOriginalMessage(originalMessageId)
+                        },
+                        highlightedMessageId = highlightedMessageId
+                    )
+                }
+            }
+        }
+
+        // Input area
+        ChatInputArea(
+            state = ChatInputState(
+                messageText = messageText,
+                onMessageChange = { messageText = it },
+                focusRequester = focusRequester,
+                replyToMessage = replyToMessage
+            ),
+            onSendMessage = sendMessage,
+            onAttachFile = attachFile,
+            onClearReply = { chatViewModel.clearReply() },
+            isLoading = isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 8.dp)
+                .offset { IntOffset(x = 0, y = inputOffset) }
+                .background(MaterialTheme.colorScheme.surface)
+        )
+
+        // TopAppBar - fixed at top with proper window insets
         ChatTopAppBar(
-            modifier = Modifier.zIndex(1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .zIndex(10f),
             username = username,
             onNavigateBack = {
                 if (isDirectChat) {
@@ -208,51 +320,6 @@ fun ChatScreen(
             },
             actions = { UserStatusAndActions(navController, userId, username) }
         )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset { IntOffset(x = 0, y = offsetY) }
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp)
-                ) {
-                    items(messages, key = { it.id }) { message ->
-                        ChatMessageItem(
-                            message = message,
-                            currentUserId = currentUserId,
-                            navController = navController,
-                            isLastMessage = message.isSentBy(currentUserId),
-                            onLongPress = { chatViewModel.setReplyToMessage(message) },
-                            onReplyClick = { originalMessageId ->
-                                chatViewModel.scrollToOriginalMessage(originalMessageId)
-                            },
-                            highlightedMessageId = highlightedMessageId
-                        )
-                    }
-                }
-
-                ChatInputArea(
-                    state = ChatInputState(
-                        messageText = messageText,
-                        onMessageChange = { messageText = it },
-                        focusRequester = focusRequester,
-                        replyToMessage = replyToMessage
-                    ),
-                    onSendMessage = sendMessage,
-                    onAttachFile = attachFile,
-                    onClearReply = { chatViewModel.clearReply() },
-                    isLoading = isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                )
-            }
-        }
     }
 }
 
@@ -288,7 +355,8 @@ private fun ChatTopAppBar(
                 )
             }
         },
-        actions = actions
+        actions = actions,
+        windowInsets = TopAppBarDefaults.windowInsets
     )
 }
 

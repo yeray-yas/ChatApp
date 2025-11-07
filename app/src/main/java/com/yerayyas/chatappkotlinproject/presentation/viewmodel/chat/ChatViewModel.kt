@@ -12,6 +12,7 @@ import com.yerayyas.chatappkotlinproject.domain.usecases.SendImageMessageReplyUs
 import com.yerayyas.chatappkotlinproject.domain.usecases.SendTextMessageUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.SendTextMessageReplyUseCase
 import com.yerayyas.chatappkotlinproject.utils.AppState
+import com.yerayyas.chatappkotlinproject.utils.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -101,7 +102,7 @@ class ChatViewModel @Inject constructor(
                 _isLoading.value = false
             }
             .catch { exception ->
-                _error.value = "Error loading messages: ${exception.message}"
+                _error.value = "${Constants.ERROR_LOADING_MESSAGES}: ${exception.message}"
                 _isLoading.value = false
             }
             .launchIn(viewModelScope)
@@ -130,7 +131,7 @@ class ChatViewModel @Inject constructor(
                     sendTextMessageUseCase(receiverId, trimmed)
                 }
             }.onFailure { e ->
-                _error.value = "Error sending message: ${e.message}"
+                _error.value = "${Constants.ERROR_SENDING_MESSAGE}: ${e.message}"
             }
         }
     }
@@ -155,7 +156,7 @@ class ChatViewModel @Inject constructor(
                     sendImageMessageUseCase(receiverId, uri)
                 }
             }.onFailure { e ->
-                _error.value = "Error sending image: ${e.message}"
+                _error.value = "${Constants.ERROR_SENDING_IMAGE}: ${e.message}"
             }.also {
                 _isLoading.value = false
             }

@@ -71,7 +71,12 @@ class AndroidNotificationDataSource @Inject constructor(
         deviceCompatibility: DeviceCompatibility
     ): Result<Unit> {
         return try {
-            Log.d(TAG, "Displaying notification for: ${notificationData.senderName}")
+            val displayName = if (notificationData.isGroupMessage) {
+                notificationData.groupName ?: "Group"
+            } else {
+                notificationData.senderName
+            }
+            Log.d(TAG, "Displaying notification for: $displayName")
 
             // Build the notification
             val notification = notificationBuilder.buildNotification(
@@ -83,13 +88,19 @@ class AndroidNotificationDataSource @Inject constructor(
             // Display the notification
             notificationManagerCompat.notify(notificationData.notificationId, notification)
 
-            // Track this notification
-            activeNotifications.add(notificationData.senderId)
+            // Track this notification using the appropriate ID
+            // For individual chats: senderId, for group chats: chatId (groupId)
+            val trackingId = if (notificationData.isGroupMessage) {
+                notificationData.chatId // This is the groupId for group messages
+            } else {
+                notificationData.senderId // This is the senderId for individual messages
+            }
+            activeNotifications.add(trackingId)
 
             // Update or create summary notification
             updateSummaryNotification()
 
-            Log.d(TAG, "Notification displayed successfully for: ${notificationData.senderName}")
+            Log.d(TAG, "Notification displayed successfully for: $displayName")
             Log.d(TAG, "Active notifications count: ${activeNotifications.size}")
 
             Result.success(Unit)
@@ -108,22 +119,30 @@ class AndroidNotificationDataSource @Inject constructor(
     }
 
     override fun cancelUserNotifications(userId: String): Result<Unit> {
+        return cancelChatNotifications(userId)
+    }
+
+    /**
+     * Cancels notifications for a specific chat (individual or group)
+     * @param chatId The ID to cancel notifications for (userId for individual, groupId for group)
+     */
+    fun cancelChatNotifications(chatId: String): Result<Unit> {
         return try {
-            Log.d(TAG, "Cancelling notifications for user: $userId")
+            Log.d(TAG, "Cancelling notifications for chat: $chatId")
 
-            if (activeNotifications.contains(userId)) {
-                val notificationId = userId.hashCode()
+            if (activeNotifications.contains(chatId)) {
+                val notificationId = chatId.hashCode()
                 notificationManagerCompat.cancel(notificationId)
-                activeNotifications.remove(userId)
+                activeNotifications.remove(chatId)
 
-                Log.d(TAG, "Canceled notification for: $userId")
+                Log.d(TAG, "Canceled notification for chat: $chatId")
                 Log.d(TAG, "Remaining active notifications: ${activeNotifications.size}")
 
                 // Update or remove summary notification
                 updateSummaryNotification()
 
             } else {
-                Log.d(TAG, "No active notification found for user: $userId")
+                Log.d(TAG, "No active notification found for chat: $chatId")
             }
 
             Result.success(Unit)
@@ -132,7 +151,7 @@ class AndroidNotificationDataSource @Inject constructor(
             Log.e(TAG, "Security exception when canceling notification", e)
             Result.failure(e)
         } catch (e: Exception) {
-            Log.e(TAG, "Error canceling notifications for user: $userId", e)
+            Log.e(TAG, "Error canceling notifications for chat: $chatId", e)
             Result.failure(e)
         }
     }

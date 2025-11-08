@@ -40,13 +40,15 @@ class AndroidNotificationBuilder @Inject constructor(
         val pendingIntent = pendingIntentFactory.createChatPendingIntent(
             notificationData.senderId,
             notificationData.senderName,
-            notificationData.chatId
+            notificationData.chatId,
+            notificationData.isGroupMessage,
+            notificationData.groupName
         ) as PendingIntent
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_chat)
-            .setContentTitle(notificationData.senderName)
-            .setContentText(notificationData.messageBody)
+            .setContentTitle(notificationData.notificationTitle)
+            .setContentText(notificationData.notificationContent)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setGroup(GROUP_KEY)
@@ -103,11 +105,11 @@ class AndroidNotificationBuilder @Inject constructor(
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
                 // Add big text style for longer messages
-                if (notificationData.messageBody.length > 30) {
+                if (notificationData.notificationContent.length > 30) {
                     builder.setStyle(
                         NotificationCompat.BigTextStyle()
-                            .bigText(notificationData.messageBody)
-                            .setBigContentTitle(notificationData.senderName)
+                            .bigText(notificationData.notificationContent)
+                            .setBigContentTitle(notificationData.notificationTitle)
                     )
                 }
 

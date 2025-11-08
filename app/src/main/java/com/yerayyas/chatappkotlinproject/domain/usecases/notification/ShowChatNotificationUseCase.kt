@@ -13,6 +13,8 @@ private const val TAG = "ShowChatNotification"
  *
  * This use case encapsulates the business logic for showing notifications,
  * including permission validation and error handling.
+ *
+ * Supports both individual and group chat notifications.
  */
 @Singleton
 class ShowChatNotificationUseCase @Inject constructor(
@@ -24,17 +26,26 @@ class ShowChatNotificationUseCase @Inject constructor(
      * @param senderId Unique identifier for the message sender
      * @param senderName Display name of the sender
      * @param messageBody Content of the received message
-     * @param chatId Unique identifier for the chat conversation
+     * @param chatId Unique identifier for the chat conversation (user ID for individual, group ID for group)
+     * @param isGroupMessage Whether this is a group message (default: false)
+     * @param groupName Name of the group (required if isGroupMessage is true)
      * @return Result indicating success or failure
      */
     suspend operator fun invoke(
         senderId: String,
         senderName: String,
         messageBody: String,
-        chatId: String
+        chatId: String,
+        isGroupMessage: Boolean = false,
+        groupName: String? = null
     ): Result<Unit> {
         return try {
-            Log.d(TAG, "Attempting to show notification for: $senderName (ID: $senderId)")
+            val chatType = if (isGroupMessage) "group" else "individual"
+            val displayName = if (isGroupMessage) groupName else senderName
+            Log.d(
+                TAG,
+                "Attempting to show $chatType notification for: $displayName (Sender: $senderName)"
+            )
 
             // Check permissions first
             val permissionState = notificationRepository.getNotificationPermissionState()
@@ -49,16 +60,22 @@ class ShowChatNotificationUseCase @Inject constructor(
                 senderId = senderId,
                 senderName = senderName,
                 messageBody = messageBody,
-                chatId = chatId
+                chatId = chatId,
+                isGroupMessage = isGroupMessage,
+                groupName = groupName
             )
 
             // Show the notification
             val result = notificationRepository.showNotification(notificationData)
 
             if (result.isSuccess) {
-                Log.d(TAG, "Notification shown successfully for: $senderName")
+                Log.d(TAG, "$chatType notification shown successfully for: $displayName")
             } else {
-                Log.e(TAG, "Failed to show notification for: $senderName", result.exceptionOrNull())
+                Log.e(
+                    TAG,
+                    "Failed to show $chatType notification for: $displayName",
+                    result.exceptionOrNull()
+                )
             }
 
             result

@@ -35,7 +35,11 @@ class NotificationIntentService @Inject constructor(
                 skipSplash = isAppAlreadyRunning,
                 isInitialDestination = true
             )
-            Log.d(TAG, "Initial navigation state extracted: $initialState")
+
+            val destinationType = if (initialState.isGroupChat) "group" else "individual"
+            val destinationName = initialState.destinationName
+            Log.d(TAG, "Initial $destinationType navigation state extracted for: $destinationName")
+
             clearIntentExtras(intent)
             initialState
         }
@@ -51,12 +55,24 @@ class NotificationIntentService @Inject constructor(
         Log.d(TAG, "Handling a new notification intent.")
         processNotificationIntent(intent)?.let { state ->
             Log.d(TAG, "Queuing pending navigation state: $state")
-            activityViewModel.setPendingNavigation(
-                state.navigateTo,
-                state.userId,
-                state.username,
-                skipSplash = true
-            )
+
+            if (state.isGroupChat) {
+                // Group chat navigation
+                activityViewModel.setPendingGroupNavigation(
+                    groupId = state.groupId!!,
+                    groupName = state.groupName!!,
+                    skipSplash = true
+                )
+            } else {
+                // Individual chat navigation
+                activityViewModel.setPendingNavigation(
+                    state.navigateTo,
+                    state.userId,
+                    state.username,
+                    skipSplash = true
+                )
+            }
+
             clearIntentExtras(intent)
         } ?: Log.d(TAG, "No navigation state could be extracted from the new intent.")
     }
@@ -68,9 +84,16 @@ class NotificationIntentService @Inject constructor(
      */
     private fun clearIntentExtras(intent: Intent?) {
         intent?.apply {
+            // Individual chat extras
             removeExtra("navigateTo")
             removeExtra("userId")
             removeExtra("username")
+
+            // Group chat extras
+            removeExtra("groupId")
+            removeExtra("groupName")
+            removeExtra("senderId")
+            removeExtra("senderName")
         }
     }
 }

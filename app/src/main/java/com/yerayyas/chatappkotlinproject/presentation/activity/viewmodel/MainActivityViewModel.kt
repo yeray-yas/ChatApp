@@ -65,6 +65,40 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
+     * Queues a group navigation event based on notification parameters.
+     *
+     * @param groupId ID of the group chat.
+     * @param groupName Display name of the group chat.
+     * @param skipSplash If true, bypasses the splash screen during navigation.
+     */
+    fun setPendingGroupNavigation(
+        groupId: String,
+        groupName: String,
+        skipSplash: Boolean = false
+    ) {
+        Log.d(
+            TAG,
+            "setPendingGroupNavigation: groupId=$groupId, groupName=$groupName, skipSplash=$skipSplash"
+        )
+
+        if (groupId.isNotBlank() && groupName.isNotBlank()) {
+            val state = NotificationNavigationState(
+                navigateTo = "group_chat",
+                userId = "", // Not needed for group navigation
+                username = "", // Not needed for group navigation
+                eventId = System.currentTimeMillis(),
+                skipSplash = skipSplash,
+                groupId = groupId,
+                groupName = groupName
+            )
+            Log.d(TAG, "setPendingGroupNavigation: Emitting state $state")
+            viewModelScope.launch { _pendingNavigation.value = state }
+        } else {
+            Log.d(TAG, "setPendingGroupNavigation: Invalid parameters, ignoring event")
+        }
+    }
+
+    /**
      * Clears the current pending navigation state.
      * Should be called after the navigation event is consumed.
      */

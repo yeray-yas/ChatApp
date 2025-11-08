@@ -43,6 +43,8 @@ interface NotificationBuilder {
  *
  * This abstraction allows the domain layer to request pending intents
  * without depending on Android-specific implementation details.
+ *
+ * Supports both individual and group chat notifications.
  */
 interface PendingIntentFactory {
     /**
@@ -50,12 +52,16 @@ interface PendingIntentFactory {
      *
      * @param senderId Unique identifier for the message sender
      * @param senderName Display name of the sender
-     * @param chatId Unique identifier for the chat conversation
+     * @param chatId Unique identifier for the chat conversation (user ID for individual, group ID for group)
+     * @param isGroupMessage Whether this is for a group message (default: false)
+     * @param groupName Name of the group (used if isGroupMessage is true)
      * @return A platform-specific pending intent
      */
     fun createChatPendingIntent(
         senderId: String,
         senderName: String,
-        chatId: String
+        chatId: String,
+        isGroupMessage: Boolean = false,
+        groupName: String? = null
     ): Any
 }

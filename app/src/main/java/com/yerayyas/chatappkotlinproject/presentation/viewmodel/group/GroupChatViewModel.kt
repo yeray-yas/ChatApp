@@ -10,7 +10,9 @@ import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import com.yerayyas.chatappkotlinproject.domain.usecases.group.SendGroupMessageUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.group.GetUserGroupsUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.group.ManageGroupMembersUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.CancelChatNotificationsUseCase
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
+import com.yerayyas.chatappkotlinproject.utils.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +30,9 @@ class GroupChatViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val sendGroupMessageUseCase: SendGroupMessageUseCase,
     private val getUserGroupsUseCase: GetUserGroupsUseCase,
-    private val manageGroupMembersUseCase: ManageGroupMembersUseCase
+    private val manageGroupMembersUseCase: ManageGroupMembersUseCase,
+    private val cancelChatNotificationsUseCase: CancelChatNotificationsUseCase,
+    private val appState: AppState
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GroupChatUiState())
@@ -77,6 +81,9 @@ class GroupChatViewModel @Inject constructor(
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                 println("DEBUG: Starting group initialization")
+
+                // Cancelar notificaciones del grupo
+                cancelChatNotificationsUseCase.cancelGroupNotifications(groupId)
 
                 // Cargar información del grupo
                 loadGroupInfo(groupId)
@@ -397,6 +404,11 @@ class GroupChatViewModel @Inject constructor(
             null
         }
     }
+
+    /**
+     * Obtiene el AppState para gestionar el estado del chat abierto
+     */
+    fun getAppState(): AppState = appState
 
     /**
      * Limpia errores

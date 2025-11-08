@@ -37,6 +37,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,6 +63,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.ErrorState
 import com.yerayyas.chatappkotlinproject.presentation.components.LoadingState
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.group.GroupChatViewModel
+import com.yerayyas.chatappkotlinproject.utils.AppState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -104,6 +106,17 @@ fun GroupChatScreen(
             scope.launch {
                 snackbarHostState.showSnackbar(currentError)
                 viewModel.clearError()
+            }
+        }
+    }
+
+    // Track currently open group chat in global app state
+    DisposableEffect(groupId) {
+        val appState = viewModel.getAppState()
+        appState.currentOpenGroupChatId = groupId
+        onDispose {
+            if (appState.currentOpenGroupChatId == groupId) {
+                appState.currentOpenGroupChatId = null
             }
         }
     }

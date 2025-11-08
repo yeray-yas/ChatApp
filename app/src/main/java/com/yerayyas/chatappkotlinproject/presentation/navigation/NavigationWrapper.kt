@@ -135,7 +135,13 @@ fun NavigationWrapper(
                 initialNavState
                     ?.takeIf { it.isInitialDestination }
                     ?.let { state ->
-                        navController.navigate("direct_chat/${state.userId}/${state.username}") {
+                        val route = if (state.isGroupChat) {
+                            Routes.GroupChat.createRoute(state.groupId!!)
+                        } else {
+                            "direct_chat/${state.userId}/${state.username}"
+                        }
+
+                        navController.navigate(route) {
                             popUpTo(Routes.Splash.route) { inclusive = true }
                         }
                     }
@@ -270,8 +276,13 @@ private fun determineStartDestination(
     return when {
         initialNavState?.isInitialDestination == true && !skipSplash ->
             Routes.Splash.route
-        initialNavState?.isInitialDestination == true ->
-            "direct_chat/${initialNavState.userId}/${initialNavState.username}"
+        initialNavState?.isInitialDestination == true -> {
+            if (initialNavState.isGroupChat) {
+                Routes.GroupChat.createRoute(initialNavState.groupId!!)
+            } else {
+                "direct_chat/${initialNavState.userId}/${initialNavState.username}"
+            }
+        }
         skipSplash ->
             Routes.Home.route
         else ->

@@ -11,23 +11,33 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,20 +54,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
+import androidx.navigation.NavController
 import com.yerayyas.chatappkotlinproject.R
+import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
+import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.presentation.components.ChatListItem
+import com.yerayyas.chatappkotlinproject.presentation.components.GroupChatItem
 import com.yerayyas.chatappkotlinproject.presentation.components.UserListItem
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
-import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.ChatsListViewModel
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -73,12 +88,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: NavHostController,
+    navController: NavController,
     viewModel: HomeViewModel = hiltViewModel(),
     chatsListViewModel: ChatsListViewModel = hiltViewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val tabs = listOf("Users", "Chats")
+    val tabs = listOf("Users", "Chats", "Grupos")
     var showMenu by remember { mutableStateOf(false) }
     val username by viewModel.username.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -154,6 +169,21 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    // Botón para acceder a grupos
+                    IconButton(onClick = {
+                        // TODO: Navegar a lista de grupos
+                        Toast.makeText(
+                            context,
+                            "Función de grupos próximamente",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }) {
+                        Icon(
+                            Icons.Default.Groups,
+                            contentDescription = "Grupos"
+                        )
+                    }
+
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.user_profile_btn)) },
@@ -209,6 +239,17 @@ fun HomeScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Routes.CreateGroup.route) },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(
+                    Icons.Default.GroupAdd,
+                    contentDescription = "Crear grupo"
+                )
+            }
         }
     ) { paddingValues ->
         Column(modifier = Modifier
@@ -237,6 +278,7 @@ fun HomeScreen(
                 when (page) {
                     0 -> UsersScreen(viewModel, navController)
                     1 -> ChatsList(navController, hiltViewModel())
+                    2 -> GroupsList(navController)
                 }
             }
         }
@@ -253,7 +295,7 @@ fun HomeScreen(
 @Composable
 private fun UsersScreen(
     viewModel: HomeViewModel = hiltViewModel(),
-    navController: NavHostController
+    navController: NavController
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     var isActive by remember { mutableStateOf(false) }
@@ -298,7 +340,7 @@ private fun UsersScreen(
 @Composable
 private fun UsersList(
     viewModel: HomeViewModel = hiltViewModel(),
-    navController: NavHostController
+    navController: NavController
 ) {
     val users by viewModel.users.collectAsState()
     LazyColumn(
@@ -330,7 +372,7 @@ private fun UsersList(
  */
 @Composable
 private fun ChatsList(
-    navController: NavHostController,
+    navController: NavController,
     viewModel: ChatsListViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
@@ -351,6 +393,164 @@ private fun ChatsList(
                     }
                 }
             )
+        }
+    }
+}
+
+/**
+ * Muestra la lista de grupos disponibles
+ */
+@Composable
+private fun GroupsList(
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
+    // Datos de muestra para grupos hasta que tengamos el repository completo
+    val sampleGroups = remember {
+        listOf(
+            GroupChat(
+                id = "group1",
+                name = "Familia",
+                description = "Chat familiar",
+                memberIds = listOf("user1", "user2", "user3", "user4"),
+                adminIds = listOf("user1"),
+                createdBy = "user1",
+                lastActivity = System.currentTimeMillis() - 3600000, // 1 hora atrás
+                lastMessage = ChatMessage(
+                    message = "¿Cómo están todos?",
+                    senderId = "user2",
+                    timestamp = System.currentTimeMillis() - 3600000
+                )
+            ),
+            GroupChat(
+                id = "group2", 
+                name = "Trabajo - Equipo Dev",
+                description = "Equipo de desarrollo",
+                memberIds = listOf("user1", "user5", "user6", "user7", "user8"),
+                adminIds = listOf("user1", "user5"),
+                createdBy = "user1",
+                lastActivity = System.currentTimeMillis() - 7200000, // 2 horas atrás
+                lastMessage = ChatMessage(
+                    message = "La nueva feature está lista para testing",
+                    senderId = "user5",
+                    timestamp = System.currentTimeMillis() - 7200000
+                )
+            ),
+            GroupChat(
+                id = "group3",
+                name = "Amigos Universidad",
+                description = "Grupo de la uni",
+                memberIds = listOf("user1", "user9", "user10", "user11"),
+                adminIds = listOf("user1"),
+                createdBy = "user1",
+                lastActivity = System.currentTimeMillis() - 86400000, // 1 día atrás
+                lastMessage = ChatMessage(
+                    message = "¿Quedamos para almorzar?",
+                    senderId = "user9",
+                    timestamp = System.currentTimeMillis() - 86400000
+                )
+            )
+        )
+    }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        if (sampleGroups.isNotEmpty()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(sampleGroups) { group ->
+                    GroupChatItem(
+                        groupChat = group,
+                        onGroupClick = { groupId ->
+                            // TODO: Navegar al chat del grupo
+                            // navController.navigate(Routes.GroupChat.createRoute(groupId))
+                        }
+                    )
+                }
+            }
+        } else {
+            // Estado vacío para cuando no hay grupos
+            EmptyGroupsState(
+                onCreateGroupClick = {
+                    navController.navigate(Routes.CreateGroup.route)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+/**
+ * Estado vacío cuando no hay grupos
+ */
+@Composable
+private fun EmptyGroupsState(
+    onCreateGroupClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Group,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "No tienes grupos aún",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Crea tu primer grupo para chatear con múltiples personas",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(
+            onClick = onCreateGroupClick,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Crear grupo")
+        }
+    }
+}
+
+/**
+ * Formatea la última actividad en formato legible
+ */
+private fun formatLastActivity(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+
+    return when {
+        diff < 60000 -> "Ahora" // menos de 1 minuto
+        diff < 3600000 -> "${diff / 60000}m" // menos de 1 hora
+        diff < 86400000 -> "${diff / 3600000}h" // menos de 1 día
+        diff < 604800000 -> "${diff / 86400000}d" // menos de 1 semana
+        else -> {
+            val date = java.util.Date(timestamp)
+            java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault()).format(date)
         }
     }
 }

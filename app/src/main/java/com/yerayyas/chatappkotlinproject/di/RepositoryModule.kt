@@ -6,6 +6,8 @@ import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import com.yerayyas.chatappkotlinproject.data.repository.ChatRepositoryImpl
 import com.yerayyas.chatappkotlinproject.data.repository.ThemeRepositoryImpl
 import com.yerayyas.chatappkotlinproject.data.repository.UserRepositoryImpl
+import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
+import com.yerayyas.chatappkotlinproject.data.repository.GroupChatRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -46,4 +48,10 @@ abstract class RepositoryModule {
     abstract fun bindThemeRepository(
         themeRepositoryImpl: ThemeRepositoryImpl
     ): ThemeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGroupChatRepository(
+        groupChatRepositoryImpl: GroupChatRepositoryImpl
+    ): GroupChatRepository
 }

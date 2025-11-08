@@ -128,6 +128,61 @@ sealed class Routes(
         }
     )
 
+    /** Create group screen. */
+    data object CreateGroup : Routes(
+        route = "create_group",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    )
+
+    /** Group chat screen. */
+    data object GroupChat : Routes(
+        route = "group_chat/{groupId}",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    ) {
+        fun createRoute(groupId: String) = "group_chat/$groupId"
+    }
+
+    /** Group info screen. */
+    data object GroupInfo : Routes(
+        route = "group_info/{groupId}",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    ) {
+        fun createRoute(groupId: String) = "group_info/$groupId"
+    }
+
     /**
      * Screen for viewing another user's profile.
      *

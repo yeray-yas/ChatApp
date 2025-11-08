@@ -27,6 +27,7 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsers
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.search.SearchScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.settings.SettingsScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.CreateGroupScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
@@ -87,6 +88,19 @@ fun NavigationWrapper(
         startDestination = startDestination,
         modifier = modifier
     ) {
+        // --- Group screens routes (Fase 3) ---
+        composable(Routes.CreateGroup.route) {
+            CreateGroupScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onGroupCreated = { groupId ->
+                    // Navegar al chat del grupo recién creado
+                    navController.navigate(Routes.GroupChat.createRoute(groupId)) {
+                        popUpTo(Routes.CreateGroup.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        // Additional group screens can be added here (e.g., GroupChatScreen, GroupInfoScreen)
         composable(Routes.Splash.route) {
             SplashScreen {
                 hasShownSplash = true

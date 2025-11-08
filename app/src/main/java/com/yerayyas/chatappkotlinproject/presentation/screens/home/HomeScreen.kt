@@ -163,6 +163,13 @@ fun HomeScreen(
                             }
                         )
                         DropdownMenuItem(
+                            text = { Text("Configuración") },
+                            onClick = {
+                                showMenu = false
+                                navController.navigate(Routes.Settings.route)
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.user_about_btn)) },
                             onClick = {
                                 showMenu = false

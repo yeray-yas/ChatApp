@@ -75,6 +75,59 @@ sealed class Routes(
     /** Screen for confirming the selected profile photo. */
     data object ConfirmPhoto : Routes("confirm_photo")
 
+    /** Settings screen with theme and notification configuration. */
+    data object Settings : Routes(
+        route = "settings",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    )
+
+    /** Search screen for finding messages. */
+    data object Search : Routes(
+        route = "search/{chatId}",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Up,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Down,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    ) {
+        fun createRoute(chatId: String) = "search/$chatId"
+    }
+
+    /** Global search screen for all messages. */
+    data object GlobalSearch : Routes(
+        route = "global_search",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Up,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Down,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    )
+
     /**
      * Screen for viewing another user's profile.
      *

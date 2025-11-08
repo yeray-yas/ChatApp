@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -309,6 +310,8 @@ fun ChatScreen(
                 .align(Alignment.TopCenter)
                 .zIndex(10f),
             username = username,
+            userId = userId,
+            navController = navController,
             onNavigateBack = {
                 if (isDirectChat) {
                     navController.navigate(Routes.Home.route) {
@@ -328,6 +331,8 @@ fun ChatScreen(
  *
  * @param modifier Modifier for styling and layout.
  * @param username The chat partner’s display name.
+ * @param userId Unique identifier of the chat partner.
+ * @param navController Controller for navigation actions.
  * @param onNavigateBack Callback executed when back navigation is triggered.
  * @param actions Additional action icons to display in the app bar.
  */
@@ -336,6 +341,8 @@ fun ChatScreen(
 private fun ChatTopAppBar(
     modifier: Modifier = Modifier,
     username: String,
+    userId: String,
+    navController: NavHostController,
     onNavigateBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit
 ) {
@@ -355,7 +362,17 @@ private fun ChatTopAppBar(
                 )
             }
         },
-        actions = actions,
+        actions = {
+            IconButton(onClick = {
+                navController.navigate(Routes.Search.createRoute(userId))
+            }) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = "Search"
+                )
+            }
+            actions()
+        },
         windowInsets = TopAppBarDefaults.windowInsets
     )
 }

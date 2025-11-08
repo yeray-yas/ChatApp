@@ -4,13 +4,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
 import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.ui.theme.ChatAppKotlinProjectTheme
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.theme.ThemeViewModel
 
 /**
  * Root composable for the application. Applies the app theme, configures the scaffold,
@@ -28,11 +32,16 @@ fun AppContainer(
     handleNotificationNavigation: HandleNotificationNavigationUseCase,
     handleDefaultNavigation: HandleDefaultNavigationUseCase,
     skipSplash: Boolean = false,
-    initialNavState: NotificationNavigationState? = null
+    initialNavState: NotificationNavigationState? = null,
+    themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
+    val themePreferences by themeViewModel.themePreferences.collectAsStateWithLifecycle()
 
-    ChatAppKotlinProjectTheme {
+    ChatAppKotlinProjectTheme(
+        themeMode = themePreferences.themeMode,
+        useDynamicColors = themePreferences.useDynamicColors
+    ) {
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()

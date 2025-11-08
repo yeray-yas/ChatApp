@@ -25,6 +25,8 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.ConfirmPro
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.EditUserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsersProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.search.SearchScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.settings.SettingsScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
@@ -110,6 +112,39 @@ fun NavigationWrapper(
         composable(Routes.Home.route) {
             HomeScreen(navController)
         }
+
+        // Settings Screen - Nueva funcionalidad Fase 2
+        composable(Routes.Settings.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Search Screen - Nueva funcionalidad Fase 2
+        composable(
+            route = Routes.Search.route,
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            SearchScreen(
+                chatId = chatId,
+                onNavigateBack = { navController.popBackStack() },
+                onMessageClick = { message ->
+                    // Navegar de vuelta al chat y scrollear al mensaje
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Global Search Screen - Nueva funcionalidad Fase 2
+        composable(Routes.GlobalSearch.route) {
+            SearchScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         composable(
             route = "direct_chat/{userId}/{username}",
             arguments = listOf(

@@ -1,8 +1,10 @@
 package com.yerayyas.chatappkotlinproject.di
 
 import com.yerayyas.chatappkotlinproject.domain.repository.ChatRepository
+import com.yerayyas.chatappkotlinproject.domain.repository.ThemeRepository
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import com.yerayyas.chatappkotlinproject.data.repository.ChatRepositoryImpl
+import com.yerayyas.chatappkotlinproject.data.repository.ThemeRepositoryImpl
 import com.yerayyas.chatappkotlinproject.data.repository.UserRepositoryImpl
 import dagger.Binds
 import dagger.Module
@@ -35,4 +37,13 @@ abstract class RepositoryModule {
     abstract fun bindChatRepository(
         chatRepositoryImpl: ChatRepositoryImpl
     ): ChatRepository
+
+    /**
+     * Binds the ThemeRepositoryImpl implementation to the ThemeRepository interface.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindThemeRepository(
+        themeRepositoryImpl: ThemeRepositoryImpl
+    ): ThemeRepository
 }

@@ -54,6 +54,9 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    // DataStore for preferences
+    implementation(libs.androidx.datastore.preferences)
+
     // Lifecycle viewModel
     implementation (libs.androidx.lifecycle.viewmodel.compose)
 

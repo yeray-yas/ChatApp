@@ -183,6 +183,23 @@ sealed class Routes(
         fun createRoute(groupId: String) = "group_info/$groupId"
     }
 
+    /** Group list screen. */
+    data object GroupList : Routes(
+        route = "group_list",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    )
+
     /**
      * Screen for viewing another user's profile.
      *

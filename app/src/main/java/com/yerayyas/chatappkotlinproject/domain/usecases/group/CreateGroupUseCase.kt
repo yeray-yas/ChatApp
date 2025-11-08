@@ -1,6 +1,8 @@
 package com.yerayyas.chatappkotlinproject.domain.usecases.group
 
 import android.net.Uri
+import com.google.firebase.auth.FirebaseAuth
+import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import javax.inject.Inject
 
@@ -8,7 +10,8 @@ import javax.inject.Inject
  * Use case para crear un nuevo grupo de chat
  */
 class CreateGroupUseCase @Inject constructor(
-    private val groupChatRepository: GroupChatRepository
+    private val groupChatRepository: GroupChatRepository,
+    private val firebaseAuth: FirebaseAuth
 ) {
     /**
      * Crea un nuevo grupo de chat
@@ -26,6 +29,9 @@ class CreateGroupUseCase @Inject constructor(
         imageUri: Uri? = null
     ): Result<String> {
         return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("Usuario no autenticado"))
+
             // Validaciones
             if (name.isBlank()) {
                 return Result.failure(IllegalArgumentException("El nombre del grupo no puede estar vacío"))
@@ -47,13 +53,20 @@ class CreateGroupUseCase @Inject constructor(
                 return Result.failure(IllegalArgumentException("Un grupo no puede tener más de 256 miembros"))
             }
 
-            // Crear el grupo
-            groupChatRepository.createGroup(
+            // Crear objeto GroupChat
+            val group = GroupChat(
                 name = name.trim(),
                 description = description.trim(),
-                memberIds = memberIds.distinct(), // Remover duplicados
-                imageUri = imageUri
+                memberIds = (memberIds + currentUserId).distinct(), // Agregar el creador y remover duplicados
+                adminIds = listOf(currentUserId), // El creador es administrador
+                createdBy = currentUserId,
+                createdAt = System.currentTimeMillis(),
+                lastActivity = System.currentTimeMillis(),
+                isActive = true
             )
+
+            // Crear el grupo
+            groupChatRepository.createGroup(group)
         } catch (e: Exception) {
             Result.failure(e)
         }

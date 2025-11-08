@@ -153,6 +153,29 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     /**
+     * Marks a specific message as read by a user (for group chats).
+     *
+     * @param messageId The ID of the message to mark as read.
+     * @param userId The ID of the user who read the message.
+     * @throws Exception if the database operation fails.
+     */
+    override suspend fun markMessageAsRead(messageId: String, userId: String) {
+        try {
+            // For group messages, we'll store read receipts differently
+            database.child("message_read_receipts")
+                .child(messageId)
+                .child(userId)
+                .setValue(System.currentTimeMillis())
+                .await()
+
+            Log.d(TAG, "Marked message $messageId as read by user $userId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to mark message as read", e)
+            throw e
+        }
+    }
+
+    /**
      * Sends a plain text message to another user.
      *
      * @param receiverId The ID of the user who will receive the message.

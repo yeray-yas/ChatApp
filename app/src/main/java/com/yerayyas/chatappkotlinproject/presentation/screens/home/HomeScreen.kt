@@ -171,12 +171,7 @@ fun HomeScreen(
                 actions = {
                     // Botón para acceder a grupos
                     IconButton(onClick = {
-                        // TODO: Navegar a lista de grupos
-                        Toast.makeText(
-                            context,
-                            "Función de grupos próximamente",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        navController.navigate(Routes.GroupList.route)
                     }) {
                         Icon(
                             Icons.Default.Groups,
@@ -278,7 +273,7 @@ fun HomeScreen(
                 when (page) {
                     0 -> UsersScreen(viewModel, navController)
                     1 -> ChatsList(navController, hiltViewModel())
-                    2 -> GroupsList(navController)
+                    2 -> GroupsList(navController, modifier = Modifier, viewModel)
                 }
             }
         }
@@ -403,18 +398,24 @@ private fun ChatsList(
 @Composable
 private fun GroupsList(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    // Datos de muestra para grupos hasta que tengamos el repository completo
+    val currentUserId = viewModel.getCurrentUserId() ?: ""
+
+    // Obtener grupos reales del usuario desde Firebase
+    val userGroups by viewModel.getUserGroups(currentUserId).collectAsState(initial = emptyList())
+
+    // Datos de muestra como fallback si no hay grupos reales
     val sampleGroups = remember {
         listOf(
             GroupChat(
                 id = "group1",
                 name = "Familia",
                 description = "Chat familiar",
-                memberIds = listOf("user1", "user2", "user3", "user4"),
-                adminIds = listOf("user1"),
-                createdBy = "user1",
+                memberIds = listOf(currentUserId, "user2", "user3", "user4"),
+                adminIds = listOf(currentUserId),
+                createdBy = currentUserId,
                 lastActivity = System.currentTimeMillis() - 3600000, // 1 hora atrás
                 lastMessage = ChatMessage(
                     message = "¿Cómo están todos?",
@@ -423,12 +424,12 @@ private fun GroupsList(
                 )
             ),
             GroupChat(
-                id = "group2", 
+                id = "group2",
                 name = "Trabajo - Equipo Dev",
                 description = "Equipo de desarrollo",
-                memberIds = listOf("user1", "user5", "user6", "user7", "user8"),
-                adminIds = listOf("user1", "user5"),
-                createdBy = "user1",
+                memberIds = listOf(currentUserId, "user5", "user6", "user7", "user8"),
+                adminIds = listOf(currentUserId, "user5"),
+                createdBy = currentUserId,
                 lastActivity = System.currentTimeMillis() - 7200000, // 2 horas atrás
                 lastMessage = ChatMessage(
                     message = "La nueva feature está lista para testing",
@@ -440,9 +441,9 @@ private fun GroupsList(
                 id = "group3",
                 name = "Amigos Universidad",
                 description = "Grupo de la uni",
-                memberIds = listOf("user1", "user9", "user10", "user11"),
-                adminIds = listOf("user1"),
-                createdBy = "user1",
+                memberIds = listOf(currentUserId, "user9", "user10", "user11"),
+                adminIds = listOf(currentUserId),
+                createdBy = currentUserId,
                 lastActivity = System.currentTimeMillis() - 86400000, // 1 día atrás
                 lastMessage = ChatMessage(
                     message = "¿Quedamos para almorzar?",
@@ -453,18 +454,20 @@ private fun GroupsList(
         )
     }
 
+    // Usar grupos reales si existen, sino usar datos de muestra
+    val groupsToShow = if (userGroups.isNotEmpty()) userGroups else sampleGroups
+
     Column(modifier = modifier.fillMaxSize()) {
-        if (sampleGroups.isNotEmpty()) {
+        if (groupsToShow.isNotEmpty()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(sampleGroups) { group ->
+                items(groupsToShow) { group ->
                     GroupChatItem(
                         groupChat = group,
                         onGroupClick = { groupId ->
-                            // TODO: Navegar al chat del grupo
-                            // navController.navigate(Routes.GroupChat.createRoute(groupId))
+                            navController.navigate(Routes.GroupChat.createRoute(groupId))
                         }
                     )
                 }

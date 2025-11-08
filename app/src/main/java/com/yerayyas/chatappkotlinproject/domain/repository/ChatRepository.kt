@@ -17,6 +17,9 @@ interface ChatRepository {
     /** Marks all unread messages in [chatId] as read. */
     suspend fun markMessagesAsRead(chatId: String)
 
+    /** Marks a specific message as read by a user. */
+    suspend fun markMessageAsRead(messageId: String, userId: String)
+
     /** Sends a text message. */
     suspend fun sendTextMessage(receiverId: String, messageText: String)
 

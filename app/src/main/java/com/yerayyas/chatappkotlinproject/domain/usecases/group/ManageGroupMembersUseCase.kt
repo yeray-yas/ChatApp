@@ -1,46 +1,52 @@
 package com.yerayyas.chatappkotlinproject.domain.usecases.group
 
+import com.google.firebase.auth.FirebaseAuth
+import com.yerayyas.chatappkotlinproject.data.model.GroupActivityType
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
-import com.yerayyas.chatappkotlinproject.domain.repository.GroupAction
 import javax.inject.Inject
 
 /**
- * Use case para gestionar miembros de grupos (agregar, eliminar, promover, etc.)
+ * Use case para gestionar miembros de un grupo
  */
 class ManageGroupMembersUseCase @Inject constructor(
-    private val groupChatRepository: GroupChatRepository
+    private val groupRepository: GroupChatRepository,
+    private val firebaseAuth: FirebaseAuth,
+    private val sendGroupMessageUseCase: SendGroupMessageUseCase
 ) {
-
     /**
-     * Agrega un miembro al grupo
+     * Añade un miembro al grupo
      */
-    suspend fun addMember(groupId: String, userId: String): Result<Unit> {
+    suspend fun addMember(
+        groupId: String,
+        userId: String,
+        userName: String,
+        addedByName: String
+    ): Result<Unit> {
         return try {
-            // Verificar permisos
-            val canAdd = groupChatRepository.canPerformAction(groupId, GroupAction.ADD_MEMBER)
-            if (canAdd.isFailure || canAdd.getOrNull() != true) {
-                return Result.failure(SecurityException("No tienes permisos para agregar miembros"))
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("Usuario no autenticado"))
+
+            // Verificar que el usuario actual puede añadir miembros
+            val group = groupRepository.getGroupById(groupId)
+                ?: return Result.failure(Exception("Grupo no encontrado"))
+
+            if (!group.canAddMembers(currentUserId)) {
+                return Result.failure(Exception("No tienes permisos para añadir miembros"))
             }
 
-            // Verificar que el grupo existe y obtener info
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
+            // Añadir el miembro
+            val result = groupRepository.addMemberToGroup(groupId, userId)
+
+            if (result.isSuccess) {
+                // Enviar mensaje de notificación
+                sendGroupMessageUseCase.sendSystemMessage(
+                    groupId = groupId,
+                    message = "$addedByName agregó a $userName al grupo",
+                    systemMessageType = GroupActivityType.USER_ADDED
+                )
             }
 
-            val group = groupResult.getOrNull()!!
-
-            // Verificar límites
-            if (group.getMemberCount() >= 256) {
-                return Result.failure(IllegalStateException("El grupo ha alcanzado el límite máximo de miembros"))
-            }
-
-            // Verificar que no sea ya miembro
-            if (group.isMember(userId)) {
-                return Result.failure(IllegalStateException("El usuario ya es miembro del grupo"))
-            }
-
-            groupChatRepository.addMember(groupId, userId)
+            result
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -49,33 +55,49 @@ class ManageGroupMembersUseCase @Inject constructor(
     /**
      * Elimina un miembro del grupo
      */
-    suspend fun removeMember(groupId: String, userId: String): Result<Unit> {
+    suspend fun removeMember(
+        groupId: String,
+        userId: String,
+        userName: String,
+        removedByName: String
+    ): Result<Unit> {
         return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("Usuario no autenticado"))
+
             // Verificar permisos
-            val canRemove = groupChatRepository.canPerformAction(groupId, GroupAction.REMOVE_MEMBER)
-            if (canRemove.isFailure || canRemove.getOrNull() != true) {
-                return Result.failure(SecurityException("No tienes permisos para eliminar miembros"))
+            val group = groupRepository.getGroupById(groupId)
+                ?: return Result.failure(Exception("Grupo no encontrado"))
+
+            if (!group.isAdmin(currentUserId) && currentUserId != userId) {
+                return Result.failure(Exception("No tienes permisos para eliminar este miembro"))
             }
 
-            // Verificar que el grupo existe
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
+            // No permitir que se elimine el creador del grupo
+            if (userId == group.createdBy) {
+                return Result.failure(Exception("No se puede eliminar al creador del grupo"))
             }
 
-            val group = groupResult.getOrNull()!!
+            // Eliminar el miembro
+            val result = groupRepository.removeMemberFromGroup(groupId, userId)
 
-            // No se puede eliminar al creador del grupo
-            if (group.createdBy == userId) {
-                return Result.failure(IllegalStateException("No se puede eliminar al creador del grupo"))
+            if (result.isSuccess) {
+                // Enviar mensaje de notificación
+                val message = if (currentUserId == userId) {
+                    "$userName dejó el grupo"
+                } else {
+                    "$removedByName eliminó a $userName del grupo"
+                }
+
+                sendGroupMessageUseCase.sendSystemMessage(
+                    groupId = groupId,
+                    message = message,
+                    systemMessageType = if (currentUserId == userId)
+                        GroupActivityType.USER_LEFT else GroupActivityType.USER_REMOVED
+                )
             }
 
-            // Verificar que es miembro
-            if (!group.isMember(userId)) {
-                return Result.failure(IllegalStateException("El usuario no es miembro del grupo"))
-            }
-
-            groupChatRepository.removeMember(groupId, userId)
+            result
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -84,148 +106,133 @@ class ManageGroupMembersUseCase @Inject constructor(
     /**
      * Promueve un miembro a administrador
      */
-    suspend fun promoteToAdmin(groupId: String, userId: String): Result<Unit> {
+    suspend fun promoteToAdmin(
+        groupId: String,
+        userId: String,
+        userName: String,
+        promotedByName: String
+    ): Result<Unit> {
         return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("Usuario no autenticado"))
+
+            // Verificar que el usuario actual es admin
+            val group = groupRepository.getGroupById(groupId)
+                ?: return Result.failure(Exception("Grupo no encontrado"))
+
+            if (!group.isAdmin(currentUserId)) {
+                return Result.failure(Exception("Solo los administradores pueden promover a otros miembros"))
+            }
+
+            if (group.isAdmin(userId)) {
+                return Result.failure(Exception("El usuario ya es administrador"))
+            }
+
+            // Promover a admin
+            val result = groupRepository.makeAdmin(groupId, userId)
+
+            if (result.isSuccess) {
+                // Enviar mensaje de notificación
+                sendGroupMessageUseCase.sendSystemMessage(
+                    groupId = groupId,
+                    message = "$promotedByName nombró administrador a $userName",
+                    systemMessageType = GroupActivityType.ADMIN_ADDED
+                )
+            }
+
+            result
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Quita privilegios de administrador a un miembro
+     */
+    suspend fun demoteAdmin(
+        groupId: String,
+        userId: String,
+        userName: String,
+        demotedByName: String
+    ): Result<Unit> {
+        return try {
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("Usuario no autenticado"))
+
             // Verificar permisos
-            val canPromote =
-                groupChatRepository.canPerformAction(groupId, GroupAction.PROMOTE_ADMIN)
-            if (canPromote.isFailure || canPromote.getOrNull() != true) {
-                return Result.failure(SecurityException("No tienes permisos para promover administradores"))
+            val group = groupRepository.getGroupById(groupId)
+                ?: return Result.failure(Exception("Grupo no encontrado"))
+
+            if (!group.isAdmin(currentUserId)) {
+                return Result.failure(Exception("Solo los administradores pueden quitar privilegios"))
             }
 
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
-            }
-
-            val group = groupResult.getOrNull()!!
-
-            // Verificar que es miembro
-            if (!group.isMember(userId)) {
-                return Result.failure(IllegalStateException("El usuario debe ser miembro del grupo"))
-            }
-
-            // Verificar que no es ya admin
-            if (group.isAdmin(userId)) {
-                return Result.failure(IllegalStateException("El usuario ya es administrador"))
-            }
-
-            groupChatRepository.promoteToAdmin(groupId, userId)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Quita permisos de administrador
-     */
-    suspend fun demoteFromAdmin(groupId: String, userId: String): Result<Unit> {
-        return try {
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
-            }
-
-            val group = groupResult.getOrNull()!!
-
-            // No se puede quitar admin al creador
-            if (group.createdBy == userId) {
-                return Result.failure(IllegalStateException("No se puede quitar permisos de admin al creador del grupo"))
-            }
-
-            // Verificar que es admin
             if (!group.isAdmin(userId)) {
-                return Result.failure(IllegalStateException("El usuario no es administrador"))
+                return Result.failure(Exception("El usuario no es administrador"))
             }
 
-            groupChatRepository.demoteFromAdmin(groupId, userId)
+            // No permitir que se degrade al creador del grupo
+            if (userId == group.createdBy) {
+                return Result.failure(Exception("No se puede quitar privilegios al creador del grupo"))
+            }
+
+            // Quitar privilegios de admin
+            val result = groupRepository.removeAdmin(groupId, userId)
+
+            if (result.isSuccess) {
+                // Enviar mensaje de notificación
+                sendGroupMessageUseCase.sendSystemMessage(
+                    groupId = groupId,
+                    message = "$demotedByName quitó privilegios de administrador a $userName",
+                    systemMessageType = GroupActivityType.ADMIN_REMOVED
+                )
+            }
+
+            result
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     /**
-     * Silencia un miembro
+     * Abandona el grupo (usuario actual)
      */
-    suspend fun muteMember(groupId: String, userId: String): Result<Unit> {
+    suspend fun leaveGroup(
+        groupId: String,
+        userName: String
+    ): Result<Unit> {
         return try {
-            val canMute = groupChatRepository.canPerformAction(groupId, GroupAction.MUTE_MEMBER)
-            if (canMute.isFailure || canMute.getOrNull() != true) {
-                return Result.failure(SecurityException("No tienes permisos para silenciar miembros"))
+            val currentUserId = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("Usuario no autenticado"))
+
+            // Verificar que no es el creador
+            val group = groupRepository.getGroupById(groupId)
+                ?: return Result.failure(Exception("Grupo no encontrado"))
+
+            if (currentUserId == group.createdBy) {
+                return Result.failure(Exception("El creador del grupo no puede abandonarlo. Debe transferir la propiedad primero."))
             }
 
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
-            }
-
-            val group = groupResult.getOrNull()!!
-
-            // No se puede silenciar al creador
-            if (group.createdBy == userId) {
-                return Result.failure(IllegalStateException("No se puede silenciar al creador del grupo"))
-            }
-
-            // No se puede silenciar a otros admins (a menos que seas el creador)
-            if (group.isAdmin(userId)) {
-                return Result.failure(IllegalStateException("No se puede silenciar a un administrador"))
-            }
-
-            if (group.isMuted(userId)) {
-                return Result.failure(IllegalStateException("El usuario ya está silenciado"))
-            }
-
-            groupChatRepository.muteMember(groupId, userId)
+            // Abandonar el grupo
+            removeMember(
+                groupId = groupId,
+                userId = currentUserId,
+                userName = userName,
+                removedByName = userName
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     /**
-     * Quita el silencio a un miembro
+     * Obtiene la lista de miembros del grupo
      */
-    suspend fun unmuteMember(groupId: String, userId: String): Result<Unit> {
+    suspend fun getGroupMembers(groupId: String): List<String> {
         return try {
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
-            }
-
-            val group = groupResult.getOrNull()!!
-
-            if (!group.isMuted(userId)) {
-                return Result.failure(IllegalStateException("El usuario no está silenciado"))
-            }
-
-            groupChatRepository.unmuteMember(groupId, userId)
+            groupRepository.getGroupMembers(groupId)
         } catch (e: Exception) {
-            Result.failure(e)
+            emptyList()
         }
     }
-
-    /**
-     * Abandona el grupo
-     */
-    suspend fun leaveGroup(groupId: String): Result<Unit> {
-        return try {
-            val groupResult = groupChatRepository.getGroup(groupId)
-            if (groupResult.isFailure) {
-                return Result.failure(Exception("Grupo no encontrado"))
-            }
-
-            val group = groupResult.getOrNull()!!
-
-            // El creador no puede abandonar el grupo, debe transferir la propiedad o eliminarlo
-            if (group.createdBy == getCurrentUserId()) {
-                return Result.failure(IllegalStateException("El creador no puede abandonar el grupo. Debe transferir la propiedad o eliminar el grupo"))
-            }
-
-            groupChatRepository.leaveGroup(groupId)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    // Mock function - en implementación real sería inyectado
-    private fun getCurrentUserId(): String = "" // Implementar según la arquitectura actual
 }

@@ -11,14 +11,18 @@ import com.google.firebase.database.Query
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.yerayyas.chatappkotlinproject.data.model.User
+import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
+import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
@@ -42,7 +46,8 @@ class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val database: DatabaseReference,
     private val userRepository: UserRepository,
-    private val notificationCanceller: NotificationCanceller
+    private val notificationCanceller: NotificationCanceller,
+    private val groupChatRepository: GroupChatRepository
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
@@ -84,6 +89,24 @@ class HomeViewModel @Inject constructor(
      */
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
+    }
+
+    /**
+     * Returns the current user id or null if not authenticated.
+     */
+    fun getCurrentUserId(): String? {
+        return auth.currentUser?.uid
+    }
+
+    /**
+     * Retrieves a Flow of the groups the current user belongs to.
+     */
+    fun getUserGroups(userId: String): Flow<List<GroupChat>> {
+        return if (userId.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            groupChatRepository.getUserGroups(userId)
+        }
     }
 
     /**

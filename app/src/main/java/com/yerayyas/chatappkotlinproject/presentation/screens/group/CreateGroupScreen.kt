@@ -1,8 +1,5 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.group
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Card
@@ -40,9 +35,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +49,6 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.data.model.User
 import com.yerayyas.chatappkotlinproject.presentation.components.EmptyState
-import com.yerayyas.chatappkotlinproject.presentation.components.ErrorState
 import com.yerayyas.chatappkotlinproject.presentation.components.LoadingState
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.group.CreateGroupViewModel
 
@@ -74,31 +65,24 @@ fun CreateGroupScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val availableUsers by viewModel.availableUsers.collectAsStateWithLifecycle()
-    val selectedMembers by viewModel.selectedMembers.collectAsStateWithLifecycle()
-
-    var groupName by remember { mutableStateOf("") }
-    var groupDescription by remember { mutableStateOf("") }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showImagePicker by remember { mutableStateOf(false) }
+    val selectedUsers by viewModel.selectedUsers.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
-    // Launcher para seleccionar imagen
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        selectedImageUri = uri
+    // Observar resultado de creación
+    LaunchedEffect(uiState.isGroupCreated) {
+        if (uiState.isGroupCreated) {
+            // Por ahora usar un ID genérico, idealmente el ViewModel debería devolver el ID real
+            onGroupCreated("group_created")
+            viewModel.resetCreationState()
+        }
     }
 
-    // Observar resultado de creación
-    LaunchedEffect(uiState) {
-        when (val state = uiState) {
-            is CreateGroupUiState.Success -> {
-                onGroupCreated(state.groupId)
-            }
-
-            else -> { /* No hacer nada */
-            }
+    // Mostrar errores
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            // Aquí podrías mostrar un SnackBar o Toast
+            println("Error: $error")
         }
     }
 
@@ -113,17 +97,10 @@ fun CreateGroupScreen(
                 },
                 actions = {
                     TextButton(
-                        onClick = {
-                            if (groupName.isNotBlank() && selectedMembers.isNotEmpty()) {
-                                viewModel.createGroup(
-                                    name = groupName,
-                                    description = groupDescription,
-                                    memberIds = selectedMembers.map { it.id },
-                                    imageUri = selectedImageUri
-                                )
-                            }
-                        },
-                        enabled = groupName.isNotBlank() && selectedMembers.isNotEmpty() && uiState !is CreateGroupUiState.Loading
+                        onClick = { viewModel.createGroup() },
+                        enabled = uiState.groupName.isNotBlank() &&
+                                selectedUsers.isNotEmpty() &&
+                                !uiState.isLoading
                     ) {
                         Text("Crear")
                     }
@@ -136,83 +113,94 @@ fun CreateGroupScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (uiState) {
-                is CreateGroupUiState.Loading -> {
-                    LoadingState(
-                        message = "Creando grupo...",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                is CreateGroupUiState.Error -> {
-                    ErrorState(
-                        message = (uiState as CreateGroupUiState.Error).message,
-                        onRetry = { viewModel.loadUsers() },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                is CreateGroupUiState.Success -> {
-                    // No mostrar nada en UI. El manejo lo realiza LaunchedEffect arriba.
-                    Box(modifier = Modifier.fillMaxSize())
-                }
+            if (uiState.isLoading) {
+                LoadingState(
+                    message = "Creando grupo...",
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Información del grupo
+                    item {
+                        GroupInfoSection(
+                            groupName = uiState.groupName,
+                            onGroupNameChange = viewModel::updateGroupName,
+                            groupDescription = uiState.groupDescription,
+                            onGroupDescriptionChange = viewModel::updateGroupDescription
+                        )
+                    }
 
-                is CreateGroupUiState.Idle -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Información del grupo
+                    // Error
+                    uiState.error?.let { error ->
                         item {
-                            GroupInfoSection(
-                                groupName = groupName,
-                                onGroupNameChange = { groupName = it },
-                                groupDescription = groupDescription,
-                                onGroupDescriptionChange = { groupDescription = it },
-                                selectedImageUri = selectedImageUri,
-                                onImageClick = { imagePickerLauncher.launch("image/*") }
-                            )
-                        }
-
-                        // Miembros seleccionados
-                        if (selectedMembers.isNotEmpty()) {
-                            item {
-                                SelectedMembersSection(
-                                    selectedMembers = selectedMembers,
-                                    onRemoveMember = viewModel::removeMember
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
                                 )
-                            }
-                        }
-
-                        // Lista de usuarios disponibles
-                        item {
-                            Text(
-                                text = "Agregar miembros",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        if (availableUsers.isEmpty()) {
-                            item {
-                                EmptyState(
-                                    message = "No hay usuarios disponibles",
-                                    icon = Icons.Default.People
-                                )
-                            }
-                        } else {
-                            items(availableUsers) { user ->
-                                UserSelectionItem(
-                                    user = user,
-                                    isSelected = selectedMembers.contains(user),
-                                    onSelectionChange = { isSelected ->
-                                        if (isSelected) {
-                                            viewModel.addMember(user)
-                                        } else {
-                                            viewModel.removeMember(user)
-                                        }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = error,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    IconButton(onClick = viewModel::clearError) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Cerrar error",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer
+                                        )
                                     }
-                                )
+                                }
                             }
+                        }
+                    }
+
+                    // Miembros seleccionados
+                    if (selectedUsers.isNotEmpty()) {
+                        item {
+                            SelectedMembersSection(
+                                selectedMembers = selectedUsers,
+                                onRemoveMember = viewModel::toggleUserSelection
+                            )
+                        }
+                    }
+
+                    // Lista de usuarios disponibles
+                    item {
+                        Text(
+                            text = "Agregar miembros",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    if (availableUsers.isEmpty()) {
+                        item {
+                            EmptyState(
+                                message = "No hay usuarios disponibles",
+                                icon = Icons.Default.People
+                            )
+                        }
+                    } else {
+                        items(availableUsers) { user ->
+                            UserSelectionItem(
+                                user = user,
+                                isSelected = selectedUsers.contains(user),
+                                onSelectionChange = {
+                                    viewModel.toggleUserSelection(user)
+                                }
+                            )
                         }
                     }
                 }
@@ -230,9 +218,7 @@ private fun GroupInfoSection(
     groupName: String,
     onGroupNameChange: (String) -> Unit,
     groupDescription: String,
-    onGroupDescriptionChange: (String) -> Unit,
-    selectedImageUri: Uri?,
-    onImageClick: () -> Unit
+    onGroupDescriptionChange: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -245,41 +231,6 @@ private fun GroupInfoSection(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Imagen del grupo
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clickable { onImageClick() }
-            ) {
-                if (selectedImageUri != null) {
-                    GlideImage(
-                        model = selectedImageUri,
-                        contentDescription = "Imagen del grupo",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "Agregar imagen",
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
             // Nombre del grupo
             OutlinedTextField(
                 value = groupName,
@@ -476,12 +427,3 @@ private fun UserSelectionItem(
     }
 }
 
-/**
- * Estados de UI para la creación de grupos
- */
-sealed interface CreateGroupUiState {
-    data object Loading : CreateGroupUiState
-    data object Idle : CreateGroupUiState
-    data class Success(val groupId: String) : CreateGroupUiState
-    data class Error(val message: String) : CreateGroupUiState
-}

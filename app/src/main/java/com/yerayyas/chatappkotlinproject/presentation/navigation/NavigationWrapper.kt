@@ -28,6 +28,9 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfil
 import com.yerayyas.chatappkotlinproject.presentation.screens.search.SearchScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.settings.SettingsScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.group.CreateGroupScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupChatScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupListScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupInfoScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
@@ -100,7 +103,32 @@ fun NavigationWrapper(
                 }
             )
         }
-        // Additional group screens can be added here (e.g., GroupChatScreen, GroupInfoScreen)
+
+        composable(
+            route = Routes.GroupChat.route,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            GroupChatScreen(
+                groupId = groupId,
+                navController = navController
+            )
+        }
+
+        composable(
+            route = Routes.GroupInfo.route,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            GroupInfoScreen(groupId = groupId, navController = navController)
+        }
+
+        composable(Routes.GroupList.route) {
+            GroupListScreen(
+                navController = navController,
+            )
+        }
+
         composable(Routes.Splash.route) {
             SplashScreen {
                 hasShownSplash = true

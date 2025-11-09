@@ -17,8 +17,12 @@ import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationSta
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.LoginScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.auth.SignUpScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.chat.ChatScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.chat.FullScreenImageScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.chat.GroupChatScreenUnified
+import com.yerayyas.chatappkotlinproject.presentation.screens.chat.IndividualChatScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.CreateGroupScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupInfoScreen
+import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupListScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.home.HomeScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.main.MainScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.ConfirmProfilePhotoScreen
@@ -27,10 +31,6 @@ import com.yerayyas.chatappkotlinproject.presentation.screens.profile.OtherUsers
 import com.yerayyas.chatappkotlinproject.presentation.screens.profile.UserProfileScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.search.SearchScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.settings.SettingsScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.group.CreateGroupScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupChatScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupListScreen
-import com.yerayyas.chatappkotlinproject.presentation.screens.group.GroupInfoScreen
 import com.yerayyas.chatappkotlinproject.presentation.screens.splash.SplashScreen
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.main.MainScreenViewModel
 
@@ -109,7 +109,7 @@ fun NavigationWrapper(
             arguments = listOf(navArgument("groupId") { type = NavType.StringType })
         ) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
-            GroupChatScreen(
+            GroupChatScreenUnified(
                 groupId = groupId,
                 navController = navController
             )
@@ -203,7 +203,7 @@ fun NavigationWrapper(
             val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
             val username = backStackEntry.arguments?.getString("username") ?: return@composable
 
-            ChatScreen(
+            IndividualChatScreen(
                 navController = navController,
                 userId = userId,
                 username = username
@@ -233,7 +233,11 @@ fun NavigationWrapper(
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
             val username = backStackEntry.arguments?.getString("username") ?: return@composable
-            ChatScreen(navController = navController, userId = userId, username = username)
+            IndividualChatScreen(
+                navController = navController,
+                userId = userId,
+                username = username
+            )
         }
         composable("fullScreenImage/{imageId}") { backStackEntry ->
             val imageId = backStackEntry.arguments?.getString("imageId") ?: return@composable

@@ -25,6 +25,7 @@ interface GroupChatRepository {
     suspend fun sendMessageToGroup(groupId: String, message: GroupMessage): Result<Unit>
     suspend fun getGroupMessages(groupId: String): Flow<List<GroupMessage>>
     suspend fun updateLastActivity(groupId: String, message: GroupMessage): Result<Unit>
+    suspend fun uploadGroupMessageImage(groupId: String, imageUri: Uri): Result<String>
 
     // Configuraciones
     suspend fun updateGroupSettings(groupId: String, settings: Map<String, Any>): Result<Unit>

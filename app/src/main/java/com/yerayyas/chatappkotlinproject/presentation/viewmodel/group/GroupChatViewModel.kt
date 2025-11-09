@@ -127,7 +127,9 @@ class GroupChatViewModel @Inject constructor(
                 val processedMessage = processMentions(messageContent)
                 val mentions = extractMentions(processedMessage)
 
-                val result = if (_replyToMessage.value != null) {
+                val currentReplyTo = _replyToMessage.value
+
+                val result = if (currentReplyTo != null) {
                     // Enviar como respuesta
                     sendGroupMessageUseCase.sendTextMessage(
                         groupId = currentGroupId,
@@ -135,7 +137,8 @@ class GroupChatViewModel @Inject constructor(
                         senderName = senderName,
                         senderImageUrl = senderImageUrl,
                         mentionedUsers = mentions,
-                        replyToMessageId = _replyToMessage.value?.id
+                        replyToMessageId = currentReplyTo.id,
+                        replyToMessage = currentReplyTo
                     )
                 } else {
                     // Enviar mensaje normal
@@ -170,8 +173,8 @@ class GroupChatViewModel @Inject constructor(
     /**
      * Envía un mensaje con imagen
      */
-    fun sendImageMessage(imageUrl: String, caption: String = "") {
-        if (imageUrl.isEmpty() || currentGroupId.isEmpty()) return
+    fun sendImageMessage(imageUri: android.net.Uri, caption: String = "") {
+        if (currentGroupId.isEmpty()) return
 
         viewModelScope.launch {
             try {
@@ -179,14 +182,17 @@ class GroupChatViewModel @Inject constructor(
                 val senderName = currentUser?.username ?: "Usuario"
                 val senderImageUrl = currentUser?.profileImage
 
+                val currentReplyTo = _replyToMessage.value
+
                 val result = sendGroupMessageUseCase.sendImageMessage(
                     groupId = currentGroupId,
-                    imageUrl = imageUrl,
+                    imageUri = imageUri,
                     caption = caption,
                     senderName = senderName,
                     senderImageUrl = senderImageUrl,
                     mentionedUsers = extractMentions(caption),
-                    replyToMessageId = _replyToMessage.value?.id
+                    replyToMessageId = currentReplyTo?.id,
+                    replyToMessage = currentReplyTo
                 )
 
                 if (result.isSuccess) {
@@ -379,7 +385,7 @@ class GroupChatViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadGroupMessages(groupId: String) {
+    private fun loadGroupMessages(groupId: String) {
         try {
             println("DEBUG: Loading messages for group: $groupId")
 

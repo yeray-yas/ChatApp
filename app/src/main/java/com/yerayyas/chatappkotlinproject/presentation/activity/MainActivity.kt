@@ -94,6 +94,9 @@ class MainActivity : ComponentActivity() {
         val initialNavState =
             notificationIntentService.processInitialIntent(intent, isAppAlreadyRunning)
 
+        // Clear all notifications when the app opens (both cold start and from notifications)
+        notificationCanceller.cancelAllNotifications()
+
         setContent {
             AppContainer(
                 activityViewModel = activityViewModel,
@@ -115,6 +118,10 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent) // Update the activity's intent
         Log.d(TAG, "onNewIntent: A new intent has been received while the app is running.")
+
+        // Clear all notifications when opening from a notification
+        notificationCanceller.cancelAllNotifications()
+
         notificationIntentService.handleNotificationIntent(intent, activityViewModel)
     }
 

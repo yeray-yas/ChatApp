@@ -23,7 +23,8 @@ class SendGroupMessageUseCase @Inject constructor(
         senderName: String,
         senderImageUrl: String? = null,
         mentionedUsers: List<String> = emptyList(),
-        replyToMessageId: String? = null
+        replyToMessageId: String? = null,
+        replyToMessage: GroupMessage? = null
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
@@ -47,7 +48,8 @@ class SendGroupMessageUseCase @Inject constructor(
                 messageType = GroupMessageType.TEXT,
                 readStatus = ReadStatus.SENT,
                 mentionedUsers = mentionedUsers,
-                replyToMessageId = replyToMessageId
+                replyToMessageId = replyToMessageId,
+                replyToMessage = replyToMessage
             )
 
             groupRepository.sendMessageToGroup(groupId, groupMessage)
@@ -61,24 +63,31 @@ class SendGroupMessageUseCase @Inject constructor(
      */
     suspend fun sendImageMessage(
         groupId: String,
-        imageUrl: String,
+        imageUri: android.net.Uri,
         caption: String = "",
         senderName: String,
         senderImageUrl: String? = null,
         mentionedUsers: List<String> = emptyList(),
-        replyToMessageId: String? = null
+        replyToMessageId: String? = null,
+        replyToMessage: GroupMessage? = null
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
                 ?: return Result.failure(Exception("Usuario no autenticado"))
 
-            if (imageUrl.isBlank()) {
-                return Result.failure(IllegalArgumentException("La URL de la imagen no puede estar vacía"))
-            }
-
             if (caption.length > 1000) {
                 return Result.failure(IllegalArgumentException("El caption no puede tener más de 1000 caracteres"))
             }
+
+            // Subir la imagen a Firebase Storage primero
+            val uploadResult = groupRepository.uploadGroupMessageImage(groupId, imageUri)
+            if (uploadResult.isFailure) {
+                return Result.failure(
+                    uploadResult.exceptionOrNull() ?: Exception("Error al subir la imagen")
+                )
+            }
+
+            val imageUrl = uploadResult.getOrThrow()
 
             val groupMessage = GroupMessage(
                 groupId = groupId,
@@ -91,7 +100,8 @@ class SendGroupMessageUseCase @Inject constructor(
                 imageUrl = imageUrl,
                 readStatus = ReadStatus.SENT,
                 mentionedUsers = mentionedUsers,
-                replyToMessageId = replyToMessageId
+                replyToMessageId = replyToMessageId,
+                replyToMessage = replyToMessage
             )
 
             groupRepository.sendMessageToGroup(groupId, groupMessage)

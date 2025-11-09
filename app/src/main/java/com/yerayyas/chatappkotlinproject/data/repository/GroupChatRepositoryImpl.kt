@@ -203,6 +203,26 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Sube una imagen a Firebase Storage y devuelve la URL de descarga
+     * para ser usada en mensajes grupales con imágenes
+     */
+    override suspend fun uploadGroupMessageImage(groupId: String, imageUri: Uri): Result<String> {
+        return try {
+            // Define la ruta y nombre para la imagen en Firebase Storage
+            val imageFileName = "group_chat_images/$groupId/${java.util.UUID.randomUUID()}.jpg"
+            val imageRef = firebaseStorage.reference.child(imageFileName)
+
+            // Subir el archivo y obtener su URL pública
+            imageRef.putFile(imageUri).await()
+            val imageUrl = imageRef.downloadUrl.await().toString()
+
+            Result.success(imageUrl)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun getGroupMessages(groupId: String): Flow<List<GroupMessage>> {
         return callbackFlow {

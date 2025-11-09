@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -31,30 +34,40 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
@@ -64,6 +77,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.LoadingState
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.group.GroupChatViewModel
 import com.yerayyas.chatappkotlinproject.utils.AppState
+import com.yerayyas.chatappkotlinproject.utils.Constants
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -86,6 +100,60 @@ fun GroupChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val density = LocalDensity.current
+
+    // Observe window insets to adjust input area above keyboard and navigation bar.
+    val view = LocalView.current
+    var imeBottomPx by remember { mutableIntStateOf(0) }
+    var navBarHeightPx by remember { mutableIntStateOf(0) }
+
+    // Track if user is at the bottom of the message list
+    var isAtBottom by remember { mutableStateOf(true) }
+
+    // Track if keyboard is currently open
+    var isKeyboardOpen by remember { mutableStateOf(false) }
+
+    DisposableEffect(view) {
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            imeBottomPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            navBarHeightPx = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            isKeyboardOpen = imeBottomPx > 0
+            insets
+        }
+        ViewCompat.requestApplyInsets(view)
+        onDispose { ViewCompat.setOnApplyWindowInsetsListener(view, null) }
+    }
+
+    // Calculate smart dynamic padding
+    val smartBottomPadding = if (isKeyboardOpen && isAtBottom) {
+        with(density) {
+            // Get keyboard height in dp
+            val keyboardHeightDp = (imeBottomPx / density.density).dp
+            // Get input area height (estimated with some padding)
+            val inputAreaHeight = 100.dp // Slightly more realistic estimate
+
+            // Simple calculation: keyboard height + input area height + small margin
+            keyboardHeightDp + inputAreaHeight - Constants.TOP_APP_BAR_HEIGHT
+        }
+    } else {
+        80.dp // Normal padding
+    }
+
+    // Monitor scroll position to determine if user is at the bottom
+    // Only update isAtBottom when keyboard is not open to prevent closing it
+    LaunchedEffect(listState.isScrollInProgress, isKeyboardOpen) {
+        if (!listState.isScrollInProgress && messages.isNotEmpty() && !isKeyboardOpen) {
+            val visibleInfo = listState.layoutInfo.visibleItemsInfo
+            val lastVisibleIndex = visibleInfo.lastOrNull()?.index ?: -1
+            val totalItems = messages.size
+
+            // Consider "at bottom" if we can see the last message or the second-to-last
+            isAtBottom = lastVisibleIndex >= totalItems - 2
+        }
+    }
+
+    // Calculate simple offset for input area
+    val inputOffset = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
     // Inicializar el chat al entrar
     LaunchedEffect(groupId) {
@@ -96,6 +164,8 @@ fun GroupChatScreen(
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
+            // When auto-scrolling to newest message, user is at bottom
+            isAtBottom = true
         }
     }
 
@@ -121,43 +191,30 @@ fun GroupChatScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            GroupChatTopBar(
-                groupInfo = groupInfo,
-                onBackClick = { navController.popBackStack() },
-                onInfoClick = {
-                    groupInfo?.let {
-                        navController.navigate(Routes.GroupInfo.createRoute(it.id))
-                    }
-                },
-                onSearchClick = {
-                    navController.navigate(Routes.Search.createRoute(groupId))
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            if (groupInfo != null && viewModel.canSendMessages()) {
-                MessageInputBar(
-                    messageText = messageText,
-                    onMessageTextChange = viewModel::updateMessageText,
-                    onSendClick = { viewModel.sendMessage() },
-                    isEnabled = !uiState.isLoading
-                )
-            }
+    // Send message action
+    val sendMessage = {
+        if (!uiState.isLoading && messageText.trim().isNotEmpty()) {
+            viewModel.sendMessage()
+            // When sending a message, user should be considered at bottom
+            isAtBottom = true
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Chat content - positioned behind TopAppBar
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
+            // Add top padding equivalent to TopAppBar height to avoid overlap
             when {
                 uiState.isLoading && messages.isEmpty() -> {
                     LoadingState(
                         message = "Cargando chat...",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = Constants.TOP_APP_BAR_HEIGHT)
                     )
                 }
 
@@ -165,24 +222,31 @@ fun GroupChatScreen(
                     ErrorState(
                         message = uiState.error ?: "Error desconocido",
                         onRetry = { viewModel.initializeGroupChat(groupId) },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = Constants.TOP_APP_BAR_HEIGHT)
                     )
                 }
 
                 messages.isEmpty() -> {
                     EmptyGroupChatState(
                         groupName = groupInfo?.name ?: "Grupo",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = Constants.TOP_APP_BAR_HEIGHT)
                     )
                 }
 
                 else -> {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 16.dp)
+                            .padding(top = Constants.TOP_APP_BAR_HEIGHT) // TopAppBar height
+                            .padding(bottom = smartBottomPadding),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = 16.dp,
                             vertical = 8.dp
                         )
                     ) {
@@ -197,6 +261,48 @@ fun GroupChatScreen(
                 }
             }
         }
+
+        // Input area
+        if (groupInfo != null && viewModel.canSendMessages()) {
+            MessageInputBar(
+                messageText = messageText,
+                onMessageTextChange = viewModel::updateMessageText,
+                onSendMessage = sendMessage,
+                isEnabled = !uiState.isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 8.dp)
+                    .offset { IntOffset(x = 0, y = inputOffset) }
+                    .background(MaterialTheme.colorScheme.surface)
+            )
+        }
+
+        // TopAppBar - fixed at top with proper window insets
+        GroupChatTopBar(
+            groupInfo = groupInfo,
+            onBackClick = { navController.popBackStack() },
+            onInfoClick = {
+                groupInfo?.let {
+                    navController.navigate(Routes.GroupInfo.createRoute(it.id))
+                }
+            },
+            onSearchClick = {
+                navController.navigate(Routes.Search.createRoute(groupId))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .zIndex(10f)
+        )
+
+        // SnackbarHost positioned to avoid overlap with input area
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = if (isKeyboardOpen) 160.dp else 80.dp)
+        )
     }
 }
 
@@ -209,9 +315,11 @@ private fun GroupChatTopBar(
     groupInfo: GroupChat?,
     onBackClick: () -> Unit,
     onInfoClick: () -> Unit,
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     CenterAlignedTopAppBar(
+        modifier = modifier,
         title = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -256,7 +364,8 @@ private fun GroupChatTopBar(
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        windowInsets = TopAppBarDefaults.windowInsets
     )
 }
 
@@ -267,11 +376,14 @@ private fun GroupChatTopBar(
 private fun MessageInputBar(
     messageText: String,
     onMessageTextChange: (String) -> Unit,
-    onSendClick: () -> Unit,
-    isEnabled: Boolean
+    onSendMessage: () -> Unit,
+    isEnabled: Boolean,
+    modifier: Modifier = Modifier
 ) {
+    val isSendEnabled = isEnabled && messageText.trim().isNotEmpty()
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -283,21 +395,23 @@ private fun MessageInputBar(
                 .padding(16.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            OutlinedTextField(
+            TextField(
                 value = messageText,
                 onValueChange = onMessageTextChange,
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Escribe un mensaje...") },
                 enabled = isEnabled,
                 maxLines = 4,
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(24.dp),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { if (isSendEnabled) onSendMessage() })
             )
 
             Spacer(modifier = Modifier.width(8.dp))
 
             IconButton(
-                onClick = onSendClick,
-                enabled = isEnabled && messageText.trim().isNotEmpty(),
+                onClick = onSendMessage,
+                enabled = isSendEnabled,
                 modifier = Modifier
                     .size(48.dp)
                     .background(
@@ -516,8 +630,19 @@ private fun formatMessageWithMentions(message: String): AnnotatedString {
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)
     val now = Date()
+    val calendar = java.util.Calendar.getInstance()
 
-    return if (date.day == now.day && date.month == now.month && date.year == now.year) {
+    // Set calendar to the message date
+    calendar.time = date
+    val messageDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+    val messageYear = calendar.get(java.util.Calendar.YEAR)
+
+    // Set calendar to current date
+    calendar.time = now
+    val currentDay = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+    val currentYear = calendar.get(java.util.Calendar.YEAR)
+
+    return if (messageDay == currentDay && messageYear == currentYear) {
         // Mismo día - mostrar solo hora
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
     } else {

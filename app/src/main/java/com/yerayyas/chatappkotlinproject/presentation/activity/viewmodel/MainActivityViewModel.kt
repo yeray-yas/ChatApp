@@ -98,7 +98,6 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
 
             // Create and emit navigation state
             val navigationState = createIndividualChatNavigationState(
-                navigateTo = navigateTo!!,
                 userId = userId!!,
                 username = username!!,
                 skipSplash = skipSplash
@@ -189,7 +188,7 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
         userId: String?,
         username: String?
     ): Boolean {
-        return navigateTo == "chat" &&
+        return navigateTo == NotificationNavigationState.ROUTE_INDIVIDUAL_CHAT &&
                 !userId.isNullOrBlank() &&
                 !username.isNullOrBlank()
     }
@@ -209,31 +208,27 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Creates a navigation state for individual chat navigation.
+     * Creates a navigation state for individual chat navigation using factory method.
      *
-     * @param navigateTo The navigation destination
      * @param userId The user ID
      * @param username The username
      * @param skipSplash Whether to skip the splash screen
      * @return NotificationNavigationState configured for individual chat
      */
     private fun createIndividualChatNavigationState(
-        navigateTo: String,
         userId: String,
         username: String,
         skipSplash: Boolean
     ): NotificationNavigationState {
-        return NotificationNavigationState(
-            navigateTo = navigateTo,
+        return NotificationNavigationState.forIndividualChat(
             userId = userId,
             username = username,
-            eventId = System.currentTimeMillis(),
             skipSplash = skipSplash
         )
     }
 
     /**
-     * Creates a navigation state for group chat navigation.
+     * Creates a navigation state for group chat navigation using factory method.
      *
      * @param groupId The group ID
      * @param groupName The group name
@@ -245,14 +240,12 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
         groupName: String,
         skipSplash: Boolean
     ): NotificationNavigationState {
-        return NotificationNavigationState(
-            navigateTo = "group_chat",
-            userId = "", // Not needed for group navigation
-            username = "", // Not needed for group navigation
-            eventId = System.currentTimeMillis(),
-            skipSplash = skipSplash,
+        return NotificationNavigationState.forGroupChat(
             groupId = groupId,
-            groupName = groupName
+            groupName = groupName,
+            senderId = "", // Not needed for this navigation context
+            senderName = "", // Not needed for this navigation context
+            skipSplash = skipSplash
         )
     }
 

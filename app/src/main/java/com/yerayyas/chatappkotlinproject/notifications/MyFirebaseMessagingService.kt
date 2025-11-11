@@ -17,19 +17,38 @@ import javax.inject.Inject
 private const val TAG = "MyFirebaseMsgService"
 
 /**
- * **UPDATED** - Firebase Cloud Messaging service using Clean Architecture
+ * Firebase Cloud Messaging service implementing Clean Architecture principles.
  *
- * This service now uses the new Clean Architecture notification system
- * while maintaining the same functionality. It handles:
- * 1. **Token Management**: Updates FCM tokens using UpdateFcmTokenUseCase
- * 2. **Message Handling**: Shows notifications using ShowChatNotificationUseCase
- * 3. **Chat Types**: Supports both individual and group chat notifications
+ * This service handles incoming FCM messages and token management using domain layer
+ * use cases instead of direct infrastructure calls. It supports both individual and
+ * group chat notifications while maintaining proper separation of concerns.
  *
- * **Key Changes:**
- * - Replaced NotificationCanceller with ShowChatNotificationUseCase
- * - Added proper error handling with Result types
- * - Added support for group chat notifications
- * - Maintains backward compatibility
+ * Key responsibilities:
+ * - Processing incoming FCM messages for chat notifications
+ * - Managing FCM token updates through domain layer use cases
+ * - Supporting both individual and group chat notification flows
+ * - Implementing intelligent notification filtering based on app state
+ * - Providing comprehensive error handling and logging
+ * - Using Clean Architecture patterns for maintainable code
+ *
+ * Architecture Pattern: Infrastructure Service with Use Case Integration
+ * - Responds to Firebase Cloud Messaging events
+ * - Delegates business logic to domain layer use cases
+ * - Uses dependency injection for loose coupling with domain layer
+ * - Handles asynchronous operations with proper coroutine scope
+ * - Maintains separation between infrastructure and business logic
+ *
+ * Notification Types Supported:
+ * - Individual chat messages: Direct user-to-user communication
+ * - Group chat messages: Multi-user group communication
+ * - Legacy message format: Backward compatibility with older notifications
+ *
+ * Key improvements in Clean Architecture implementation:
+ * - Uses ShowChatNotificationUseCase instead of direct NotificationManager calls
+ * - Uses ShouldShowChatNotificationUseCase for intelligent notification filtering
+ * - Uses UpdateFcmTokenUseCase for token management
+ * - Proper error handling with Result types from use cases
+ * - Comprehensive logging for debugging and monitoring
  */
 @AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
@@ -46,66 +65,86 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var appState: AppState
 
+    /**
+     * Coroutine scope for handling asynchronous use case operations.
+     * Uses SupervisorJob to prevent child coroutine failures from affecting the service.
+     */
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * Called when the service is created.
+     * Called when the service is created and dependency injection is complete.
      */
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Firebase Messaging Service created with Clean Architecture implementation")
+        Log.i(TAG, "Firebase Messaging Service initialized with Clean Architecture implementation")
     }
 
     /**
-     * Called when a new data message is received from FCM.
-     * Now handles both individual and group chat messages.
+     * Called when a new FCM message is received.
+     *
+     * This method processes incoming messages for both individual and group chats,
+     * using domain layer use cases to handle business logic. It includes comprehensive
+     * error handling and logging for debugging purposes.
+     *
+     * Message processing flow:
+     * 1. Validate message data payload
+     * 2. Extract message type and sender information
+     * 3. Route to appropriate processing method based on message type
+     * 4. Use domain layer use cases for notification decisions and display
+     *
+     * @param remoteMessage The FCM message containing notification data
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d(TAG, "FCM message received from: ${remoteMessage.from}")
-        Log.d(TAG, "Message data: ${remoteMessage.data}")
 
         try {
-            val data = remoteMessage.data
-            if (data.isEmpty()) {
-                Log.w(TAG, "Empty data payload received")
+            val messageData = remoteMessage.data
+            if (messageData.isEmpty()) {
+                Log.w(TAG, "Received FCM message with empty data payload - ignoring")
                 return
             }
 
-            val messageType = data["messageType"]
-            val senderId = data["senderId"]
-            val senderName = data["senderName"]
-            val message = data["message"] ?: data["messagePreview"]
+            Log.d(TAG, "Processing FCM message data: $messageData")
 
+            // Extract common message fields
+            val messageType = messageData["messageType"]
+            val senderId = messageData["senderId"]
+            val senderName = messageData["senderName"]
+            val messageContent = messageData["message"] ?: messageData["messagePreview"]
+
+            // Validate essential fields
             if (senderId.isNullOrBlank() || senderName.isNullOrBlank()) {
-                Log.e(TAG, "Invalid data: senderId or senderName is missing")
+                Log.e(TAG, "Invalid FCM message: missing senderId or senderName")
                 return
             }
 
-            Log.d(TAG, "Processing notification for: $senderName, messageType: $messageType")
+            Log.i(TAG, "Processing $messageType notification from: $senderName")
 
+            // Process message asynchronously using coroutines
             serviceScope.launch {
                 try {
                     when (messageType) {
                         "group_message" -> {
-                            val groupId = data["groupId"]
-                            val groupName = data["groupName"]
-                            processGroupNotification(
+                            processGroupChatMessage(
+                                messageData,
                                 senderId,
                                 senderName,
-                                message,
-                                groupId,
-                                groupName
+                                messageContent
                             )
                         }
 
                         else -> {
-                            // Individual chat (legacy and new messages)
-                            val chatId = data["chatId"]
-                            processIndividualNotification(senderId, senderName, message, chatId)
+                            // Handle individual chat (includes legacy messages without explicit type)
+                            processIndividualChatMessage(
+                                messageData,
+                                senderId,
+                                senderName,
+                                messageContent
+                            )
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error processing notification", e)
+                    Log.e(TAG, "Error in asynchronous message processing", e)
                 }
             }
 
@@ -115,113 +154,168 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * Process notification for individual chat using the new Clean Architecture implementation
-     */
-    private suspend fun processIndividualNotification(
-        senderId: String,
-        senderName: String,
-        message: String?,
-        chatId: String?
-    ) {
-        try {
-            val shouldShow =
-                shouldShowChatNotification.shouldShowIndividualChatNotification(senderId)
-            Log.d(TAG, "Should show individual notification: $shouldShow")
-
-            if (shouldShow) {
-                val result = showChatNotificationUseCase(
-                    senderId = senderId,
-                    senderName = senderName,
-                    messageBody = message ?: "New message",
-                    chatId = chatId ?: "unknown"
-                )
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "Individual notification sent successfully for: $senderName")
-                } else {
-                    Log.e(
-                        TAG,
-                        "Failed to send individual notification for: $senderName",
-                        result.exceptionOrNull()
-                    )
-                }
-            } else {
-                Log.d(TAG, "Individual notification suppressed - chat is currently open")
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in processIndividualNotification", e)
-        }
-    }
-
-    /**
-     * Process notification for group chat
-     */
-    private suspend fun processGroupNotification(
-        senderId: String,
-        senderName: String,
-        message: String?,
-        groupId: String?,
-        groupName: String?
-    ) {
-        try {
-            if (groupId.isNullOrBlank()) {
-                Log.e(TAG, "Group notification missing groupId")
-                return
-            }
-
-            val shouldShow = shouldShowChatNotification.shouldShowGroupChatNotification(groupId)
-            Log.d(TAG, "Should show group notification: $shouldShow for group: $groupName")
-
-            if (shouldShow) {
-                val result = showChatNotificationUseCase(
-                    senderId = senderId,
-                    senderName = senderName,
-                    messageBody = message ?: "New message",
-                    chatId = groupId,
-                    isGroupMessage = true,
-                    groupName = groupName
-                )
-
-                if (result.isSuccess) {
-                    Log.d(
-                        TAG,
-                        "Group notification sent successfully for: $senderName in $groupName"
-                    )
-                } else {
-                    Log.e(
-                        TAG,
-                        "Failed to send group notification for: $senderName in $groupName",
-                        result.exceptionOrNull()
-                    )
-                }
-            } else {
-                Log.d(TAG, "Group notification suppressed - group chat is currently open")
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in processGroupNotification", e)
-        }
-    }
-
-    /**
      * Called when a new FCM token is generated.
+     *
+     * This method uses the domain layer use case to update the token in the backend,
+     * ensuring proper error handling and logging through the Clean Architecture approach.
+     *
+     * @param token The new FCM registration token
      */
     override fun onNewToken(token: String) {
-        Log.d(TAG, "New FCM token received")
+        Log.i(TAG, "New FCM token received - updating through domain layer")
 
         try {
             serviceScope.launch {
-                updateFcmToken(token)
+                try {
+                    updateFcmToken(token)
+                    Log.i(TAG, "FCM token updated successfully through use case")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update FCM token using domain layer use case", e)
+                }
             }
-            Log.d(TAG, "FCM token updated successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error handling new FCM token", e)
         }
     }
 
+    /**
+     * Called when the service is being destroyed.
+     */
     override fun onDestroy() {
-        Log.d(TAG, "Firebase Messaging Service destroyed")
+        Log.i(TAG, "Firebase Messaging Service destroyed")
         super.onDestroy()
+    }
+
+    /**
+     * Processes FCM messages for individual chat conversations.
+     *
+     * This method uses domain layer use cases to determine whether notifications
+     * should be shown and to display them appropriately. It handles both modern
+     * and legacy message formats for backward compatibility.
+     *
+     * @param messageData The complete FCM message data
+     * @param senderId Unique identifier of the message sender
+     * @param senderName Display name of the message sender
+     * @param messageContent The message text content
+     */
+    private suspend fun processIndividualChatMessage(
+        messageData: Map<String, String>,
+        senderId: String,
+        senderName: String,
+        messageContent: String?
+    ) {
+        try {
+            Log.d(TAG, "Processing individual chat message from: $senderName")
+
+            // Use domain layer to determine if notification should be shown
+            val shouldShow =
+                shouldShowChatNotification.shouldShowIndividualChatNotification(senderId)
+            Log.d(TAG, "Should show individual notification for $senderName: $shouldShow")
+
+            if (shouldShow) {
+                val chatId =
+                    messageData["chatId"] ?: senderId // Fallback to senderId for legacy messages
+
+                // Use domain layer to show notification
+                val result = showChatNotificationUseCase(
+                    senderId = senderId,
+                    senderName = senderName,
+                    messageBody = messageContent ?: "New message",
+                    chatId = chatId
+                )
+
+                handleNotificationResult(result, "individual", senderName)
+            } else {
+                Log.d(
+                    TAG,
+                    "Individual notification suppressed - user is in active chat with $senderName"
+                )
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing individual chat message from: $senderName", e)
+        }
+    }
+
+    /**
+     * Processes FCM messages for group chat conversations.
+     *
+     * This method handles group-specific message data and uses domain layer use cases
+     * to manage group notification logic, including sender information display.
+     *
+     * @param messageData The complete FCM message data
+     * @param senderId Unique identifier of the message sender
+     * @param senderName Display name of the message sender
+     * @param messageContent The message text content
+     */
+    private suspend fun processGroupChatMessage(
+        messageData: Map<String, String>,
+        senderId: String,
+        senderName: String,
+        messageContent: String?
+    ) {
+        try {
+            val groupId = messageData["groupId"]
+            val groupName = messageData["groupName"]
+
+            if (groupId.isNullOrBlank()) {
+                Log.e(TAG, "Group message missing required groupId - cannot process")
+                return
+            }
+
+            Log.d(TAG, "Processing group chat message from: $senderName in group: $groupName")
+
+            // Use domain layer to determine if group notification should be shown
+            val shouldShow = shouldShowChatNotification.shouldShowGroupChatNotification(groupId)
+            Log.d(TAG, "Should show group notification for $groupName: $shouldShow")
+
+            if (shouldShow) {
+                // Use domain layer to show group notification
+                val result = showChatNotificationUseCase(
+                    senderId = senderId,
+                    senderName = senderName,
+                    messageBody = messageContent ?: "New message",
+                    chatId = groupId,
+                    isGroupMessage = true,
+                    groupName = groupName
+                )
+
+                handleNotificationResult(result, "group", "$senderName in $groupName")
+            } else {
+                Log.d(
+                    TAG,
+                    "Group notification suppressed - user is in active group chat: $groupName"
+                )
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing group chat message from: $senderName", e)
+        }
+    }
+
+    /**
+     * Handles the result of notification use case operations.
+     *
+     * This method provides centralized logging and error handling for notification
+     * results, making it easier to debug notification issues.
+     *
+     * @param result The Result object from the notification use case
+     * @param notificationType Description of the notification type for logging
+     * @param context Additional context information for logging
+     */
+    private fun handleNotificationResult(
+        result: Result<Unit>,
+        notificationType: String,
+        context: String
+    ) {
+        if (result.isSuccess) {
+            Log.i(TAG, "Successfully sent $notificationType notification for: $context")
+        } else {
+            Log.e(
+                TAG,
+                "Failed to send $notificationType notification for: $context",
+                result.exceptionOrNull()
+            )
+        }
     }
 }

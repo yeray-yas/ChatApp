@@ -14,7 +14,7 @@ import com.yerayyas.chatappkotlinproject.data.model.User
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
-import com.yerayyas.chatappkotlinproject.notifications.NotificationCanceller
+import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelAllNotificationsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +38,8 @@ private const val TAG = "HomeViewModel"
  * @property auth        FirebaseAuth instance for user session management.
  * @property database    Reference to Firebase Realtime Database.
  * @property userRepository Repository for user-related data operations.
- * @property notificationCanceller Helper for managing app notifications.
+ * @property cancelAllNotificationsUseCase Helper for managing app notifications.
+ * @property groupChatRepository Repository for group chat data operations.
  */
 @HiltViewModel
 @OptIn(FlowPreview::class)
@@ -46,7 +47,7 @@ class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val database: DatabaseReference,
     private val userRepository: UserRepository,
-    private val notificationCanceller: NotificationCanceller,
+    private val cancelAllNotificationsUseCase: CancelAllNotificationsUseCase,
     private val groupChatRepository: GroupChatRepository
 ) : ViewModel() {
 
@@ -68,10 +69,19 @@ class HomeViewModel @Inject constructor(
 
     private var connectionListener: ValueEventListener? = null
 
+    /**
+     * Initializes the ViewModel with required functionality.
+     *
+     * Sets up:
+     * - Firebase presence tracking for online/offline status
+     * - Current user profile loading
+     * - Notification cleanup using domain layer use case
+     * - Debounced search query handling with real-time filtering
+     */
     init {
         initializePresenceListener()
         loadCurrentUserProfile()
-        notificationCanceller.cancelAllNotifications()
+        clearAllNotificationsOnStart()
         viewModelScope.launch {
             _searchQuery
                 .debounce(300)
@@ -170,6 +180,31 @@ class HomeViewModel @Inject constructor(
                     _isLoading.value = false
                 }
             })
+    }
+
+    /**
+     * Clears all notifications when the home screen is initialized.
+     *
+     * This ensures a clean notification state when user enters the app,
+     * using the domain layer use case following Clean Architecture principles.
+     */
+    private fun clearAllNotificationsOnStart() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Clearing all notifications on home screen initialization")
+
+                val result = cancelAllNotificationsUseCase()
+
+                if (result.isSuccess) {
+                    Log.d(TAG, "Successfully cleared all notifications")
+                } else {
+                    Log.w(TAG, "Failed to clear notifications", result.exceptionOrNull())
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error clearing notifications on initialization", e)
+                // Non-critical error, continue app initialization
+            }
+        }
     }
 
     /**

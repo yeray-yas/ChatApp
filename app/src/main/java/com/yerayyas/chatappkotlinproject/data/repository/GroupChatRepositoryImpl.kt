@@ -31,12 +31,12 @@ class GroupChatRepositoryImpl @Inject constructor(
     private val firebaseStorage: FirebaseStorage
 ) : GroupChatRepository {
 
-    // ===== GESTIÓN BÁSICA DE GRUPOS =====
+    // ===== BASIC GROUP MANAGEMENT =====
 
     override suspend fun createGroup(group: GroupChat): Result<String> {
         return try {
             val reference = firebaseDatabase.reference.child("groups").push()
-            val groupId = reference.key ?: throw Exception("No se pudo generar ID del grupo")
+            val groupId = reference.key ?: throw Exception("Could not generate group ID")
 
             val groupWithId = group.copy(id = groupId)
             reference.setValue(groupWithId).await()
@@ -77,14 +77,14 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun deleteGroup(groupId: String): Result<Unit> {
         return try {
-            // Eliminar el grupo
+            // Delete the group
             firebaseDatabase.reference
                 .child("groups")
                 .child(groupId)
                 .removeValue()
                 .await()
 
-            // Eliminar mensajes del grupo
+            // Delete group messages
             firebaseDatabase.reference
                 .child("group_messages")
                 .child(groupId)
@@ -97,11 +97,11 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== GESTIÓN DE MIEMBROS =====
+    // ===== MEMBER MANAGEMENT =====
 
     override suspend fun addMemberToGroup(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Grupo no encontrado")
+            val group = getGroupById(groupId) ?: throw Exception("Group not found")
             val updatedMembers = group.memberIds.toMutableList().apply {
                 if (!contains(userId)) add(userId)
             }
@@ -115,7 +115,7 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun removeMemberFromGroup(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Grupo no encontrado")
+            val group = getGroupById(groupId) ?: throw Exception("Group not found")
             val updatedMembers = group.memberIds.toMutableList().apply { remove(userId) }
             val updatedAdmins = group.adminIds.toMutableList().apply { remove(userId) }
             val updatedGroup = group.copy(
@@ -131,7 +131,7 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun makeAdmin(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Grupo no encontrado")
+            val group = getGroupById(groupId) ?: throw Exception("Group not found")
             val updatedAdmins = group.adminIds.toMutableList().apply {
                 if (!contains(userId)) add(userId)
             }
@@ -145,11 +145,11 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun removeAdmin(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Grupo no encontrado")
+            val group = getGroupById(groupId) ?: throw Exception("Group not found")
 
-            // No permitir eliminar el último admin
+            // Do not allow removing the last admin
             if (group.adminIds.size <= 1) {
-                throw Exception("No se puede eliminar el último administrador")
+                throw Exception("Cannot remove the last administrator")
             }
 
             val updatedAdmins = group.adminIds.toMutableList().apply { remove(userId) }
@@ -170,7 +170,7 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== MENSAJERÍA GRUPAL =====
+    // ===== GROUP MESSAGING =====
 
     override suspend fun sendMessageToGroup(groupId: String, message: GroupMessage): Result<Unit> {
         return try {
@@ -183,7 +183,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 .child(groupId)
                 .push()
 
-            val messageId = reference.key ?: throw Exception("No se pudo generar ID del mensaje")
+            val messageId = reference.key ?: throw Exception("Could not generate message ID")
             val messageWithId = message.copy(id = messageId, groupId = groupId)
 
             println("DEBUG: Generated message ID: $messageId")
@@ -193,7 +193,7 @@ class GroupChatRepositoryImpl @Inject constructor(
 
             println("DEBUG: Message saved successfully to Firebase")
 
-            // Actualizar última actividad del grupo
+            // Update last activity of the group
             updateLastActivity(groupId, messageWithId)
 
             Result.success(Unit)
@@ -204,16 +204,16 @@ class GroupChatRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Sube una imagen a Firebase Storage y devuelve la URL de descarga
-     * para ser usada en mensajes grupales con imágenes
+     * Uploads an image to Firebase Storage and returns the download URL
+     * for use in group messages with images
      */
     override suspend fun uploadGroupMessageImage(groupId: String, imageUri: Uri): Result<String> {
         return try {
-            // Define la ruta y nombre para la imagen en Firebase Storage
+            // Define the path and name for the image in Firebase Storage
             val imageFileName = "group_chat_images/$groupId/${java.util.UUID.randomUUID()}.jpg"
             val imageRef = firebaseStorage.reference.child(imageFileName)
 
-            // Subir el archivo y obtener su URL pública
+            // Upload the file and get its public URL
             imageRef.putFile(imageUri).await()
             val imageUrl = imageRef.downloadUrl.await().toString()
 
@@ -241,14 +241,14 @@ class GroupChatRepositoryImpl @Inject constructor(
                         trySend(messagesList)
                     } catch (e: Exception) {
                         println("DEBUG: Error parsing Firebase messages: ${e.message}")
-                        // Si hay error al parsear, enviar lista vacía en lugar de mock
+                        // If there is an error parsing, send an empty list instead of mock data
                         trySend(emptyList())
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
                     println("DEBUG: Firebase cancelled: ${error.message}")
-                    // En caso de error de Firebase, enviar lista vacía
+                    // In case of a Firebase error, send an empty list
                     trySend(emptyList())
                 }
             })
@@ -259,7 +259,7 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun updateLastActivity(groupId: String, message: GroupMessage): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Grupo no encontrado")
+            val group = getGroupById(groupId) ?: throw Exception("Group not found")
             val updatedGroup = group.copy(
                 lastMessage = message.toChatMessage(),
                 lastActivity = message.timestamp
@@ -315,7 +315,7 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== CONFIGURACIONES =====
+    // ===== SETTINGS =====
 
     override suspend fun updateGroupSettings(
         groupId: String,
@@ -344,7 +344,7 @@ class GroupChatRepositoryImpl @Inject constructor(
             imageRef.putFile(imageUri).await()
             val downloadUrl = imageRef.downloadUrl.await().toString()
 
-            // Actualizar URL en el grupo
+            // Update URL in the group
             firebaseDatabase.reference
                 .child("groups")
                 .child(groupId)
@@ -358,13 +358,13 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== INVITACIONES =====
+    // ===== INVITATIONS =====
 
     override suspend fun createInvitation(invitation: GroupInvitation): Result<String> {
         return try {
             val reference = firebaseDatabase.reference.child("group_invitations").push()
             val invitationId =
-                reference.key ?: throw Exception("No se pudo generar ID de invitación")
+                reference.key ?: throw Exception("Could not generate invitation ID")
 
             val invitationWithId = invitation.copy(id = invitationId)
             reference.setValue(invitationWithId).await()
@@ -384,11 +384,11 @@ class GroupChatRepositoryImpl @Inject constructor(
                 .await()
 
             val invitation = invitationSnapshot.getValue(GroupInvitation::class.java)
-                ?: throw Exception("Invitación no encontrada")
+                ?: throw Exception("Invitation not found")
 
             val status = if (accept) "ACCEPTED" else "DECLINED"
 
-            // Actualizar estado de la invitación
+            // Update invitation status
             firebaseDatabase.reference
                 .child("group_invitations")
                 .child(invitationId)
@@ -396,7 +396,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 .setValue(status)
                 .await()
 
-            // Si acepta, añadir al grupo
+            // If accepted, add to group
             if (accept) {
                 addMemberToGroup(invitation.groupId, invitation.invitedUser)
             }
@@ -436,7 +436,7 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== BÚSQUEDA Y FILTROS =====
+    // ===== SEARCH AND FILTERS =====
 
     override suspend fun searchGroupMessages(groupId: String, query: String): List<GroupMessage> {
         return try {
@@ -452,7 +452,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 it.message.contains(query, ignoreCase = true)
             }
         } catch (e: Exception) {
-            // Si hay error, usar datos mock
+            // If there is an error, use mock data
             getMockGroupMessages(groupId).filter {
                 it.message.contains(query, ignoreCase = true)
             }
@@ -473,14 +473,14 @@ class GroupChatRepositoryImpl @Inject constructor(
 
                         println("DEBUG: Firebase returned ${allGroups.size} total groups")
 
-                        // Filtrar grupos donde el usuario es miembro
+                        // Filter groups where the user is a member
                         val userGroups = allGroups.filter { group ->
                             group.memberIds.contains(userId)
                         }.sortedByDescending { it.lastActivity }
 
                         println("DEBUG: User $userId is member of ${userGroups.size} groups")
 
-                        // Si no hay grupos reales, usar mock solo en desarrollo
+                        // If no real groups are found, use mock data only in development
                         val groupsToSend = userGroups.ifEmpty {
                             println("DEBUG: No real groups found, using mock data")
                             getMockGroups(userId)
@@ -489,14 +489,14 @@ class GroupChatRepositoryImpl @Inject constructor(
                         trySend(groupsToSend)
                     } catch (e: Exception) {
                         println("DEBUG: Error loading groups from Firebase: ${e.message}")
-                        // En caso de error, usar datos mock solo como fallback
+                        // In case of an error, use mock data as a fallback
                         trySend(getMockGroups(userId))
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
                     println("DEBUG: Firebase groups cancelled: ${error.message}")
-                    // En caso de error, usar datos mock como fallback
+                    // In case of an error, use mock data as a fallback
                     trySend(getMockGroups(userId))
                 }
             })
@@ -505,7 +505,7 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== DATOS DE MUESTRA =====
+    // ===== MOCK DATA =====
 
     private fun getMockGroupMessages(groupId: String): List<GroupMessage> {
         val currentUserId = firebaseAuth.currentUser?.uid ?: "current_user"
@@ -538,7 +538,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 id = "msg3",
                 groupId = groupId,
                 senderId = currentUserId,
-                senderName = "Tú",
+                senderName = "You",
                 message = "Todo bien por aquí, gracias por preguntar 😊",
                 timestamp = System.currentTimeMillis() - 900000,
                 messageType = GroupMessageType.TEXT,
@@ -562,8 +562,8 @@ class GroupChatRepositoryImpl @Inject constructor(
         return listOf(
             GroupChat(
                 id = "group1",
-                name = "Familia ❤️",
-                description = "Chat familiar",
+                name = "Family ❤️",
+                description = "Family chat",
                 memberIds = listOf(userId, "user2", "user3", "user4"),
                 adminIds = listOf(userId),
                 createdBy = userId,
@@ -575,27 +575,27 @@ class GroupChatRepositoryImpl @Inject constructor(
             ),
             GroupChat(
                 id = "group2",
-                name = "Trabajo - Equipo Dev 💻",
-                description = "Equipo de desarrollo",
+                name = "Work - Dev Team 💻",
+                description = "Development team",
                 memberIds = listOf(userId, "user5", "user6", "user7", "user8"),
                 adminIds = listOf(userId, "user5"),
                 createdBy = userId,
                 lastActivity = System.currentTimeMillis() - 7200000,
                 lastMessage = ChatMessage(
-                    message = "La nueva feature está lista para testing",
+                    message = "The new feature is ready for testing",
                     timestamp = System.currentTimeMillis() - 7200000
                 )
             ),
             GroupChat(
                 id = "group3",
-                name = "Amigos de la U 🎓",
-                description = "Los de siempre",
+                name = "University Friends 🎓",
+                description = "The usual ones",
                 memberIds = listOf(userId, "user9", "user10", "user11"),
                 adminIds = listOf(userId),
                 createdBy = userId,
                 lastActivity = System.currentTimeMillis() - 86400000,
                 lastMessage = ChatMessage(
-                    message = "¿Cuándo nos vemos?",
+                    message = "When do we meet?",
                     timestamp = System.currentTimeMillis() - 86400000
                 )
             )

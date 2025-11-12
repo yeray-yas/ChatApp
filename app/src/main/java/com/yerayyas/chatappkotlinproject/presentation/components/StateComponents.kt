@@ -16,12 +16,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
- * Componente para mostrar estado de carga con animación Lottie
+ * Loading state component with circular progress indicator.
+ *
+ * This component displays a centered loading indicator with an optional message.
+ * It's designed to be used when data is being fetched or processed, providing
+ * clear visual feedback to users about ongoing operations.
+ *
+ * Key features:
+ * - Centered circular progress indicator with theme colors
+ * - Customizable loading message
+ * - Consistent spacing and typography
+ * - Full-size container for proper centering
+ *
+ * @param modifier Optional [Modifier] for customizing layout and styling
+ * @param message Loading message to display below the progress indicator
  */
 @Composable
 fun LoadingState(
     modifier: Modifier = Modifier,
-    message: String = "Cargando..."
+    message: String = "Loading..."
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
@@ -44,7 +57,24 @@ fun LoadingState(
 }
 
 /**
- * Componente para mostrar estado de error
+ * Error state component with retry functionality.
+ *
+ * This component displays error information with an optional retry action button.
+ * It provides a consistent error display pattern across the application with
+ * proper visual hierarchy and user-friendly retry mechanisms.
+ *
+ * Key features:
+ * - Error icon with theme-appropriate styling
+ * - Scrollable content for long error messages
+ * - Optional retry button with customizable text
+ * - Consistent spacing and visual design
+ * - Proper accessibility support
+ *
+ * @param message Error message to display to the user
+ * @param modifier Optional [Modifier] for customizing layout and styling
+ * @param icon Icon to display above the error message (default: error icon)
+ * @param onRetry Optional callback invoked when retry button is pressed
+ * @param retryText Text to display on the retry button
  */
 @Composable
 fun ErrorState(
@@ -52,7 +82,7 @@ fun ErrorState(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Default.Error,
     onRetry: (() -> Unit)? = null,
-    retryText: String = "Reintentar"
+    retryText: String = "Retry"
 ) {
     Column(
         modifier = modifier
@@ -99,7 +129,24 @@ fun ErrorState(
 }
 
 /**
- * Componente para mostrar estado vacío
+ * Empty state component for displaying when no content is available.
+ *
+ * This component provides a user-friendly way to display empty states throughout
+ * the application. It supports customizable messages, icons, and optional action
+ * buttons to guide users on what to do next.
+ *
+ * Key features:
+ * - Optional icon display with theme-appropriate styling
+ * - Centered layout with proper spacing
+ * - Customizable message and action button
+ * - Consistent visual design with other state components
+ * - Full-width action button for easy interaction
+ *
+ * @param message Message to display explaining the empty state
+ * @param modifier Optional [Modifier] for customizing layout and styling
+ * @param icon Optional icon to display above the message
+ * @param actionText Optional text for the action button
+ * @param onAction Optional callback invoked when action button is pressed
  */
 @Composable
 fun EmptyState(

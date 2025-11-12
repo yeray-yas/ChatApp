@@ -7,7 +7,7 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatType
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.IndividualAndGroupChatViewModel
 
 /**
- * Pantalla de chat individual usando la implementación unificada
+ * Individual chat screen using the unified implementation
  */
 @Composable
 fun IndividualChatScreen(
@@ -26,12 +26,12 @@ fun IndividualChatScreen(
 }
 
 /**
- * Pantalla de chat grupal usando la implementación unificada
+ * Group chat screen using the unified implementation
  */
 @Composable
 fun GroupChatScreenUnified(
     groupId: String,
-    groupName: String = "Grupo", // Nombre por defecto
+    groupName: String = "Group", // Default name
     navController: NavHostController,
     viewModel: IndividualAndGroupChatViewModel = hiltViewModel()
 ) {

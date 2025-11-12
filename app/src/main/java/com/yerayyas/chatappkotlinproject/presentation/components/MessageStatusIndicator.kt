@@ -4,7 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,8 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
@@ -21,7 +18,25 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Indicador visual del estado del mensaje con animaciones
+ * Visual indicator of message status with animations.
+ *
+ * This component displays the delivery and read status of messages with smooth animations.
+ * It shows different icons and colors based on the message status (sent, delivered, read)
+ * and includes timestamp information. The component only displays for the user's own messages.
+ *
+ * Key features:
+ * - Animated status transitions with fade and scale effects
+ * - WhatsApp-style color coding (gray for sent/delivered, green for read)
+ * - Timestamp display with customizable formatting
+ * - Special glow animation for read messages
+ * - Only visible for user's own messages (not for received messages)
+ *
+ * @param readStatus Current status of the message (SENT, DELIVERED, READ)
+ * @param timestamp Message timestamp in milliseconds
+ * @param isOwnMessage Whether this message belongs to the current user
+ * @param modifier Optional [Modifier] for customizing layout and styling
+ * @param showTime Whether to display the timestamp alongside the status
+ * @param animated Whether to use animations for status changes
  */
 @Composable
 fun MessageStatusIndicator(
@@ -32,7 +47,7 @@ fun MessageStatusIndicator(
     showTime: Boolean = true,
     animated: Boolean = true
 ) {
-    if (!isOwnMessage) return // Solo mostrar estado en mensajes propios
+    if (!isOwnMessage) return // Only show status on own messages
 
     Row(
         modifier = modifier,
@@ -62,7 +77,15 @@ fun MessageStatusIndicator(
 }
 
 /**
- * Icono de estado con animaciones
+ * Status icon component with animations.
+ *
+ * Displays the appropriate icon and color based on message read status:
+ * - SENT: Single checkmark, gray color
+ * - DELIVERED: Double checkmark, gray color
+ * - READ: Double checkmark, green color with glow animation
+ *
+ * @param readStatus Current status of the message
+ * @param animated Whether to apply special animations (glow effect for read status)
  */
 @Composable
 private fun StatusIcon(
@@ -73,24 +96,24 @@ private fun StatusIcon(
         ReadStatus.SENT -> Triple(
             Icons.Default.Done,
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            "Enviado"
+            "Sent"
         )
 
         ReadStatus.DELIVERED -> Triple(
             Icons.Default.DoneAll,
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            "Entregado"
+            "Delivered"
         )
 
         ReadStatus.READ -> Triple(
             Icons.Default.DoneAll,
-            Color(0xFF00BFA5), // Verde WhatsApp-style
-            "Leído"
+            Color(0xFF00BFA5), // WhatsApp-style green
+            "Read"
         )
     }
 
     if (animated && readStatus == ReadStatus.READ) {
-        // Animación especial para mensajes leídos
+        // Special animation for read messages
         val infiniteTransition = rememberInfiniteTransition(label = "read_glow")
         val alpha by infiniteTransition.animateFloat(
             initialValue = 0.7f,
@@ -121,175 +144,10 @@ private fun StatusIcon(
 }
 
 /**
- * Indicador de estado expandido con información detallada
- */
-@Composable
-fun DetailedMessageStatus(
-    readStatus: ReadStatus,
-    timestamp: Long,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Estado del mensaje",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            StatusRow(
-                icon = Icons.AutoMirrored.Filled.Send,
-                label = "Enviado",
-                time = formatDateTime(timestamp),
-                isCompleted = true
-            )
-
-            StatusRow(
-                icon = Icons.Default.DoneAll,
-                label = "Entregado",
-                time = if (readStatus != ReadStatus.SENT) formatDateTime(timestamp) else null,
-                isCompleted = readStatus != ReadStatus.SENT
-            )
-
-            StatusRow(
-                icon = Icons.Default.RemoveRedEye,
-                label = "Leído",
-                time = if (readStatus == ReadStatus.READ) formatDateTime(timestamp) else null,
-                isCompleted = readStatus == ReadStatus.READ
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatusRow(
-    icon: ImageVector,
-    label: String,
-    time: String?,
-    isCompleted: Boolean
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = if (isCompleted) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-        )
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isCompleted) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-
-            if (time != null) {
-                Text(
-                    text = time,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-        }
-
-        if (isCompleted) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = "Completado",
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
-
-/**
- * Indicador de estado de escritura (typing)
- */
-@Composable
-fun TypingIndicator(
-    isVisible: Boolean,
-    userName: String = "Usuario",
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn() + slideInVertically(),
-        exit = fadeOut() + slideOutVertically(),
-        modifier = modifier
-    ) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Row(
-                modifier = Modifier.padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TypingAnimation()
-
-                Text(
-                    text = "$userName está escribiendo...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Animación de puntos de escritura
- */
-@Composable
-private fun TypingAnimation() {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
-
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        repeat(3) { index ->
-            val alpha by infiniteTransition.animateFloat(
-                initialValue = 0.3f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, delayMillis = index * 200),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "dot_$index"
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(4.dp)
-                    .alpha(alpha)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Circle,
-                    contentDescription = null,
-                    modifier = Modifier.size(4.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
-}
-
-/**
- * Formatea el timestamp a formato de hora
+ * Formats the timestamp to time format (HH:mm).
+ *
+ * @param timestamp The timestamp in milliseconds to format
+ * @return A formatted time string in HH:mm format
  */
 private fun formatTime(timestamp: Long): String {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -297,7 +155,10 @@ private fun formatTime(timestamp: Long): String {
 }
 
 /**
- * Formatea el timestamp a formato de fecha y hora completo
+ * Formats the timestamp to complete date and time format.
+ *
+ * @param timestamp The timestamp in milliseconds to format
+ * @return A formatted date-time string in dd/MM/yyyy HH:mm format
  */
 private fun formatDateTime(timestamp: Long): String {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())

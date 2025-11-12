@@ -8,14 +8,14 @@ import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import javax.inject.Inject
 
 /**
- * Use case para enviar mensajes a un grupo
+ * Use case for sending messages to a group
  */
 class SendGroupMessageUseCase @Inject constructor(
     private val groupRepository: GroupChatRepository,
     private val firebaseAuth: FirebaseAuth
 ) {
     /**
-     * Envía un mensaje de texto a un grupo
+     * Sends a text message to a group
      */
     suspend fun sendTextMessage(
         groupId: String,
@@ -27,15 +27,17 @@ class SendGroupMessageUseCase @Inject constructor(
         replyToMessage: GroupMessage? = null
     ): Result<Unit> {
         return try {
+            // Validate authentication
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
+            // Validate message content
             if (message.isBlank()) {
-                return Result.failure(IllegalArgumentException("El mensaje no puede estar vacío"))
+                return Result.failure(IllegalArgumentException("Message cannot be empty"))
             }
 
             if (message.length > 1000) {
-                return Result.failure(IllegalArgumentException("El mensaje no puede tener más de 1000 caracteres"))
+                return Result.failure(IllegalArgumentException("Message cannot exceed 1000 characters"))
             }
 
             val groupMessage = GroupMessage(
@@ -59,7 +61,7 @@ class SendGroupMessageUseCase @Inject constructor(
     }
 
     /**
-     * Envía un mensaje con imagen a un grupo
+     * Sends a message with image to a group
      */
     suspend fun sendImageMessage(
         groupId: String,
@@ -72,18 +74,19 @@ class SendGroupMessageUseCase @Inject constructor(
         replyToMessage: GroupMessage? = null
     ): Result<Unit> {
         return try {
+            // Validate authentication
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
             if (caption.length > 1000) {
-                return Result.failure(IllegalArgumentException("El caption no puede tener más de 1000 caracteres"))
+                return Result.failure(IllegalArgumentException("Caption cannot exceed 1000 characters"))
             }
 
-            // Subir la imagen a Firebase Storage primero
+            // Upload image to Firebase Storage first
             val uploadResult = groupRepository.uploadGroupMessageImage(groupId, imageUri)
             if (uploadResult.isFailure) {
                 return Result.failure(
-                    uploadResult.exceptionOrNull() ?: Exception("Error al subir la imagen")
+                    uploadResult.exceptionOrNull() ?: Exception("Error uploading image")
                 )
             }
 
@@ -111,7 +114,7 @@ class SendGroupMessageUseCase @Inject constructor(
     }
 
     /**
-     * Envía un mensaje del sistema (notificaciones automáticas)
+     * Sends a system message (automatic notifications)
      */
     suspend fun sendSystemMessage(
         groupId: String,
@@ -119,8 +122,9 @@ class SendGroupMessageUseCase @Inject constructor(
         systemMessageType: com.yerayyas.chatappkotlinproject.data.model.GroupActivityType
     ): Result<Unit> {
         return try {
+            // Validate authentication
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
             val groupMessage = GroupMessage(
                 groupId = groupId,

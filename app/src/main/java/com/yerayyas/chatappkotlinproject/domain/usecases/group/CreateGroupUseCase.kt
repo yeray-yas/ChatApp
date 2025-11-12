@@ -30,7 +30,7 @@ class CreateGroupUseCase @Inject constructor(
     ): Result<String> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
             // Validaciones
             if (name.isBlank()) {

@@ -1,7 +1,7 @@
 package com.yerayyas.chatappkotlinproject.data.model
 
 /**
- * Representa un mensaje específico para chats grupales
+ * Represents a message specific to group chats
  */
 data class GroupMessage(
     val id: String = "",
@@ -25,7 +25,7 @@ data class GroupMessage(
     val isSystemMessage: Boolean = false,
     val systemMessageType: GroupActivityType? = null
 ) {
-    // Constructor sin argumentos requerido por Firebase
+    // No-argument constructor required by Firebase
     constructor() : this(
         "", "", "", "", null, "", 0L, GroupMessageType.TEXT, null,
         ReadStatus.SENT, emptyMap(), false, null, null,
@@ -33,78 +33,78 @@ data class GroupMessage(
     )
 
     /**
-     * Verifica si el mensaje ha sido leído por un usuario específico
+     * Checks if the message has been read by a specific user
      */
     fun isReadBy(userId: String): Boolean = readBy.containsKey(userId)
 
     /**
-     * Obtiene el timestamp de cuándo fue leído por un usuario
+     * Gets the timestamp of when it was read by a user
      */
     fun getReadTimestamp(userId: String): Long? = readBy[userId]
 
     /**
-     * Obtiene la lista de usuarios que han leído el mensaje
+     * Gets the list of users who have read the message
      */
     fun getReadByUsers(): List<String> = readBy.keys.toList()
 
     /**
-     * Obtiene el conteo de usuarios que han leído el mensaje
+     * Gets the count of users who have read the message
      */
     fun getReadCount(): Int = readBy.size
 
     /**
-     * Verifica si el mensaje tiene reacciones
+     * Checks if the message has reactions
      */
     fun hasReactions(): Boolean = reactions.isNotEmpty()
 
     /**
-     * Obtiene todas las reacciones únicas del mensaje
+     * Gets all unique reactions on the message
      */
     fun getUniqueReactions(): List<String> = reactions.keys.toList()
 
     /**
-     * Obtiene el conteo de una reacción específica
+     * Gets the count of a specific reaction
      */
     fun getReactionCount(emoji: String): Int = reactions[emoji]?.size ?: 0
 
     /**
-     * Verifica si un usuario ha reaccionado con un emoji específico
+     * Checks if a user has reacted with a specific emoji
      */
     fun hasUserReacted(userId: String, emoji: String): Boolean {
         return reactions[emoji]?.containsKey(userId) == true
     }
 
     /**
-     * Obtiene todas las reacciones de un usuario
+     * Gets all reactions from a user
      */
     fun getUserReactions(userId: String): List<String> {
         return reactions.filter { it.value.containsKey(userId) }.keys.toList()
     }
 
     /**
-     * Verifica si el mensaje es una respuesta a otro mensaje
+     * Checks if the message is a reply to another message
      */
     fun isReply(): Boolean = replyToMessageId != null
 
     /**
-     * Verifica si el mensaje menciona a usuarios específicos
+     * Checks if the message mentions specific users
      */
     fun hasMentions(): Boolean = mentionedUsers.isNotEmpty()
 
     /**
-     * Verifica si menciona a un usuario específico
+     * Checks if it mentions a specific user
      */
     fun mentionsUser(userId: String): Boolean = mentionedUsers.contains(userId)
 
     /**
-     * Obtiene el contenido del mensaje para búsqueda (sin menciones)
+     * Gets the message content for search (without mentions)
      */
     fun getSearchableContent(): String {
         return message.replace(Regex("@\\w+"), "").trim()
     }
 
     /**
-     * Convierte el mensaje grupal a ChatMessage para compatibilidad
+     * Converts the group message to ChatMessage for compatibility
      */
     fun toChatMessage(): ChatMessage {
         val compatibleMessageType = when (messageType) {
@@ -130,17 +130,17 @@ data class GroupMessage(
     }
 
     /**
-     * Verifica si el mensaje puede ser editado por un usuario
+     * Checks if the message can be edited by a user
      */
     fun canBeEditedBy(userId: String): Boolean {
         val isOwner = senderId == userId
-        val isNotTooOld = System.currentTimeMillis() - timestamp < (15 * 60 * 1000) // 15 minutos
+        val isNotTooOld = System.currentTimeMillis() - timestamp < (15 * 60 * 1000) // 15 minutes
         val isTextMessage = messageType == GroupMessageType.TEXT
         return isOwner && isNotTooOld && isTextMessage && !isSystemMessage
     }
 
     /**
-     * Verifica si el mensaje puede ser eliminado por un usuario
+     * Checks if the message can be deleted by a user
      */
     fun canBeDeletedBy(userId: String, isAdmin: Boolean): Boolean {
         val isOwner = senderId == userId
@@ -149,7 +149,7 @@ data class GroupMessage(
 }
 
 /**
- * Representa las confirmaciones de lectura de un mensaje grupal
+ * Represents read confirmations for a group message
  */
 data class MessageReadReceipt(
     val messageId: String = "",
@@ -160,7 +160,7 @@ data class MessageReadReceipt(
     constructor() : this("", "", emptyMap(), emptyMap())
 
     /**
-     * Añade una confirmación de lectura
+     * Adds a read receipt
      */
     fun addReadReceipt(
         userId: String,
@@ -170,7 +170,7 @@ data class MessageReadReceipt(
     }
 
     /**
-     * Añade una confirmación de entrega
+     * Adds a delivery receipt
      */
     fun addDeliveryReceipt(
         userId: String,
@@ -180,28 +180,28 @@ data class MessageReadReceipt(
     }
 
     /**
-     * Obtiene los usuarios que han leído el mensaje
+     * Gets the users who have read the message
      */
     fun getReadUsers(): List<String> = readBy.keys.toList()
 
     /**
-     * Obtiene los usuarios a los que se les ha entregado el mensaje
+     * Gets the users to whom the message has been delivered
      */
     fun getDeliveredUsers(): List<String> = deliveredTo.keys.toList()
 
     /**
-     * Verifica si fue leído por un usuario específico
+     * Checks if it was read by a specific user
      */
     fun isReadBy(userId: String): Boolean = readBy.containsKey(userId)
 
     /**
-     * Verifica si fue entregado a un usuario específico
+     * Checks if it was delivered to a specific user
      */
     fun isDeliveredTo(userId: String): Boolean = deliveredTo.containsKey(userId)
 }
 
 /**
- * Tipos de mensaje específicos para grupos (extendidos del MessageType base)
+ * Message types specific to groups (extended from base MessageType)
  */
 enum class GroupMessageType {
     TEXT,

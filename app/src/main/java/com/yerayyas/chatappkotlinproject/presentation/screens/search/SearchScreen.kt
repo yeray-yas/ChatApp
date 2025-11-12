@@ -32,12 +32,12 @@ fun SearchScreen(
     Column(modifier = modifier.fillMaxSize()) {
         // Top App Bar
         TopAppBar(
-            title = { Text("Buscar mensajes") },
+            title = { Text("Search messages") },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver"
+                        contentDescription = "Back"
                     )
                 }
             },
@@ -67,14 +67,14 @@ fun SearchScreen(
             when {
                 searchState.isLoading -> {
                     LoadingState(
-                        message = "Buscando mensajes...",
+                        message = "Searching messages...",
                         modifier = Modifier.weight(1f)
                     )
                 }
 
                 searchState.error != null -> {
                     ErrorState(
-                        message = searchState.error ?: "Error en la búsqueda",
+                        message = searchState.error ?: "Search error",
                         onRetry = { searchViewModel.search(searchState.query) },
                         modifier = Modifier.weight(1f)
                     )

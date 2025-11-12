@@ -96,7 +96,7 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== NUEVAS FUNCIONES PARA USUARIOS REALES =====
+    // ===== NEW FUNCTIONS FOR REAL USERS =====
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun getAllUsers(): Flow<List<User>> {
@@ -112,7 +112,7 @@ class UserRepositoryImpl @Inject constructor(
                                 val publicData = userSnapshot.child("public")
                                 val privateData = userSnapshot.child("private")
 
-                                // Solo crear User si tiene datos públicos básicos
+                                // Only create User if it has basic public data
                                 val username =
                                     publicData.child("username").getValue(String::class.java)
                                 val profileImage =
@@ -123,7 +123,7 @@ class UserRepositoryImpl @Inject constructor(
                                         id = userId,
                                         username = username,
                                         profileImage = profileImage ?: "",
-                                        email = "", // No exponer email en listas públicas
+                                        email = "", // Do not expose email for other users
                                         status = privateData.child("status")
                                             .getValue(String::class.java) ?: "offline",
                                         isOnline = privateData.child("status")
@@ -173,7 +173,7 @@ class UserRepositoryImpl @Inject constructor(
                         id = userId,
                         username = username,
                         profileImage = profileImage ?: "",
-                        email = "", // No exponer email para otros usuarios
+                        email = "", // Do not expose email for other users
                         status = privateData.child("status").getValue(String::class.java)
                             ?: "offline",
                         isOnline = privateData.child("status")
@@ -241,7 +241,7 @@ class UserRepositoryImpl @Inject constructor(
                             id = userId,
                             username = username,
                             profileImage = profileImage ?: "",
-                            email = "",
+                            email = "", // Do not expose email for other users
                             status = "offline",
                             isOnline = false,
                             lastSeen = 0L

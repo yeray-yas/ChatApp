@@ -153,14 +153,3 @@ private fun formatTime(timestamp: Long): String {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     return dateFormat.format(Date(timestamp))
 }
-
-/**
- * Formats the timestamp to complete date and time format.
- *
- * @param timestamp The timestamp in milliseconds to format
- * @return A formatted date-time string in dd/MM/yyyy HH:mm format
- */
-private fun formatDateTime(timestamp: Long): String {
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-    return dateFormat.format(Date(timestamp))
-}

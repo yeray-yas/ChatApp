@@ -82,6 +82,7 @@ import kotlinx.coroutines.launch
  * and a tab layout for navigating between Users and Chats sections.
  *
  * @param navController Navigation controller for navigating between screens.
+ * @param selectedTab Initial tab to be selected (0=Users, 1=Chats, 2=Groups). Default is 0.
  * @param viewModel ViewModel providing user-related state and actions.
  * @param chatsListViewModel ViewModel managing chat list state, including unread messages.
  */
@@ -89,11 +90,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     navController: NavController,
+    selectedTab: Int = 0,
     viewModel: HomeViewModel = hiltViewModel(),
     chatsListViewModel: ChatsListViewModel = hiltViewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val tabs = listOf("Users", "Chats", "Grupos")
+    val tabs = listOf("Users", "Chats", "Groups")
     var showMenu by remember { mutableStateOf(false) }
     val username by viewModel.username.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -136,7 +138,7 @@ fun HomeScreen(
     }
 
     val pagerState = rememberPagerState(
-        initialPage = 0,
+        initialPage = selectedTab,
         pageCount = { tabs.size }
     )
 
@@ -175,7 +177,7 @@ fun HomeScreen(
                     }) {
                         Icon(
                             Icons.Default.Groups,
-                            contentDescription = "Grupos"
+                            contentDescription = "Groups"
                         )
                     }
 
@@ -188,7 +190,7 @@ fun HomeScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Configuración") },
+                            text = { Text("Settings") },
                             onClick = {
                                 showMenu = false
                                 navController.navigate(Routes.Settings.route)
@@ -242,7 +244,7 @@ fun HomeScreen(
             ) {
                 Icon(
                     Icons.Default.GroupAdd,
-                    contentDescription = "Crear grupo"
+                    contentDescription = "Create group"
                 )
             }
         }
@@ -393,7 +395,7 @@ private fun ChatsList(
 }
 
 /**
- * Muestra la lista de grupos disponibles
+ * Displays the list of groups available to the user
  */
 @Composable
 private fun GroupsList(
@@ -403,50 +405,50 @@ private fun GroupsList(
 ) {
     val currentUserId = viewModel.getCurrentUserId() ?: ""
 
-    // Obtener grupos reales del usuario desde Firebase
+    // Get real user groups from Firebase
     val userGroups by viewModel.getUserGroups(currentUserId).collectAsState(initial = emptyList())
 
-    // Datos de muestra como fallback si no hay grupos reales
+    // Sample data as fallback if there are no real groups
     val sampleGroups = remember {
         listOf(
             GroupChat(
                 id = "group1",
-                name = "Familia",
-                description = "Chat familiar",
+                name = "Family",
+                description = "Family chat",
                 memberIds = listOf(currentUserId, "user2", "user3", "user4"),
                 adminIds = listOf(currentUserId),
                 createdBy = currentUserId,
-                lastActivity = System.currentTimeMillis() - 3600000, // 1 hora atrás
+                lastActivity = System.currentTimeMillis() - 3600000, // 1 hour ago
                 lastMessage = ChatMessage(
-                    message = "¿Cómo están todos?",
+                    message = "How's everyone?",
                     senderId = "user2",
                     timestamp = System.currentTimeMillis() - 3600000
                 )
             ),
             GroupChat(
                 id = "group2",
-                name = "Trabajo - Equipo Dev",
-                description = "Equipo de desarrollo",
+                name = "Work - Dev Team",
+                description = "Development team",
                 memberIds = listOf(currentUserId, "user5", "user6", "user7", "user8"),
                 adminIds = listOf(currentUserId, "user5"),
                 createdBy = currentUserId,
-                lastActivity = System.currentTimeMillis() - 7200000, // 2 horas atrás
+                lastActivity = System.currentTimeMillis() - 7200000, // 2 hours ago
                 lastMessage = ChatMessage(
-                    message = "La nueva feature está lista para testing",
+                    message = "The new feature is ready for testing",
                     senderId = "user5",
                     timestamp = System.currentTimeMillis() - 7200000
                 )
             ),
             GroupChat(
                 id = "group3",
-                name = "Amigos Universidad",
-                description = "Grupo de la uni",
+                name = "University Friends",
+                description = "University group",
                 memberIds = listOf(currentUserId, "user9", "user10", "user11"),
                 adminIds = listOf(currentUserId),
                 createdBy = currentUserId,
-                lastActivity = System.currentTimeMillis() - 86400000, // 1 día atrás
+                lastActivity = System.currentTimeMillis() - 86400000, // 1 day ago
                 lastMessage = ChatMessage(
-                    message = "¿Quedamos para almorzar?",
+                    message = "Want to grab lunch?",
                     senderId = "user9",
                     timestamp = System.currentTimeMillis() - 86400000
                 )
@@ -454,8 +456,8 @@ private fun GroupsList(
         )
     }
 
-    // Usar grupos reales si existen, sino usar datos de muestra
-    val groupsToShow = if (userGroups.isNotEmpty()) userGroups else sampleGroups
+    // Use real groups if they exist, otherwise use sample data
+    val groupsToShow = userGroups.ifEmpty { sampleGroups }
 
     Column(modifier = modifier.fillMaxSize()) {
         if (groupsToShow.isNotEmpty()) {
@@ -473,7 +475,7 @@ private fun GroupsList(
                 }
             }
         } else {
-            // Estado vacío para cuando no hay grupos
+            // Empty state when there are no groups
             EmptyGroupsState(
                 onCreateGroupClick = {
                     navController.navigate(Routes.CreateGroup.route)
@@ -485,7 +487,7 @@ private fun GroupsList(
 }
 
 /**
- * Estado vacío cuando no hay grupos
+ * Empty state when there are no groups
  */
 @Composable
 private fun EmptyGroupsState(
@@ -507,7 +509,7 @@ private fun EmptyGroupsState(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "No tienes grupos aún",
+            text = "You don't have any groups yet",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -515,7 +517,7 @@ private fun EmptyGroupsState(
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Crea tu primer grupo para chatear con múltiples personas",
+            text = "Create your first group to chat with multiple people",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
@@ -534,23 +536,23 @@ private fun EmptyGroupsState(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Crear grupo")
+            Text("Create group")
         }
     }
 }
 
 /**
- * Formatea la última actividad en formato legible
+ * Formats the last activity in a readable format
  */
 private fun formatLastActivity(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
 
     return when {
-        diff < 60000 -> "Ahora" // menos de 1 minuto
-        diff < 3600000 -> "${diff / 60000}m" // menos de 1 hora
-        diff < 86400000 -> "${diff / 3600000}h" // menos de 1 día
-        diff < 604800000 -> "${diff / 86400000}d" // menos de 1 semana
+        diff < 60000 -> "Now" // less than 1 minute
+        diff < 3600000 -> "${diff / 60000}m" // less than 1 hour
+        diff < 86400000 -> "${diff / 3600000}h" // less than 1 day
+        diff < 604800000 -> "${diff / 86400000}d" // less than 1 week
         else -> {
             val date = java.util.Date(timestamp)
             java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault()).format(date)

@@ -113,6 +113,18 @@ fun NavigationWrapper(
                 groupId = groupId,
                 navController = navController
             )
+
+            BackHandler {
+                // Ensure we always have a way back to Home
+                if (!navController.popBackStack()) {
+                    // If popBackStack returns false (no previous destination), navigate to Home with Groups tab selected
+                    navController.navigate(Routes.Home.createRoute(2)) {
+                        // Clear entire back stack and make Home the new root
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
         }
 
         composable(
@@ -157,8 +169,17 @@ fun NavigationWrapper(
         composable(Routes.Login.route) {
             LoginScreen(navController)
         }
-        composable(Routes.Home.route) {
-            HomeScreen(navController)
+        composable(
+            route = Routes.Home.route,
+            arguments = listOf(
+                navArgument("selectedTab") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
+        ) { backStackEntry ->
+            val selectedTab = backStackEntry.arguments?.getInt("selectedTab") ?: 0
+            HomeScreen(navController, selectedTab = selectedTab)
         }
 
         // Settings Screen - Nueva funcionalidad Fase 2
@@ -210,8 +231,14 @@ fun NavigationWrapper(
             )
 
             BackHandler {
-                navController.navigate(Routes.Home.route) {
-                    popUpTo("direct_chat/{userId}/{username}") { inclusive = true }
+                // Ensure we always have a way back to Home
+                if (!navController.popBackStack()) {
+                    // If popBackStack returns false (no previous destination), navigate to Home with default tab
+                    navController.navigate(Routes.Home.createRoute(0)) {
+                        // Clear entire back stack and make Home the new root
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             }
         }
@@ -238,6 +265,18 @@ fun NavigationWrapper(
                 userId = userId,
                 username = username
             )
+
+            BackHandler {
+                // Ensure we always have a way back to Home
+                if (!navController.popBackStack()) {
+                    // If popBackStack returns false (no previous destination), navigate to Home with default tab
+                    navController.navigate(Routes.Home.createRoute(0)) {
+                        // Clear entire back stack and make Home the new root
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
         }
         composable("fullScreenImage/{imageId}") { backStackEntry ->
             val imageId = backStackEntry.arguments?.getString("imageId") ?: return@composable
@@ -288,7 +327,7 @@ private fun determineStartDestination(
             }
         }
         skipSplash ->
-            Routes.Home.route
+            Routes.Home.createRoute()
         else ->
             Routes.Splash.route
     }

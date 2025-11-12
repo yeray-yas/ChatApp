@@ -107,8 +107,8 @@ fun UserProfileScreen(
 
     // Intercepts the back button to navigate to HomeScreen
     BackHandler {
-        navController.navigate(Routes.Home.route) {
-            popUpTo(Routes.Home.route) { inclusive = false }
+        navController.navigate(Routes.Home.createRoute()) {
+            popUpTo(Routes.Home.createRoute()) { inclusive = false }
             launchSingleTop = true
             restoreState = true
         }
@@ -120,8 +120,8 @@ fun UserProfileScreen(
                 title = { Text(text = "User's Profile") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        navController.navigate(Routes.Home.route) {
-                            popUpTo(Routes.Home.route) { inclusive = false }
+                        navController.navigate(Routes.Home.createRoute()) {
+                            popUpTo(Routes.Home.createRoute()) { inclusive = false }
                             launchSingleTop = true
                             restoreState = true
                         }

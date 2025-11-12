@@ -50,7 +50,9 @@ sealed class Routes(
     data object Login : Routes("login_screen")
 
     /** Home screen after successful login or registration. */
-    data object Home : Routes("home_screen")
+    data object Home : Routes("home_screen?selectedTab={selectedTab}") {
+        fun createRoute(selectedTab: Int = 0) = "home_screen?selectedTab=$selectedTab"
+    }
 
     /** Screen for viewing the current user's profile. */
     data object UserProfile : Routes("user_profile")

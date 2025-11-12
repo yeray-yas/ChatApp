@@ -98,14 +98,14 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Pantalla unificada de chat que maneja tanto conversaciones individuales como grupales
+ * Unified chat screen that handles both individual and group conversations
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnifiedChatScreen(
     chatId: String,
     chatType: ChatType,
-    chatName: String, // Nombre del usuario o grupo
+    chatName: String, // Name of the user or group
     navController: NavHostController,
     viewModel: IndividualAndGroupChatViewModel = hiltViewModel()
 ) {
@@ -170,7 +170,7 @@ fun UnifiedChatScreen(
     // Calculate simple offset for input area
     val inputOffset = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
-    // Inicializar el chat según el tipo
+    // Initialize chat based on type
     LaunchedEffect(chatId, chatType) {
         when (chatType) {
             is ChatType.Individual -> viewModel.initializeIndividualChat(chatId)
@@ -313,7 +313,7 @@ fun UnifiedChatScreen(
             when {
                 isLoading && messages.isEmpty() -> {
                     LoadingState(
-                        message = "Cargando chat...",
+                        message = "Loading chat...",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = Constants.TOP_APP_BAR_HEIGHT)
@@ -322,7 +322,7 @@ fun UnifiedChatScreen(
 
                 error != null && messages.isEmpty() -> {
                     ErrorState(
-                        message = error ?: "Error desconocido",
+                        message = error ?: "Unknown error",
                         onRetry = {
                             when (chatType) {
                                 is ChatType.Individual -> viewModel.initializeIndividualChat(chatId)
@@ -407,7 +407,19 @@ fun UnifiedChatScreen(
             chatName = chatName,
             chatType = currentChatType,
             groupInfo = groupInfo,
-            onBackClick = { navController.popBackStack() },
+            onBackClick = {
+                // Ensure we always have a way back to Home
+                if (!navController.popBackStack()) {
+                    // If popBackStack returns false (no previous destination), navigate to Home
+                    // For group chats, go to Groups tab (index 2), for individual chats, go to default tab (index 0)
+                    val targetTab = if (currentChatType is ChatType.Group) 2 else 0
+                    navController.navigate(Routes.Home.createRoute(targetTab)) {
+                        // Clear entire back stack and make Home the new root
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            },
             onInfoClick = {
                 when (currentChatType) {
                     is ChatType.Group -> {
@@ -417,7 +429,7 @@ fun UnifiedChatScreen(
                     }
 
                     is ChatType.Individual -> {
-                        // Navegar a perfil de usuario individual si es necesario
+                        // Navigate to user profile if necessary
                     }
                 }
             },
@@ -446,7 +458,7 @@ fun UnifiedChatScreen(
 }
 
 /**
- * Barra superior unificada que se adapta al tipo de chat
+ * Unified top bar that adapts to the chat type
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -490,7 +502,7 @@ private fun UnifiedChatTopBar(
                         )
                         if (groupInfo != null) {
                             Text(
-                                text = "${groupInfo.memberIds.size} miembros",
+                                text = "${groupInfo.memberIds.size} members",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -503,7 +515,7 @@ private fun UnifiedChatTopBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Volver"
+                    contentDescription = "Back"
                 )
             }
         },
@@ -511,7 +523,7 @@ private fun UnifiedChatTopBar(
             IconButton(onClick = onSearchClick) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Buscar mensajes"
+                    contentDescription = "Search messages"
                 )
             }
 
@@ -520,7 +532,7 @@ private fun UnifiedChatTopBar(
                     IconButton(onClick = onInfoClick) {
                         Icon(
                             imageVector = Icons.Default.Info,
-                            contentDescription = "Información del grupo"
+                            contentDescription = "Group info"
                         )
                     }
                 }
@@ -538,7 +550,7 @@ private fun UnifiedChatTopBar(
 }
 
 /**
- * Barra de entrada de mensajes unificada con soporte para replies
+ * Unified message input bar with support for replies
  */
 @Composable
 private fun UnifiedMessageInputBar(
@@ -587,7 +599,7 @@ private fun UnifiedMessageInputBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.AttachFile,
-                        contentDescription = "Adjuntar archivo"
+                        contentDescription = "Attach file"
                     )
                 }
 
@@ -595,7 +607,7 @@ private fun UnifiedMessageInputBar(
                     value = messageText,
                     onValueChange = onMessageTextChange,
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Escribe un mensaje...") },
+                    placeholder = { Text("Type a message...") },
                     enabled = isEnabled,
                     maxLines = 4,
                     shape = RoundedCornerShape(24.dp),
@@ -620,7 +632,7 @@ private fun UnifiedMessageInputBar(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Enviar mensaje",
+                        contentDescription = "Send message",
                         tint = if (messageText.trim().isNotEmpty())
                             MaterialTheme.colorScheme.onPrimary
                         else
@@ -633,7 +645,7 @@ private fun UnifiedMessageInputBar(
 }
 
 /**
- * Burbuja de mensaje unificada que se adapta al tipo de chat
+ * Unified message bubble that adapts to the chat type
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalGlideComposeApi::class)
 @Composable
@@ -702,7 +714,7 @@ private fun UnifiedMessageBubble(
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
-                // Mostrar reply bubble si este mensaje es una respuesta
+                // Show reply bubble if this message is a reply
                 if (message.isReply) {
                     ReplyBubbleContent(
                         message = message,
@@ -716,9 +728,9 @@ private fun UnifiedMessageBubble(
                     )
                 }
 
-                // Mostrar nombre del remitente solo si es grupo Y no es el usuario actual
+                // Show sender name only if it's a group and not the current user
                 if (isGroup && !isFromCurrentUser) {
-                    val senderName = message.getSenderName() ?: "Usuario"
+                    val senderName = message.getSenderName() ?: "User"
                     Text(
                         text = senderName,
                         style = MaterialTheme.typography.bodySmall,
@@ -728,7 +740,7 @@ private fun UnifiedMessageBubble(
                     )
                 }
 
-                // Contenido del mensaje
+                // Message content
                 when (message.messageType) {
                     MessageType.TEXT -> {
                         val content = if (isGroup) {
@@ -748,7 +760,7 @@ private fun UnifiedMessageBubble(
                         message.imageUrl?.let { imageUrl ->
                             GlideImage(
                                 model = imageUrl,
-                                contentDescription = "Imagen del mensaje",
+                                contentDescription = "Message image",
                                 modifier = Modifier
                                     .size(200.dp)
                                     .clip(RoundedCornerShape(8.dp))
@@ -776,7 +788,7 @@ private fun UnifiedMessageBubble(
                     }
                 }
 
-                // Timestamp y estado del mensaje
+                // Timestamp and message status
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -802,7 +814,7 @@ private fun UnifiedMessageBubble(
 }
 
 /**
- * Vista previa de respuesta unificada
+ * Reply preview
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
@@ -811,14 +823,14 @@ private fun ReplyPreview(
     currentUserId: String,
     chatName: String,
     onClearReply: () -> Unit,
-    onReplyClick: () -> Unit = {}, // Callback opcional para hacer click en el reply
+    onReplyClick: () -> Unit = {}, // Optional callback for reply click
     modifier: Modifier = Modifier
 ) {
-    // Obtener información de la imagen si es un reply a imagen
+    // Get image information if it's a reply to an image
     val (imageUrl, messageContent, isImageMessage) = when (replyToMessage) {
         is UnifiedMessage.Individual -> {
             Triple(
-                replyToMessage.imageUrl, // SÍ podemos acceder a la imagen en chats individuales
+                replyToMessage.imageUrl, // We can access the image in individual chats
                 replyToMessage.content,
                 replyToMessage.messageType == MessageType.IMAGE
             )
@@ -852,17 +864,17 @@ private fun ReplyPreview(
                 val replyText = when (replyToMessage) {
                     is UnifiedMessage.Individual -> {
                         if (replyToMessage.senderId == currentUserId) {
-                            "Respondiéndote a ti mismo"
+                            "Replying to yourself"
                         } else {
-                            "Respondiendo a $chatName"
+                            "Replying to $chatName"
                         }
                     }
                     is UnifiedMessage.Group -> {
                         if (replyToMessage.senderId == currentUserId) {
-                            "Respondiéndote a ti mismo"
+                            "Replying to yourself"
                         } else {
-                            val senderName = replyToMessage.getSenderName() ?: "Usuario"
-                            "Respondiendo a $senderName"
+                            val senderName = replyToMessage.getSenderName() ?: "User"
+                            "Replying to $senderName"
                         }
                     }
                 }
@@ -873,19 +885,19 @@ private fun ReplyPreview(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                // Mostrar contenido del mensaje con miniatura si es imagen
+                // Show message content with thumbnail if it's an image
                 if (isImageMessage && !imageUrl.isNullOrEmpty()) {
-                    // Mostrar fila con miniatura + texto "Imagen"
+                    // Show row with thumbnail + "Image" text
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
-                        // Miniatura de la imagen
+                        // Thumbnail of the image
                         GlideImage(
                             model = imageUrl,
-                            contentDescription = "Miniatura de imagen",
+                            contentDescription = "Image thumbnail",
                             modifier = Modifier
-                                .size(24.dp) // Más pequeño que en ReplyBubbleContent
+                                .size(24.dp) // Smaller than in ReplyBubbleContent
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(
                                     MaterialTheme.colorScheme.surfaceVariant,
@@ -895,12 +907,12 @@ private fun ReplyPreview(
 
                         Spacer(modifier = Modifier.width(6.dp))
 
-                        // Texto "Imagen" o caption si existe
+                        // "Image" text or caption if it exists
                         Text(
                             text = if (messageContent.isNotEmpty() && messageContent.isNotBlank()) {
-                                messageContent // Mostrar caption si existe
+                                messageContent // Show caption if it exists
                             } else {
-                                "📷 Imagen" // Mostrar "Imagen" con emoji si no hay caption
+                                "📷 Image" // Show "Image" with emoji if no caption
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -909,7 +921,7 @@ private fun ReplyPreview(
                         )
                     }
                 } else {
-                    // Mensaje de texto normal
+                    // Normal text message
                     Text(
                         text = messageContent,
                         style = MaterialTheme.typography.bodySmall,
@@ -928,7 +940,7 @@ private fun ReplyPreview(
 }
 
 /**
- * Estado vacío cuando no hay mensajes
+ * Empty chat state
  */
 @Composable
 private fun EmptyChatState(
@@ -951,7 +963,7 @@ private fun EmptyChatState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = if (isGroup) "¡Bienvenido a $chatName!" else "¡Comienza una conversación con $chatName!",
+            text = if (isGroup) "Welcome to $chatName!" else "Start a conversation with $chatName!",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -961,9 +973,9 @@ private fun EmptyChatState(
 
         Text(
             text = if (isGroup)
-                "Sé el primero en enviar un mensaje al grupo"
+                "Be the first to send a message to the group"
             else
-                "Envía tu primer mensaje",
+                "Send your first message",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
@@ -973,7 +985,7 @@ private fun EmptyChatState(
 }
 
 /**
- * Indicador visual del estado del mensaje
+ * Message status indicator
  */
 @Composable
 private fun MessageStatusIndicator(
@@ -987,7 +999,7 @@ private fun MessageStatusIndicator(
     }
 
     val statusColor = if (readStatus == ReadStatus.READ) {
-        Color(0xFF4CAF50) // Verde para leído
+        Color(0xFF4CAF50) // Green for read
     } else {
         tint
     }
@@ -1001,7 +1013,7 @@ private fun MessageStatusIndicator(
 }
 
 /**
- * Formatea el mensaje destacando las menciones (@usuario)
+ * Format message with mentions (@username)
  */
 @Composable
 private fun formatMessageWithMentions(message: String): AnnotatedString {
@@ -1010,10 +1022,10 @@ private fun formatMessageWithMentions(message: String): AnnotatedString {
         var lastIndex = 0
 
         mentionPattern.findAll(message).forEach { matchResult ->
-            // Agregar texto normal antes de la mención
+            // Add normal text before the mention
             append(message.substring(lastIndex, matchResult.range.first))
 
-            // Agregar la mención con estilo especial
+            // Add the mention with special style
             withStyle(
                 style = SpanStyle(
                     color = MaterialTheme.colorScheme.primary,
@@ -1026,14 +1038,14 @@ private fun formatMessageWithMentions(message: String): AnnotatedString {
             lastIndex = matchResult.range.last + 1
         }
 
-        // Agregar el resto del texto
+        // Add the rest of the text
         append(message.substring(lastIndex))
     }
 }
 
 /**
- * Componente que muestra el contenido del mensaje original dentro de una respuesta
- * Simula el estilo de WhatsApp con línea vertical y fondo suave
+ * Component that shows the original message content inside a reply
+ * Simulates WhatsApp style with vertical line and soft background
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
@@ -1047,7 +1059,7 @@ private fun ReplyBubbleContent(
     isParentHighlighted: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Obtener información del mensaje original
+    // Get original message information
     val (originalContent, originalImageUrl, originalMessageType) = when (message) {
         is UnifiedMessage.Individual -> {
             Triple(
@@ -1060,7 +1072,7 @@ private fun ReplyBubbleContent(
         is UnifiedMessage.Group -> {
             val replyMsg = message.message.replyToMessage
             Triple(
-                replyMsg?.message ?: "Mensaje",
+                replyMsg?.message ?: "Message",
                 replyMsg?.imageUrl,
                 replyMsg?.messageType
             )
@@ -1070,7 +1082,7 @@ private fun ReplyBubbleContent(
     val originalSenderName = when (message) {
         is UnifiedMessage.Individual -> {
             val originalSenderId = message.message.replyToSenderId
-            if (originalSenderId == currentUserId) "Tú" else chatName
+            if (originalSenderId == currentUserId) "You" else chatName
         }
 
         is UnifiedMessage.Group -> {
@@ -1078,21 +1090,21 @@ private fun ReplyBubbleContent(
             val originalSenderName = message.message.replyToMessage?.senderName
 
             if (originalSenderId == currentUserId) {
-                "Tú"
+                "You"
             } else {
-                originalSenderName ?: "Usuario"
+                originalSenderName ?: "User"
             }
         }
     }
 
-    // Determinar si el mensaje original es una imagen
+    // Determine if the original message is an image
     val isImageReply = when (originalMessageType) {
         MessageType.IMAGE -> true
         com.yerayyas.chatappkotlinproject.data.model.GroupMessageType.IMAGE -> true
         else -> false
     }
 
-    // Colores que se adaptan al tema del mensaje
+    // Colors that adapt to the message theme
     val replyBackgroundColor by animateColorAsState(
         targetValue = if (isFromCurrentUser) {
             if (isParentHighlighted) {
@@ -1145,9 +1157,7 @@ private fun ReplyBubbleContent(
 
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = replyBackgroundColor
-        ),
+        colors = CardDefaults.cardColors(containerColor = replyBackgroundColor),
         shape = RoundedCornerShape(8.dp)
     ) {
         Row(
@@ -1156,11 +1166,11 @@ private fun ReplyBubbleContent(
                 .clickable { onReplyClick() },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Línea vertical característica de los replies
+            // Vertical line characteristic of replies
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(if (isImageReply) 48.dp else 40.dp) // Altura ajustada para imágenes
+                    .height(if (isImageReply) 48.dp else 40.dp) // Adjusted height for images
                     .background(
                         color = replyLineColor,
                         shape = RoundedCornerShape(1.5.dp)
@@ -1172,7 +1182,7 @@ private fun ReplyBubbleContent(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Nombre del remitente original
+                // Original sender name
                 Text(
                     text = originalSenderName,
                     style = MaterialTheme.typography.bodySmall,
@@ -1182,17 +1192,17 @@ private fun ReplyBubbleContent(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // Contenido del mensaje original
+                // Original message content
                 if (isImageReply && !originalImageUrl.isNullOrEmpty()) {
-                    // Mostrar una pequeña fila con miniatura + texto "Imagen"
+                    // Show small row with thumbnail + "Image" text
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
-                        // Miniatura de la imagen
+                        // Thumbnail of the image
                         GlideImage(
                             model = originalImageUrl,
-                            contentDescription = "Miniatura de imagen",
+                            contentDescription = "Image thumbnail",
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(4.dp))
@@ -1204,12 +1214,12 @@ private fun ReplyBubbleContent(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Texto "Imagen" o caption si existe
+                        // "Image" text or caption if it exists
                         Text(
-                            text = if (!originalContent.isNullOrEmpty() && originalContent != "Mensaje") {
-                                originalContent // Mostrar caption si existe
+                            text = if (!originalContent.isNullOrEmpty() && originalContent != "Message") {
+                                originalContent // Show caption if it exists
                             } else {
-                                "📷 Imagen" // Mostrar "Imagen" con emoji si no hay caption
+                                "📷 Image" // Show "Image" with emoji if no caption
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = replyTextColor,
@@ -1218,9 +1228,9 @@ private fun ReplyBubbleContent(
                         )
                     }
                 } else {
-                    // Mensaje de texto normal
+                    // Normal text message
                     Text(
-                        text = originalContent ?: "Mensaje",
+                        text = originalContent ?: "Message",
                         style = MaterialTheme.typography.bodySmall,
                         color = replyTextColor,
                         maxLines = 2,
@@ -1233,7 +1243,7 @@ private fun ReplyBubbleContent(
 }
 
 /**
- * Formatea el timestamp para mostrar la hora
+ * Format timestamp to show time
  */
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)
@@ -1251,10 +1261,10 @@ private fun formatTimestamp(timestamp: Long): String {
     val currentYear = calendar.get(java.util.Calendar.YEAR)
 
     return if (messageDay == currentDay && messageYear == currentYear) {
-        // Mismo día - mostrar solo hora
+        // Same day - show only time
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
     } else {
-        // Día diferente - mostrar fecha y hora
+        // Different day - show date and time
         SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(date)
     }
 }

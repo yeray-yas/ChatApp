@@ -136,7 +136,7 @@ fun SignUpScreen(navController: NavController) {
                     if (!success) {
                         errorMessage = message
                     } else {
-                        navController.navigate(Routes.Home.route) {
+                        navController.navigate(Routes.Home.createRoute()) {
                             popUpTo(Routes.SignUp.route) { inclusive = true }
                         }
                     }

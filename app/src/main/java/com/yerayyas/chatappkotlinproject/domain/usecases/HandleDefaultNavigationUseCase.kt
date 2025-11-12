@@ -43,7 +43,8 @@ class HandleDefaultNavigationUseCase @Inject constructor() {
 
         // Only navigate if still on the splash or no route is set
         if (currentRoute == Routes.Splash.route || currentRoute == null) {
-            val targetRoute = if (isUserAuthenticated) Routes.Home.route else Routes.Main.route
+            val targetRoute =
+                if (isUserAuthenticated) Routes.Home.createRoute() else Routes.Main.route
             navController.navigate(targetRoute) {
                 popUpTo(Routes.Splash.route) { inclusive = true }
                 launchSingleTop = true

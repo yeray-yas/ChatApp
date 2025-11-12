@@ -34,6 +34,14 @@ class SearchViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<ChatMessage>>(emptyList())
     val searchResults: StateFlow<List<ChatMessage>> = _searchResults.asStateFlow()
 
+    /**
+     * Initializes the search functionality for a specific chat.
+     *
+     * Loads all messages from the specified chat and sets up the message collection
+     * for search operations. This method should be called when entering the search screen.
+     *
+     * @param chatId The ID of the chat to search within
+     */
     fun initializeSearch(chatId: String) {
         if (chatId.isNotEmpty()) {
             viewModelScope.launch {
@@ -44,7 +52,7 @@ class SearchViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     _searchState.value = _searchState.value.copy(
-                        error = "Error al cargar mensajes: ${e.message}",
+                        error = "Error loading messages: ${e.message}",
                         isLoading = false
                     )
                 }
@@ -52,28 +60,49 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Updates the search query and triggers a new search.
+     *
+     * @param query The new search query text
+     */
     fun updateQuery(query: String) {
         _searchState.value = _searchState.value.copy(query = query)
         performSearch()
     }
 
+    /**
+     * Executes a search with the provided query.
+     *
+     * @param query The search query text
+     */
     fun search(query: String) {
         updateQuery(query)
     }
 
+    /**
+     * Toggles the visibility of the filters section.
+     */
     fun toggleFilters() {
         _searchState.value = _searchState.value.copy(
             showFilters = !_searchState.value.showFilters
         )
     }
 
+    /**
+     * Toggles a specific filter on or off.
+     *
+     * Handles mutually exclusive filters (e.g., TextMessages and ImageMessages)
+     * by automatically removing conflicting filters when a new one is applied.
+     *
+     * @param filter The filter to toggle
+     */
     fun toggleFilter(filter: SearchFilter) {
         val currentFilters = _searchState.value.activeFilters.toMutableList()
 
         if (currentFilters.contains(filter)) {
             currentFilters.remove(filter)
         } else {
-            // Para filtros mutuamente excluyentes
+            // Handle mutually exclusive filters
             when (filter) {
                 is SearchFilter.TextMessages -> {
                     currentFilters.removeAll { it is SearchFilter.ImageMessages }
@@ -83,7 +112,7 @@ class SearchViewModel @Inject constructor(
                     currentFilters.removeAll { it is SearchFilter.TextMessages }
                 }
 
-                else -> { /* No hay exclusiones para otros filtros */
+                else -> { /* No exclusions for other filters */
                 }
             }
             currentFilters.add(filter)
@@ -93,6 +122,13 @@ class SearchViewModel @Inject constructor(
         performSearch()
     }
 
+    /**
+     * Performs the actual search operation.
+     *
+     * Applies text search and filters to the loaded messages, then updates the search results.
+     * The search is case-insensitive and includes both message content and reply content.
+     * Results are sorted by timestamp in descending order (most recent first).
+     */
     private fun performSearch() {
         viewModelScope.launch {
             _searchState.value = _searchState.value.copy(isLoading = true, error = null)
@@ -102,7 +138,7 @@ class SearchViewModel @Inject constructor(
                 val filters = _searchState.value.activeFilters
                 var results = _allMessages.value
 
-                // Aplicar búsqueda por texto
+                // Apply text search
                 if (query.isNotBlank()) {
                     results = results.filter { message ->
                         message.message.contains(query, ignoreCase = true) ||
@@ -110,7 +146,7 @@ class SearchViewModel @Inject constructor(
                     }
                 }
 
-                // Aplicar filtros
+                // Apply filters
                 filters.forEach { filter ->
                     results = when (filter) {
                         is SearchFilter.TextMessages -> {
@@ -137,7 +173,7 @@ class SearchViewModel @Inject constructor(
                     }
                 }
 
-                // Ordenar por timestamp descendente (más recientes primero)
+                // Sort by timestamp descending (most recent first)
                 results = results.sortedByDescending { it.timestamp }
 
                 _searchResults.value = results
@@ -145,13 +181,18 @@ class SearchViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 _searchState.value = _searchState.value.copy(
-                    error = "Error en la búsqueda: ${e.message}",
+                    error = "Search error: ${e.message}",
                     isLoading = false
                 )
             }
         }
     }
 
+    /**
+     * Clears the current search state and results.
+     *
+     * Resets the search query, filters, and results to their initial state.
+     */
     fun clearSearch() {
         _searchState.value = SearchState()
         _searchResults.value = emptyList()

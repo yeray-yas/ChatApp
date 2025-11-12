@@ -26,30 +26,33 @@ import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
 
 /**
- * Advanced search bar component with filter capabilities.
+ * Advanced search bar component with comprehensive filter capabilities.
  *
- * This component provides a comprehensive search interface including:
- * - Text input with search and clear functionality
- * - Expandable filter section with message type filters
- * - Visual indicators for active filters
- * - Keyboard handling and focus management
+ * This component provides a sophisticated search interface that includes text input,
+ * search execution, and expandable filter options. It's designed to handle complex
+ * search scenarios with multiple filter types and real-time query updates.
  *
  * Key features:
  * - Real-time query updates and search execution
- * - Filter toggle with smooth animations
- * - Active filter indication in UI
- * - Keyboard action handling (search on Enter)
+ * - Expandable filter section with smooth animations
+ * - Visual indicators for active filters
+ * - Keyboard handling with proper IME actions
  * - Clear functionality for easy query reset
+ * - Focus management and keyboard controller integration
+ * - Customizable placeholder text and filter options
  *
- * @param query Current search query text
- * @param onQueryChange Callback invoked when query text changes
- * @param onSearch Callback invoked when search is executed
+ * The component maintains its own focus state and integrates with the system keyboard
+ * to provide a seamless search experience.
+ *
+ * @param query Current text in the search input field
+ * @param onQueryChange Callback invoked when the search query text changes
+ * @param onSearch Callback invoked when search is executed (Enter key or search action)
  * @param modifier Optional [Modifier] for customizing layout and styling
- * @param placeholder Placeholder text for the search input
- * @param showFilters Whether to show the expanded filter section
- * @param onToggleFilters Callback to toggle filter section visibility
+ * @param placeholder Placeholder text displayed when search field is empty
+ * @param showFilters Whether the expandable filter section is currently visible
+ * @param onToggleFilters Callback to toggle the visibility of the filter section
  * @param activeFilters List of currently active search filters
- * @param onFilterChange Callback invoked when a filter is toggled
+ * @param onFilterChange Callback invoked when a filter is toggled on/off
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,62 +71,16 @@ fun AdvancedSearchBar(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(modifier = modifier) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester),
-            placeholder = {
-                Text(
-                    text = placeholder,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            },
-            trailingIcon = {
-                Row {
-                    if (query.isNotEmpty()) {
-                        IconButton(
-                            onClick = { onQueryChange("") }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onToggleFilters
-                    ) {
-                        Icon(
-                            imageVector = if (showFilters) Icons.Default.FilterListOff else Icons.Default.FilterList,
-                            contentDescription = "Filters",
-                            tint = if (activeFilters.isNotEmpty()) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Search
-            ),
-            keyboardActions = KeyboardActions(
-                onSearch = {
-                    onSearch(query)
-                    keyboardController?.hide()
-                }
-            ),
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+        SearchInputField(
+            query = query,
+            onQueryChange = onQueryChange,
+            onSearch = onSearch,
+            placeholder = placeholder,
+            showFilters = showFilters,
+            onToggleFilters = onToggleFilters,
+            activeFilters = activeFilters,
+            focusRequester = focusRequester,
+            keyboardController = keyboardController
         )
 
         // Expandable filters section
@@ -136,6 +93,123 @@ fun AdvancedSearchBar(
                 activeFilters = activeFilters,
                 onFilterChange = onFilterChange,
                 modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Search input field component with integrated controls.
+ *
+ * This component handles the text input, clear button, and filter toggle button
+ * in a unified interface with proper keyboard handling.
+ *
+ * @param query Current search query text
+ * @param onQueryChange Callback for query text changes
+ * @param onSearch Callback for search execution
+ * @param placeholder Placeholder text for the input field
+ * @param showFilters Whether filters are currently shown
+ * @param onToggleFilters Callback to toggle filter visibility
+ * @param activeFilters List of active filters for visual indication
+ * @param focusRequester Focus requester for input management
+ * @param keyboardController Controller for keyboard operations
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchInputField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: (String) -> Unit,
+    placeholder: String,
+    showFilters: Boolean,
+    onToggleFilters: () -> Unit,
+    activeFilters: List<SearchFilter>,
+    focusRequester: FocusRequester,
+    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester),
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        },
+        trailingIcon = {
+            SearchTrailingIcons(
+                query = query,
+                onQueryChange = onQueryChange,
+                showFilters = showFilters,
+                onToggleFilters = onToggleFilters,
+                activeFilters = activeFilters
+            )
+        },
+        keyboardOptions = KeyboardOptions(
+            imeAction = ImeAction.Search
+        ),
+        keyboardActions = KeyboardActions(
+            onSearch = {
+                onSearch(query)
+                keyboardController?.hide()
+            }
+        ),
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp)
+    )
+}
+
+/**
+ * Trailing icons for the search input field.
+ *
+ * This component manages the clear button and filter toggle button
+ * in the trailing icon area of the search field.
+ *
+ * @param query Current query text
+ * @param onQueryChange Callback to clear the query
+ * @param showFilters Whether filters are shown
+ * @param onToggleFilters Callback to toggle filters
+ * @param activeFilters List of active filters for visual indication
+ */
+@Composable
+private fun SearchTrailingIcons(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    showFilters: Boolean,
+    onToggleFilters: () -> Unit,
+    activeFilters: List<SearchFilter>
+) {
+    Row {
+        if (query.isNotEmpty()) {
+            IconButton(
+                onClick = { onQueryChange("") }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Clear,
+                    contentDescription = "Clear search",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
+
+        IconButton(
+            onClick = onToggleFilters
+        ) {
+            Icon(
+                imageVector = if (showFilters) Icons.Default.FilterListOff else Icons.Default.FilterList,
+                contentDescription = if (showFilters) "Hide filters" else "Show filters",
+                tint = if (activeFilters.isNotEmpty()) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
     }

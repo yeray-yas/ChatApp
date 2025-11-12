@@ -37,12 +37,25 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * A composable that displays a user item in a list, typically used to represent
- * a chat contact or selectable user in the UI.
+ * A composable that displays a user item in a list.
  *
- * @param user The [User] data to display in the list item.
- * @param onItemClick Callback to be triggered when the item is clicked.
- * @param modifier Optional [Modifier] for styling and layout.
+ * This component renders a user entry typically used in chat contact lists or user selection screens.
+ * It provides a comprehensive display of user information including profile image, username, email,
+ * and online status with proper Material Design 3 styling.
+ *
+ * Key features:
+ * - Circular profile image with fallback support
+ * - Username display with proper capitalization
+ * - Email address display with overflow handling
+ * - Online status indicator with visual feedback
+ * - Last seen timestamp formatting
+ * - Clickable interaction with ripple effect
+ * - Consistent card-based layout
+ * - Proper text overflow handling
+ *
+ * @param user The [User] data to display in the list item
+ * @param onItemClick Callback to be triggered when the item is clicked
+ * @param modifier Optional [Modifier] for styling and layout control
  */
 @Composable
 fun UserListItem(
@@ -65,63 +78,31 @@ fun UserListItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ProfileImage(user.profileImage)
-            UserInfoSection(user, Modifier.weight(1f))
+            ProfileImage(profileImageUrl = user.profileImage)
+            UserInfoSection(
+                user = user,
+                modifier = Modifier.weight(1f)
+            )
         }
-    }
-}
-
-/**
- * A composable that displays the online status or last seen timestamp for a user.
- *
- * @param user The [User] whose status is shown.
- */
-@Composable
-private fun ConnectionStatusRow(user: User) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OnlineStatusIndicator(isOnline = user.isOnline)
-        Text(
-            text = if (user.isOnline) "Online" else "Last seen: ${formatLastSeen(user.lastSeen)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-/**
- * Formats a timestamp into a human-readable date string.
- *
- * @param timestamp The last seen time in milliseconds.
- * @return A formatted string or "Never" if the timestamp is 0.
- */
-private fun formatLastSeen(timestamp: Long): String {
-    return if (timestamp == 0L) {
-        "Never"
-    } else {
-        val dateFormat = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()).apply {
-            timeZone = TimeZone.getDefault()
-        }
-        dateFormat.format(Date(timestamp))
     }
 }
 
 /**
  * A composable that displays a circular profile image.
  *
- * Uses a placeholder image in preview mode or when loading/failing to load.
+ * This component handles profile image loading with fallback support for preview mode
+ * and loading/error states. It uses Glide for efficient image loading and caching.
  *
- * @param profileImage The URL of the image to display.
+ * @param profileImageUrl The URL of the image to display
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-private fun ProfileImage(profileImage: String) {
+private fun ProfileImage(profileImageUrl: String) {
     if (LocalInspectionMode.current) {
+        // Preview mode fallback
         Image(
             painter = painterResource(R.drawable.ic_launcher_background),
-            contentDescription = "Preview",
+            contentDescription = "Profile image preview",
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
@@ -129,9 +110,10 @@ private fun ProfileImage(profileImage: String) {
             contentScale = ContentScale.Crop
         )
     } else {
+        // Production mode with Glide
         GlideImage(
-            model = profileImage.takeIf { it.isNotEmpty() },
-            contentDescription = "Avatar",
+            model = profileImageUrl.takeIf { it.isNotEmpty() },
+            contentDescription = "Profile image",
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
@@ -143,10 +125,13 @@ private fun ProfileImage(profileImage: String) {
 }
 
 /**
- * A composable that displays the user's name, email, and connection status.
+ * A composable that displays the user's information section.
  *
- * @param user The [User] whose info is displayed.
- * @param modifier Optional [Modifier] for layout customization.
+ * This component organizes and displays the user's name, email, and connection status
+ * in a vertically stacked layout with proper typography and spacing.
+ *
+ * @param user The [User] whose information is displayed
+ * @param modifier Optional [Modifier] for layout customization
  */
 @Composable
 private fun UserInfoSection(user: User, modifier: Modifier = Modifier) {
@@ -171,9 +156,39 @@ private fun UserInfoSection(user: User, modifier: Modifier = Modifier) {
 }
 
 /**
+ * A composable that displays the online status and last seen information for a user.
+ *
+ * This component shows either "Online" with a green indicator or "Last seen" with timestamp
+ * and a gray indicator, providing visual feedback about the user's availability.
+ *
+ * @param user The [User] whose status is shown
+ */
+@Composable
+private fun ConnectionStatusRow(user: User) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OnlineStatusIndicator(isOnline = user.isOnline)
+        Text(
+            text = if (user.isOnline) {
+                "Online"
+            } else {
+                "Last seen: ${formatLastSeen(user.lastSeen)}"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
  * A small circular indicator to show whether the user is online (green) or offline (gray).
  *
- * @param isOnline Boolean indicating the online status.
+ * This component provides a visual status indicator with appropriate colors and styling
+ * to clearly communicate the user's online presence.
+ *
+ * @param isOnline Boolean indicating the online status
  */
 @Composable
 private fun OnlineStatusIndicator(isOnline: Boolean) {
@@ -190,4 +205,24 @@ private fun OnlineStatusIndicator(isOnline: Boolean) {
                 shape = CircleShape
             )
     )
+}
+
+/**
+ * Formats a timestamp into a human-readable date string.
+ *
+ * This function converts a timestamp to a localized date-time string,
+ * handling edge cases like zero timestamps appropriately.
+ *
+ * @param timestamp The last seen time in milliseconds
+ * @return A formatted string or "Never" if the timestamp is 0
+ */
+private fun formatLastSeen(timestamp: Long): String {
+    return if (timestamp == 0L) {
+        "Never"
+    } else {
+        val dateFormat = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()).apply {
+            timeZone = TimeZone.getDefault()
+        }
+        dateFormat.format(Date(timestamp))
+    }
 }

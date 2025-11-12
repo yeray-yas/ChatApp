@@ -24,15 +24,27 @@ import androidx.compose.ui.text.input.VisualTransformation
 /**
  * A composable password input field with toggle visibility functionality.
  *
- * Displays a [TextField] designed for password input, including:
- * - A leading lock icon for context.
- * - A trailing icon button to show or hide the password text.
- * - Support for customizing the placeholder and input value.
+ * This component provides a secure text input field specifically designed for password entry.
+ * It includes essential features for password input such as visual masking and visibility toggle,
+ * along with appropriate keyboard configurations and visual indicators.
  *
- * @param value The current text entered in the password field.
- * @param onValueChange Callback invoked when the text changes.
- * @param placeholder The placeholder text displayed when the field is empty.
- * @param modifier A [Modifier] for styling and layout control.
+ * Key features:
+ * - Leading lock icon for visual context and accessibility
+ * - Trailing visibility toggle button with dynamic icons
+ * - Password masking with toggle functionality
+ * - Appropriate keyboard type for password input
+ * - IME action set to "Done" for better UX
+ * - State preservation across configuration changes
+ * - Customizable placeholder text
+ * - Full-width layout by default
+ *
+ * The component automatically handles password visibility state and provides
+ * appropriate content descriptions for accessibility.
+ *
+ * @param value The current text entered in the password field
+ * @param onValueChange Callback invoked when the text changes
+ * @param placeholder The placeholder text displayed when the field is empty
+ * @param modifier A [Modifier] for styling and layout control
  */
 @Composable
 fun PasswordTextField(
@@ -52,16 +64,57 @@ fun PasswordTextField(
             keyboardType = KeyboardType.Password,
             imeAction = ImeAction.Done
         ),
-        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        visualTransformation = if (passwordVisible) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
         trailingIcon = {
-            val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-            val description = if (passwordVisible) "Hide password" else "Show password"
-            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                Icon(imageVector = image, contentDescription = description)
-            }
+            PasswordVisibilityToggle(
+                passwordVisible = passwordVisible,
+                onToggleVisibility = { passwordVisible = !passwordVisible }
+            )
         },
         leadingIcon = {
-            Icon(imageVector = Icons.Default.Lock, contentDescription = "Password icon")
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = "Password field"
+            )
         }
     )
+}
+
+/**
+ * Password visibility toggle icon button.
+ *
+ * This component renders an icon button that allows users to toggle
+ * the visibility of password text. It provides appropriate visual
+ * feedback and accessibility support.
+ *
+ * @param passwordVisible Current visibility state of the password
+ * @param onToggleVisibility Callback invoked when the toggle is pressed
+ */
+@Composable
+private fun PasswordVisibilityToggle(
+    passwordVisible: Boolean,
+    onToggleVisibility: () -> Unit
+) {
+    val image = if (passwordVisible) {
+        Icons.Filled.Visibility
+    } else {
+        Icons.Filled.VisibilityOff
+    }
+
+    val description = if (passwordVisible) {
+        "Hide password"
+    } else {
+        "Show password"
+    }
+
+    IconButton(onClick = onToggleVisibility) {
+        Icon(
+            imageVector = image,
+            contentDescription = description
+        )
+    }
 }

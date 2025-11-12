@@ -1,6 +1,7 @@
 package com.yerayyas.chatappkotlinproject.domain.usecases.group
 
 import android.net.Uri
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
@@ -22,6 +23,7 @@ class CreateGroupUseCase @Inject constructor(
     private val groupChatRepository: GroupChatRepository,
     private val firebaseAuth: FirebaseAuth
 ) {
+    private val TAG = "CreateGroupUseCase"
     /**
      * Creates a new group chat with the specified parameters.
      *
@@ -88,7 +90,10 @@ class CreateGroupUseCase @Inject constructor(
                 if (imageUploadResult.isFailure) {
                     // Log the image upload failure but don't fail the entire group creation
                     // The group was created successfully, just without the image
-                    println("Warning: Group created successfully but image upload failed: ${imageUploadResult.exceptionOrNull()?.message}")
+                    Log.w(
+                        TAG,
+                        "Group created successfully but image upload failed: ${imageUploadResult.exceptionOrNull()?.message}"
+                    )
                 }
             }
 

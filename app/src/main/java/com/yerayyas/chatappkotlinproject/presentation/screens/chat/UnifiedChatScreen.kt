@@ -73,7 +73,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -82,9 +81,9 @@ import androidx.navigation.NavHostController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
-import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import com.yerayyas.chatappkotlinproject.presentation.components.ErrorState
 import com.yerayyas.chatappkotlinproject.presentation.components.LoadingState
+import com.yerayyas.chatappkotlinproject.presentation.components.MessageStatusIndicator
 import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndActions
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatType
@@ -206,9 +205,6 @@ fun UnifiedChatScreen(
 
                 // TopAppBar height in pixels
                 val topAppBarHeightPx = with(density) { Constants.TOP_APP_BAR_HEIGHT.toPx() }
-
-                // LazyColumn content padding (8dp top + 8dp bottom)
-                val lazyColumnContentPaddingPx = with(density) { 16.dp.toPx() }
 
                 // Calculate the actual bottom boundary based on current state
                 val bottomBoundaryPx = if (isKeyboardOpen) {
@@ -719,7 +715,6 @@ private fun UnifiedMessageBubble(
                     ReplyBubbleContent(
                         message = message,
                         isFromCurrentUser = isFromCurrentUser,
-                        isGroup = isGroup,
                         currentUserId = currentUserId,
                         chatName = chatName,
                         onReplyClick = onReplyClick,
@@ -794,17 +789,19 @@ private fun UnifiedMessageBubble(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = formatTimestamp(message.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = textColor.copy(alpha = 0.7f)
-                    )
-
                     if (isFromCurrentUser) {
-                        Spacer(modifier = Modifier.width(4.dp))
                         MessageStatusIndicator(
                             readStatus = message.getReadStatus(),
-                            tint = textColor.copy(alpha = 0.7f)
+                            timestamp = message.timestamp,
+                            isOwnMessage = true,
+                            showTime = true,
+                            animated = true
+                        )
+                    } else {
+                        Text(
+                            text = formatTimestamp(message.timestamp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = textColor.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -984,33 +981,6 @@ private fun EmptyChatState(
     }
 }
 
-/**
- * Message status indicator
- */
-@Composable
-private fun MessageStatusIndicator(
-    readStatus: ReadStatus,
-    tint: Color
-) {
-    val statusText = when (readStatus) {
-        ReadStatus.SENT -> "✓"
-        ReadStatus.DELIVERED -> "✓✓"
-        ReadStatus.READ -> "✓✓"
-    }
-
-    val statusColor = if (readStatus == ReadStatus.READ) {
-        Color(0xFF4CAF50) // Green for read
-    } else {
-        tint
-    }
-
-    Text(
-        text = statusText,
-        style = MaterialTheme.typography.bodySmall,
-        color = statusColor,
-        fontSize = 10.sp
-    )
-}
 
 /**
  * Format message with mentions (@username)
@@ -1052,7 +1022,6 @@ private fun formatMessageWithMentions(message: String): AnnotatedString {
 private fun ReplyBubbleContent(
     message: UnifiedMessage,
     isFromCurrentUser: Boolean,
-    isGroup: Boolean,
     currentUserId: String,
     chatName: String,
     onReplyClick: () -> Unit,

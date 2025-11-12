@@ -39,10 +39,11 @@ import java.util.Locale
  * Key features:
  * - Displays group name with text overflow handling
  * - Shows last message or group description as fallback
- * - Indicates member count
+ * - Indicates member count with proper formatting
  * - Formats timestamps in a user-friendly way
  * - Uses Material Design 3 components for consistent styling
  * - Supports click navigation to group chat screen
+ * - Displays group avatar with default icon
  *
  * @param groupChat The [GroupChat] data to display
  * @param onGroupClick Callback invoked when the group item is clicked, receives group ID
@@ -70,7 +71,6 @@ fun GroupChatItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Group avatar
             GroupAvatar(
                 groupImageUrl = groupChat.imageUrl,
                 groupName = groupChat.name,
@@ -79,58 +79,72 @@ fun GroupChatItem(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Group information
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Group name
-                    Text(
-                        text = groupChat.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+            GroupInfoSection(
+                groupChat = groupChat,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
 
-                    // Last activity date
-                    Text(
-                        text = formatTimestamp(groupChat.lastActivity),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+/**
+ * Group information section component.
+ *
+ * Displays the group name, last message/description, member count, and timestamp
+ * in an organized layout with proper text overflow handling.
+ *
+ * @param groupChat The group chat data to display
+ * @param modifier Optional [Modifier] for customizing layout and styling
+ */
+@Composable
+private fun GroupInfoSection(
+    groupChat: GroupChat,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = groupChat.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
 
-                // Additional information
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Last message or description
-                    Text(
-                        text = groupChat.lastMessage?.message ?: groupChat.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+            Text(
+                text = formatTimestamp(groupChat.lastActivity),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-                    // Member count
-                    Text(
-                        text = "${groupChat.memberIds.size} members",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = groupChat.lastMessage?.message ?: groupChat.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "${groupChat.memberIds.size} members",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -139,10 +153,12 @@ fun GroupChatItem(
  * Group avatar component with default group icon.
  *
  * Currently displays a default group icon since image loading is not implemented.
- * Future enhancement: Add support for custom group images.
+ * The avatar uses a circular design with consistent styling and proper accessibility.
  *
- * @param groupImageUrl URL of the group image (currently unused)
- * @param groupName Name of the group for accessibility
+ * Future enhancement: Add support for custom group images with Glide integration.
+ *
+ * @param groupImageUrl URL of the group image (currently unused but prepared for future use)
+ * @param groupName Name of the group for accessibility purposes
  * @param modifier Optional [Modifier] for customizing layout and styling
  */
 @Composable
@@ -152,11 +168,9 @@ private fun GroupAvatar(
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier
-            .clip(CircleShape),
+        modifier = modifier.clip(CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        // Default avatar with group icon (no image support yet)
         Card(
             modifier = Modifier.size(50.dp),
             shape = CircleShape,
@@ -182,7 +196,7 @@ private fun GroupAvatar(
 /**
  * Formats timestamp to display date in a user-friendly way.
  *
- * Formatting rules:
+ * The formatting rules provide intuitive time representations:
  * - "Now" if less than 1 hour ago
  * - "{x}h" if less than 24 hours ago
  * - "Yesterday" if less than 48 hours ago

@@ -18,13 +18,21 @@ import java.util.*
 /**
  * A composable function that displays a single chat item in the chat list.
  *
- * It shows the other user's name, the last message sent in the conversation,
- * the number of unread messages (if any), and a formatted timestamp.
- * The whole item is clickable and triggers the [onClick] callback when tapped.
+ * This component renders a chat conversation item showing essential information including
+ * the other user's name, the last message preview, unread message count, and timestamp.
+ * The entire item is clickable and provides proper Material Design 3 styling.
  *
- * @param chat The [ChatListItem] containing the data to be displayed.
- * @param onClick Lambda function to be executed when the item is clicked.
- * @param modifier Optional [Modifier] for customizing layout and styling.
+ * Key features:
+ * - Username display with proper styling
+ * - Last message preview with text overflow handling
+ * - Unread message badge with count indicator
+ * - Human-readable timestamp formatting
+ * - Clickable interaction with ripple effect
+ * - Consistent card-based layout
+ *
+ * @param chat The [ChatListItem] containing the data to be displayed
+ * @param onClick Lambda function to be executed when the item is clicked
+ * @param modifier Optional [Modifier] for customizing layout and styling
  */
 @Composable
 fun ChatListItem(
@@ -55,21 +63,7 @@ fun ChatListItem(
                         style = MaterialTheme.typography.titleMedium
                     )
                     if (chat.unreadCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = chat.unreadCount.toString(),
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+                        UnreadCountBadge(count = chat.unreadCount)
                     }
                 }
                 Text(
@@ -89,15 +83,43 @@ fun ChatListItem(
 }
 
 /**
+ * A composable that displays an unread message count badge.
+ *
+ * This component renders a circular badge with the unread message count,
+ * providing visual feedback for unread conversations.
+ *
+ * @param count The number of unread messages to display
+ */
+@Composable
+private fun UnreadCountBadge(count: Int) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primary,
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = count.toString(),
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+/**
  * Formats a given timestamp into a human-readable string.
  *
+ * The formatting follows a progressive pattern based on message recency:
  * - "Now" if less than an hour ago
  * - "{x} h" if less than 24 hours ago
  * - "{x} d" if within the last 7 days
- * - "dd/MM/yy" format otherwise
+ * - "dd/MM/yy" format for older messages
  *
- * @param timestamp The timestamp in milliseconds.
- * @return A formatted time string representing the recency of the message.
+ * @param timestamp The timestamp in milliseconds
+ * @return A formatted time string representing the recency of the message
  */
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)

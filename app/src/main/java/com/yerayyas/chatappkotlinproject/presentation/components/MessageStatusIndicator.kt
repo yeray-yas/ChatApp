@@ -18,18 +18,20 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Visual indicator of message status with animations.
+ * Visual indicator of message status with smooth animations.
  *
- * This component displays the delivery and read status of messages with smooth animations.
- * It shows different icons and colors based on the message status (sent, delivered, read)
- * and includes timestamp information. The component only displays for the user's own messages.
+ * This component displays the delivery and read status of messages with elegant animations
+ * and follows WhatsApp-style design patterns. It shows different icons and colors based
+ * on the message status (sent, delivered, read) and includes timestamp information.
+ * The component only displays for the user's own messages to maintain chat symmetry.
  *
  * Key features:
  * - Animated status transitions with fade and scale effects
  * - WhatsApp-style color coding (gray for sent/delivered, green for read)
  * - Timestamp display with customizable formatting
- * - Special glow animation for read messages
+ * - Special glow animation for read messages to draw attention
  * - Only visible for user's own messages (not for received messages)
+ * - Configurable animation and time display options
  *
  * @param readStatus Current status of the message (SENT, DELIVERED, READ)
  * @param timestamp Message timestamp in milliseconds
@@ -55,12 +57,7 @@ fun MessageStatusIndicator(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (showTime) {
-            Text(
-                text = formatTime(timestamp),
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
+            TimestampText(timestamp = timestamp)
         }
 
         AnimatedVisibility(
@@ -77,12 +74,33 @@ fun MessageStatusIndicator(
 }
 
 /**
- * Status icon component with animations.
+ * Timestamp text component with consistent styling.
+ *
+ * Displays the message timestamp in a subtle, readable format
+ * that complements the status indicator.
+ *
+ * @param timestamp The timestamp in milliseconds to display
+ */
+@Composable
+private fun TimestampText(timestamp: Long) {
+    Text(
+        text = formatTime(timestamp),
+        style = MaterialTheme.typography.labelSmall,
+        fontSize = 11.sp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    )
+}
+
+/**
+ * Status icon component with sophisticated animations.
  *
  * Displays the appropriate icon and color based on message read status:
  * - SENT: Single checkmark, gray color
  * - DELIVERED: Double checkmark, gray color
- * - READ: Double checkmark, green color with glow animation
+ * - READ: Double checkmark, green color with optional glow animation
+ *
+ * The component provides visual feedback about message delivery and read status
+ * following familiar messaging app conventions.
  *
  * @param readStatus Current status of the message
  * @param animated Whether to apply special animations (glow effect for read status)
@@ -113,25 +131,10 @@ private fun StatusIcon(
     }
 
     if (animated && readStatus == ReadStatus.READ) {
-        // Special animation for read messages
-        val infiniteTransition = rememberInfiniteTransition(label = "read_glow")
-        val alpha by infiniteTransition.animateFloat(
-            initialValue = 0.7f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1000, easing = EaseInOut),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "glow_animation"
-        )
-
-        Icon(
-            imageVector = icon,
-            contentDescription = description,
-            modifier = Modifier
-                .size(16.dp)
-                .alpha(alpha),
-            tint = color
+        ReadStatusIcon(
+            icon = icon,
+            color = color,
+            description = description
         )
     } else {
         Icon(
@@ -144,7 +147,47 @@ private fun StatusIcon(
 }
 
 /**
+ * Animated read status icon with glow effect.
+ *
+ * Provides a subtle pulsing animation for read messages to draw attention
+ * and provide clear visual feedback that the message has been seen.
+ *
+ * @param icon The icon to display
+ * @param color The color to apply
+ * @param description Content description for accessibility
+ */
+@Composable
+private fun ReadStatusIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    description: String
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "read_glow")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow_animation"
+    )
+
+    Icon(
+        imageVector = icon,
+        contentDescription = description,
+        modifier = Modifier
+            .size(16.dp)
+            .alpha(alpha),
+        tint = color
+    )
+}
+
+/**
  * Formats the timestamp to time format (HH:mm).
+ *
+ * Provides a consistent time format across the application
+ * using the device's default locale for proper localization.
  *
  * @param timestamp The timestamp in milliseconds to format
  * @return A formatted time string in HH:mm format

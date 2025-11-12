@@ -67,7 +67,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Pantalla que muestra la lista de grupos del usuario
+ * Screen that displays the user's group list
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +82,7 @@ fun GroupListScreen(
     val scope = rememberCoroutineScope()
     var showSearch by remember { mutableStateOf(false) }
 
-    // Manejar errores y mensajes
+    // Handle errors and messages
     LaunchedEffect(uiState.error, uiState.message) {
         val error = uiState.error
         val message = uiState.message
@@ -127,7 +127,7 @@ fun GroupListScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Crear grupo",
+                    contentDescription = "Create group",
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -142,14 +142,14 @@ fun GroupListScreen(
             when {
                 uiState.isLoading && filteredGroups.isEmpty() -> {
                     LoadingState(
-                        message = "Cargando grupos...",
+                        message = "Loading groups...",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
                 uiState.error != null && filteredGroups.isEmpty() -> {
                     ErrorState(
-                        message = uiState.error ?: "Error desconocido",
+                        message = uiState.error ?: "Unknown error",
                         onRetry = { viewModel.refreshGroups() },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -170,7 +170,7 @@ fun GroupListScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Estadísticas rápidas
+                        // Quick statistics
                         item {
                             GroupStatsCard(
                                 stats = viewModel.getGroupsStats(),
@@ -178,7 +178,7 @@ fun GroupListScreen(
                             )
                         }
 
-                        // Lista de grupos
+                        // Groups list
                         items(filteredGroups) { group ->
                             GroupListItem(
                                 group = group,
@@ -190,7 +190,7 @@ fun GroupListScreen(
                             )
                         }
 
-                        // Espaciado para el FAB
+                        // Spacing for FAB
                         item {
                             Spacer(modifier = Modifier.height(80.dp))
                         }
@@ -202,7 +202,7 @@ fun GroupListScreen(
 }
 
 /**
- * Barra superior para la lista de grupos
+ * Top bar for the group list
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -214,13 +214,13 @@ private fun GroupListTopBar(
         title = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Mis Grupos",
+                    text = "My Groups",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 if (groupsCount > 0) {
                     Text(
-                        text = "$groupsCount ${if (groupsCount == 1) "grupo" else "grupos"}",
+                        text = "$groupsCount ${if (groupsCount == 1) "group" else "groups"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -231,7 +231,7 @@ private fun GroupListTopBar(
             IconButton(onClick = onSearchClick) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Buscar grupos"
+                    contentDescription = "Search groups"
                 )
             }
         },
@@ -242,7 +242,7 @@ private fun GroupListTopBar(
 }
 
 /**
- * Barra superior de búsqueda
+ * Search top bar
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -256,7 +256,7 @@ private fun SearchTopBar(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                placeholder = { Text("Buscar grupos...") },
+                placeholder = { Text("Search groups...") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 singleLine = true
@@ -266,7 +266,7 @@ private fun SearchTopBar(
             IconButton(onClick = onCloseSearch) {
                 Icon(
                     imageVector = Icons.Default.Clear,
-                    contentDescription = "Cerrar búsqueda"
+                    contentDescription = "Close search"
                 )
             }
         },
@@ -277,7 +277,7 @@ private fun SearchTopBar(
 }
 
 /**
- * Card con estadísticas de grupos
+ * Card with group statistics
  */
 @Composable
 private fun GroupStatsCard(
@@ -308,7 +308,7 @@ private fun GroupStatsCard(
             )
             StatItem(
                 value = stats.recentActivity,
-                label = "Activos",
+                label = "Active",
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
@@ -316,7 +316,7 @@ private fun GroupStatsCard(
 }
 
 /**
- * Item individual de estadística
+ * Item individual of statistic
  */
 @Composable
 private fun StatItem(
@@ -340,7 +340,7 @@ private fun StatItem(
 }
 
 /**
- * Item de grupo en la lista
+ * Item of group in the list
  */
 @Composable
 private fun GroupListItem(
@@ -362,7 +362,7 @@ private fun GroupListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar del grupo
+            // Avatar of the group
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -371,7 +371,7 @@ private fun GroupListItem(
                 contentAlignment = Alignment.Center
             ) {
                 if (group.imageUrl?.isNotEmpty() == true) {
-                    // TODO: Cargar imagen real cuando esté implementado
+                    // TODO: Load real image when implemented
                     Icon(
                         imageVector = Icons.Default.Group,
                         contentDescription = null,
@@ -390,7 +390,7 @@ private fun GroupListItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Información del grupo
+            // Group information
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -428,7 +428,7 @@ private fun GroupListItem(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "${group.memberIds.size} miembros",
+                    text = "${group.memberIds.size} members",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -448,7 +448,7 @@ private fun GroupListItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Timestamp de última actividad
+            // Timestamp of last activity
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = formatLastActivity(group.lastActivity),
@@ -472,7 +472,7 @@ private fun GroupListItem(
 }
 
 /**
- * Estado vacío cuando no hay grupos
+ * Empty state when there are no groups
  */
 @Composable
 private fun EmptyGroupsState(
@@ -494,7 +494,7 @@ private fun EmptyGroupsState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No tienes grupos aún",
+            text = "You don't have any groups yet",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -503,7 +503,7 @@ private fun EmptyGroupsState(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Crea tu primer grupo para empezar a chatear con múltiples personas",
+            text = "Create your first group to start chatting with multiple people",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
@@ -518,7 +518,7 @@ private fun EmptyGroupsState(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Crear grupo",
+                contentDescription = "Create group",
                 tint = MaterialTheme.colorScheme.onPrimary
             )
         }
@@ -526,7 +526,7 @@ private fun EmptyGroupsState(
 }
 
 /**
- * Formatea la última actividad del grupo
+ * Formats the group's last activity
  */
 private fun formatLastActivity(timestamp: Long): String {
     val date = Date(timestamp)
@@ -538,7 +538,7 @@ private fun formatLastActivity(timestamp: Long): String {
     val diffInDays = diffInHours / 24
 
     return when {
-        diffInMinutes < 1 -> "Ahora"
+        diffInMinutes < 1 -> "Now"
         diffInMinutes < 60 -> "${diffInMinutes}m"
         diffInHours < 24 -> "${diffInHours}h"
         diffInDays < 7 -> "${diffInDays}d"
@@ -547,7 +547,7 @@ private fun formatLastActivity(timestamp: Long): String {
 }
 
 /**
- * Obtiene el ID del usuario actual
+ * Gets the current user ID
  */
 private fun getCurrentUserId(): String {
     return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""

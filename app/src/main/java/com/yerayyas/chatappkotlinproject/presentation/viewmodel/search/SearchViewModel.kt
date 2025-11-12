@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
 import com.yerayyas.chatappkotlinproject.domain.repository.ChatRepository
-import com.yerayyas.chatappkotlinproject.domain.usecases.SearchMessagesUseCase
 import com.yerayyas.chatappkotlinproject.presentation.components.SearchFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -23,7 +22,6 @@ data class SearchState(
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val searchMessagesUseCase: SearchMessagesUseCase
 ) : ViewModel() {
 
     private val _searchState = MutableStateFlow(SearchState())
@@ -188,13 +186,4 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Clears the current search state and results.
-     *
-     * Resets the search query, filters, and results to their initial state.
-     */
-    fun clearSearch() {
-        _searchState.value = SearchState()
-        _searchResults.value = emptyList()
-    }
 }

@@ -60,7 +60,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Pantalla de información y gestión de un grupo específico
+ * Screen for information and management of a specific group
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,8 +73,8 @@ fun GroupInfoScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Obtener información del grupo (por ahora usamos el ViewModel de lista)
-    // En una implementación real, tendrías un ViewModel específico para GroupInfo
+    // Get group information (for now we use the list ViewModel)
+    // In a real implementation, you would have a specific ViewModel for GroupInfo
 
     LaunchedEffect(uiState.error, uiState.message) {
         val error = uiState.error
@@ -98,7 +98,7 @@ fun GroupInfoScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Información del Grupo",
+                        text = "Group Information",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -107,17 +107,17 @@ fun GroupInfoScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver"
+                            contentDescription = "Back"
                         )
                     }
                 },
                 actions = {
                     IconButton(onClick = {
-                        // TODO: Navegar a configuraciones del grupo
+                        // TODO: Navigate to group settings
                     }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Configuraciones"
+                            contentDescription = "Settings"
                         )
                     }
                 },
@@ -129,13 +129,13 @@ fun GroupInfoScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // TODO: Añadir nuevos miembros
+                    // TODO: Add new members
                 },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
                     imageVector = Icons.Default.PersonAdd,
-                    contentDescription = "Añadir miembro",
+                    contentDescription = "Add member",
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -150,21 +150,21 @@ fun GroupInfoScreen(
             when {
                 uiState.isLoading -> {
                     LoadingState(
-                        message = "Cargando información del grupo...",
+                        message = "Loading group information...",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
                 uiState.error != null -> {
                     ErrorState(
-                        message = uiState.error ?: "Error desconocido",
+                        message = uiState.error ?: "Unknown error",
                         onRetry = { viewModel.refreshGroups() },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
                 else -> {
-                    // Por ahora mostramos datos mock hasta implementar el ViewModel específico
+                    // For now we show mock data until implementing the specific ViewModel
                     GroupInfoContent(
                         group = getMockGroup(groupId),
                         members = getMockMembers(),
@@ -178,7 +178,7 @@ fun GroupInfoScreen(
 }
 
 /**
- * Contenido principal de la información del grupo
+ * Main content of group information
  */
 @Composable
 private fun GroupInfoContent(
@@ -192,7 +192,7 @@ private fun GroupInfoContent(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Información básica del grupo
+        // Basic group information
         item {
             GroupBasicInfoCard(
                 group = group,
@@ -200,10 +200,10 @@ private fun GroupInfoContent(
             )
         }
 
-        // Lista de miembros
+        // Members list
         item {
             Text(
-                text = "Miembros (${members.size})",
+                text = "Members (${members.size})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -218,7 +218,7 @@ private fun GroupInfoContent(
             )
         }
 
-        // Espaciado para el FAB
+        // Spacing for FAB
         item {
             Spacer(modifier = Modifier.height(80.dp))
         }
@@ -226,7 +226,7 @@ private fun GroupInfoContent(
 }
 
 /**
- * Card con información básica del grupo
+ * Card with basic group information
  */
 @Composable
 private fun GroupBasicInfoCard(
@@ -243,7 +243,7 @@ private fun GroupBasicInfoCard(
             modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Avatar del grupo
+            // Group avatar
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -261,7 +261,7 @@ private fun GroupBasicInfoCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Nombre del grupo
+            // Group name
             Text(
                 text = group.name,
                 style = MaterialTheme.typography.headlineSmall,
@@ -272,9 +272,9 @@ private fun GroupBasicInfoCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Descripción
+            // Description
             Text(
-                text = group.description.ifEmpty { "Sin descripción" },
+                text = group.description.ifEmpty { "No description" },
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -282,23 +282,23 @@ private fun GroupBasicInfoCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Información adicional
+            // Additional information
             Row(
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 InfoItem(
-                    label = "Miembros",
+                    label = "Members",
                     value = group.memberIds.size.toString(),
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 InfoItem(
-                    label = "Creado",
+                    label = "Created",
                     value = formatCreationDate(group.createdAt),
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 if (isAdmin) {
                     InfoItem(
-                        label = "Rol",
+                        label = "Role",
                         value = "Admin",
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -309,7 +309,7 @@ private fun GroupBasicInfoCard(
 }
 
 /**
- * Item de información
+ * Item of information
  */
 @Composable
 private fun InfoItem(
@@ -333,7 +333,7 @@ private fun InfoItem(
 }
 
 /**
- * Item de miembro en la lista
+ * Member item in the list
  */
 @Composable
 private fun MemberListItem(
@@ -354,7 +354,7 @@ private fun MemberListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar del miembro
+            // Member avatar
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -378,7 +378,7 @@ private fun MemberListItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = if (isCurrentUser) "${member.username} (Tú)" else member.username,
+                        text = if (isCurrentUser) "${member.username} (You)" else member.username,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -396,7 +396,7 @@ private fun MemberListItem(
                 }
 
                 Text(
-                    text = if (member.isOnline) "En línea" else "Desconectado",
+                    text = if (member.isOnline) "Online" else "Offline",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (member.isOnline)
                         MaterialTheme.colorScheme.primary
@@ -405,16 +405,16 @@ private fun MemberListItem(
                 )
             }
 
-            // Acciones (solo para admins)
+            // Actions (only for admins)
             if (canManageMembers && !isCurrentUser) {
                 IconButton(
                     onClick = {
-                        // TODO: Mostrar opciones de gestión de miembro
+                        // TODO: Show member management options
                     }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Gestionar miembro",
+                        contentDescription = "Manage member",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -424,7 +424,7 @@ private fun MemberListItem(
 }
 
 /**
- * Formatea la fecha de creación
+ * Formats the creation date
  */
 private fun formatCreationDate(timestamp: Long): String {
     val date = Date(timestamp)
@@ -432,24 +432,24 @@ private fun formatCreationDate(timestamp: Long): String {
 }
 
 /**
- * Obtiene un grupo mock para demostración
+ * Gets a mock group for demonstration
  */
 private fun getMockGroup(groupId: String): GroupChat {
     return GroupChat(
         id = groupId,
-        name = "Grupo de Prueba",
-        description = "Este es un grupo de prueba para la aplicación",
+        name = "Test Group",
+        description = "This is a test group for the application",
         memberIds = listOf("user1", "user2", "user3", "user4"),
         adminIds = listOf("user1"),
         createdBy = "user1",
-        createdAt = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000), // Hace 7 días
+        createdAt = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000), // 7 days ago
         lastActivity = System.currentTimeMillis() - 3600000,
         isActive = true
     )
 }
 
 /**
- * Obtiene miembros mock para demostración
+ * Gets mock members for demonstration
  */
 private fun getMockMembers(): List<User> {
     return listOf(
@@ -489,7 +489,7 @@ private fun getMockMembers(): List<User> {
 }
 
 /**
- * Obtiene el ID del usuario actual
+ * Gets the current user ID
  */
 private fun getCurrentUserId(): String {
     return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "user1"

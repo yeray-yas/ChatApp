@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel para la lista de grupos del usuario
+ * ViewModel for the user's group list
  */
 @HiltViewModel
 class GroupListViewModel @Inject constructor(
@@ -39,7 +39,7 @@ class GroupListViewModel @Inject constructor(
     }
 
     /**
-     * Carga los grupos del usuario
+     * Loads the user's groups
      */
     fun loadUserGroups() {
         viewModelScope.launch {
@@ -50,7 +50,7 @@ class GroupListViewModel @Inject constructor(
                     .catch { exception ->
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            error = "Error al cargar grupos: ${exception.message}"
+                            error = "Error loading groups: ${exception.message}"
                         )
                     }
                     .collect { groupList ->
@@ -62,14 +62,14 @@ class GroupListViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Error al cargar grupos: ${e.message}"
+                    error = "Error loading groups: ${e.message}"
                 )
             }
         }
     }
 
     /**
-     * Actualiza la consulta de búsqueda
+     * Updates the search query
      */
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
@@ -77,7 +77,7 @@ class GroupListViewModel @Inject constructor(
     }
 
     /**
-     * Limpia la búsqueda
+     * Clears the search
      */
     fun clearSearch() {
         _searchQuery.value = ""
@@ -85,7 +85,7 @@ class GroupListViewModel @Inject constructor(
     }
 
     /**
-     * Abandona un grupo
+     * Leaves a group
      */
     fun leaveGroup(groupId: String, userName: String) {
         viewModelScope.launch {
@@ -95,40 +95,40 @@ class GroupListViewModel @Inject constructor(
                 val result = manageGroupMembersUseCase.leaveGroup(groupId, userName)
 
                 if (result.isSuccess) {
-                    // Remover el grupo de la lista local
+                    // Remove the group from the local list
                     val updatedGroups = _groups.value.filter { it.id != groupId }
                     _groups.value = updatedGroups
                     applySearchFilter()
 
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        message = "Has abandonado el grupo exitosamente"
+                        message = "You have successfully left the group"
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = result.exceptionOrNull()?.message ?: "Error al abandonar grupo"
+                        error = result.exceptionOrNull()?.message ?: "Error leaving group"
                     )
                 }
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Error al abandonar grupo: ${e.message}"
+                    error = "Error leaving group: ${e.message}"
                 )
             }
         }
     }
 
     /**
-     * Refresca la lista de grupos
+     * Refreshes the group list
      */
     fun refreshGroups() {
         loadUserGroups()
     }
 
     /**
-     * Obtiene estadísticas de los grupos
+     * Gets group statistics
      */
     fun getGroupsStats(): GroupsStats {
         val allGroups = _groups.value
@@ -147,16 +147,16 @@ class GroupListViewModel @Inject constructor(
     }
 
     /**
-     * Obtiene grupos por categoría
+     * Gets groups by category
      */
     fun getGroupsByCategory(): Map<String, List<GroupChat>> {
         val allGroups = _filteredGroups.value
         val currentUserId = getUserGroupsUseCase.getCurrentUserId()
 
         return mapOf(
-            "Administrados" to allGroups.filter { it.isAdmin(currentUserId) },
-            "Miembro" to allGroups.filter { !it.isAdmin(currentUserId) },
-            "Recientes" to allGroups.filter { group ->
+            "Administered" to allGroups.filter { it.isAdmin(currentUserId) },
+            "Member" to allGroups.filter { !it.isAdmin(currentUserId) },
+            "Recent" to allGroups.filter { group ->
                 val dayInMillis = 24 * 60 * 60 * 1000
                 System.currentTimeMillis() - group.lastActivity < dayInMillis
             }
@@ -164,25 +164,25 @@ class GroupListViewModel @Inject constructor(
     }
 
     /**
-     * Verifica si un grupo tiene mensajes no leídos
+     * Checks if a group has unread messages
      */
     fun hasUnreadMessages(groupId: String): Boolean {
-        // TODO: Implementar lógica de mensajes no leídos
-        // Por ahora retorna false
+        // TODO: Implement unread messages logic
+        // For now returns false
         return false
     }
 
     /**
-     * Obtiene el número de mensajes no leídos para un grupo
+     * Gets the number of unread messages for a group
      */
     fun getUnreadCount(groupId: String): Int {
-        // TODO: Implementar conteo de mensajes no leídos
-        // Por ahora retorna 0
+        // TODO: Implement unread message count
+        // For now returns 0
         return 0
     }
 
     /**
-     * Aplica filtro de búsqueda
+     * Applies search filter
      */
     private fun applySearchFilter() {
         val query = _searchQuery.value.lowercase().trim()
@@ -198,21 +198,21 @@ class GroupListViewModel @Inject constructor(
     }
 
     /**
-     * Obtiene información de un grupo específico
+     * Gets information for a specific group
      */
     suspend fun getGroupInfo(groupId: String): GroupChat? {
         return getUserGroupsUseCase.getGroupById(groupId)
     }
 
     /**
-     * Verifica si el usuario es administrador de un grupo
+     * Checks if the user is an admin of a group
      */
     suspend fun isUserAdmin(groupId: String): Boolean {
         return getUserGroupsUseCase.isUserAdminOfGroup(groupId)
     }
 
     /**
-     * Limpia errores y mensajes
+     * Clears errors and messages
      */
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(error = null, message = null)
@@ -220,17 +220,16 @@ class GroupListViewModel @Inject constructor(
 }
 
 /**
- * Estado de UI para la lista de grupos
+ * UI state for the group list
  */
 data class GroupListUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val message: String? = null,
-    val isRefreshing: Boolean = false
+    val message: String? = null
 )
 
 /**
- * Estadísticas de grupos del usuario
+ * Group statistics
  */
 data class GroupsStats(
     val totalGroups: Int = 0,
@@ -240,9 +239,9 @@ data class GroupsStats(
 )
 
 /**
- * Función de extensión para obtener el ID del usuario actual
+ * Extension function to get the current user's ID
  */
 private fun GetUserGroupsUseCase.getCurrentUserId(): String {
-    // Implementación temporal hasta que GetUserGroupsUseCase tenga acceso al FirebaseAuth
+    // Temporary implementation until GetUserGroupsUseCase has access to FirebaseAuth
     return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
 }

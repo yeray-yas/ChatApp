@@ -42,7 +42,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -73,6 +77,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.UserListItem
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.ChatsListViewModel
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -171,7 +176,7 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    // Botón para acceder a grupos
+                    // Button to access groups
                     IconButton(onClick = {
                         navController.navigate(Routes.GroupList.route)
                     }) {
@@ -288,29 +293,41 @@ fun HomeScreen(
  * @param viewModel ViewModel managing user data and search state.
  * @param navController Navigation controller for navigating to user chat screens.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UsersScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     navController: NavController
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
-    var isActive by remember { mutableStateOf(false) }
+    val users by viewModel.users.collectAsState()
+    var showNoUsersFound by remember { mutableStateOf(false) }
+
+    // Show "No users found" after a short delay only if search query is active & no users
+    LaunchedEffect(searchQuery, users) {
+        if (searchQuery.isNotEmpty() && users.isEmpty()) {
+            delay(600) // 600 ms delay before showing "No users found"
+            showNoUsersFound = true
+        } else {
+            showNoUsersFound = false
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(vertical = 8.dp)
     ) {
-        SearchBar(
-            query = searchQuery,
-            onQueryChange = { viewModel.onSearchQueryChanged(it) },
-            onSearch = { isActive = false },
-            active = isActive,
-            onActiveChange = { isActive = it },
-            modifier = Modifier.fillMaxWidth(),
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.onSearchQueryChanged(it) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(24.dp),
             placeholder = { Text("Find users...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Find") },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Find")
+            },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
@@ -318,12 +335,46 @@ private fun UsersScreen(
                     }
                 }
             },
-            content = {
-                UsersList(viewModel, navController)
-            }
+            singleLine = true,
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Search
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = { /* Hide keyboard or perform search if needed */ }
+            )
         )
-        if (!isActive) {
-            UsersList(viewModel, navController)
+        if (showNoUsersFound) {
+            // Special empty/search state
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "No users found",
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Oops! The user you're looking for doesn't exist.\nTry searching with a different username.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                )
+            }
+        } else {
+            UsersList(users, navController)
         }
     }
 }
@@ -331,15 +382,14 @@ private fun UsersScreen(
 /**
  * Displays a list of users in a vertically scrollable column.
  *
- * @param viewModel ViewModel providing user data.
+ * @param users List of users to display.
  * @param navController Navigation controller for navigating to individual chats.
  */
 @Composable
 private fun UsersList(
-    viewModel: HomeViewModel = hiltViewModel(),
+    users: List<com.yerayyas.chatappkotlinproject.data.model.User>,
     navController: NavController
 ) {
-    val users by viewModel.users.collectAsState()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -537,25 +587,6 @@ private fun EmptyGroupsState(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Create group")
-        }
-    }
-}
-
-/**
- * Formats the last activity in a readable format
- */
-private fun formatLastActivity(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-
-    return when {
-        diff < 60000 -> "Now" // less than 1 minute
-        diff < 3600000 -> "${diff / 60000}m" // less than 1 hour
-        diff < 86400000 -> "${diff / 3600000}h" // less than 1 day
-        diff < 604800000 -> "${diff / 86400000}d" // less than 1 week
-        else -> {
-            val date = java.util.Date(timestamp)
-            java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault()).format(date)
         }
     }
 }

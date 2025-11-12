@@ -1,6 +1,7 @@
 package com.yerayyas.chatappkotlinproject.data.repository
 
 import android.net.Uri
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -173,10 +174,11 @@ class GroupChatRepositoryImpl @Inject constructor(
     // ===== GROUP MESSAGING =====
 
     override suspend fun sendMessageToGroup(groupId: String, message: GroupMessage): Result<Unit> {
+        val TAG = "GroupChatRepository"
         return try {
-            println("DEBUG: Sending message to group $groupId")
-            println("DEBUG: Message content: ${message.message}")
-            println("DEBUG: Sender: ${message.senderId}")
+            Log.d(TAG, "Sending message to group $groupId")
+            Log.d(TAG, "Message content: ${message.message}")
+            Log.d(TAG, "Sender: ${message.senderId}")
 
             val reference = firebaseDatabase.reference
                 .child("group_messages")
@@ -186,19 +188,19 @@ class GroupChatRepositoryImpl @Inject constructor(
             val messageId = reference.key ?: throw Exception("Could not generate message ID")
             val messageWithId = message.copy(id = messageId, groupId = groupId)
 
-            println("DEBUG: Generated message ID: $messageId")
-            println("DEBUG: Saving to Firebase path: group_messages/$groupId/$messageId")
+            Log.d(TAG, "Generated message ID: $messageId")
+            Log.d(TAG, "Saving to Firebase path: group_messages/$groupId/$messageId")
 
             reference.setValue(messageWithId).await()
 
-            println("DEBUG: Message saved successfully to Firebase")
+            Log.d(TAG, "Message saved successfully to Firebase")
 
             // Update last activity of the group
             updateLastActivity(groupId, messageWithId)
 
             Result.success(Unit)
         } catch (e: Exception) {
-            println("DEBUG: Error sending message to group: ${e.message}")
+            Log.e("GroupChatRepository", "Error sending message to group: ${e.message}")
             Result.failure(e)
         }
     }
@@ -237,17 +239,23 @@ class GroupChatRepositoryImpl @Inject constructor(
                         val messagesList = snapshot.children.mapNotNull {
                             it.getValue(GroupMessage::class.java)
                         }.sortedBy { it.timestamp }
-                        println("DEBUG: Firebase returned ${messagesList.size} messages for group $groupId")
+                        Log.d(
+                            "GroupChatRepository",
+                            "Firebase returned ${messagesList.size} messages for group $groupId"
+                        )
                         trySend(messagesList)
                     } catch (e: Exception) {
-                        println("DEBUG: Error parsing Firebase messages: ${e.message}")
+                        Log.d(
+                            "GroupChatRepository",
+                            "Error parsing Firebase messages: ${e.message}"
+                        )
                         // If there is an error parsing, send an empty list instead of mock data
                         trySend(emptyList())
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    println("DEBUG: Firebase cancelled: ${error.message}")
+                    Log.d("GroupChatRepository", "Firebase cancelled: ${error.message}")
                     // In case of a Firebase error, send an empty list
                     trySend(emptyList())
                 }
@@ -471,31 +479,40 @@ class GroupChatRepositoryImpl @Inject constructor(
                             it.getValue(GroupChat::class.java)
                         }
 
-                        println("DEBUG: Firebase returned ${allGroups.size} total groups")
+                        Log.d(
+                            "GroupChatRepository",
+                            "Firebase returned ${allGroups.size} total groups"
+                        )
 
                         // Filter groups where the user is a member
                         val userGroups = allGroups.filter { group ->
                             group.memberIds.contains(userId)
                         }.sortedByDescending { it.lastActivity }
 
-                        println("DEBUG: User $userId is member of ${userGroups.size} groups")
+                        Log.d(
+                            "GroupChatRepository",
+                            "User $userId is member of ${userGroups.size} groups"
+                        )
 
                         // If no real groups are found, use mock data only in development
                         val groupsToSend = userGroups.ifEmpty {
-                            println("DEBUG: No real groups found, using mock data")
+                            Log.d("GroupChatRepository", "No real groups found, using mock data")
                             getMockGroups(userId)
                         }
 
                         trySend(groupsToSend)
                     } catch (e: Exception) {
-                        println("DEBUG: Error loading groups from Firebase: ${e.message}")
+                        Log.d(
+                            "GroupChatRepository",
+                            "Error loading groups from Firebase: ${e.message}"
+                        )
                         // In case of an error, use mock data as a fallback
                         trySend(getMockGroups(userId))
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    println("DEBUG: Firebase groups cancelled: ${error.message}")
+                    Log.d("GroupChatRepository", "Firebase groups cancelled: ${error.message}")
                     // In case of an error, use mock data as a fallback
                     trySend(getMockGroups(userId))
                 }

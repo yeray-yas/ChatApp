@@ -32,12 +32,12 @@ fun SettingsScreen(
     Column(modifier = modifier.fillMaxSize()) {
         // Top App Bar
         TopAppBar(
-            title = { Text("Configuración") },
+            title = { Text("Settings") },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver"
+                        contentDescription = "Back"
                     )
                 }
             },
@@ -51,29 +51,29 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Sección de Apariencia
+            // Appearance Section
             item {
                 SettingsSection(
-                    title = "Apariencia",
+                    title = "Appearance",
                     icon = Icons.Default.Palette
                 ) {
-                    // Tema
+                    // Theme
                     SettingItem(
-                        title = "Tema",
+                        title = "Theme",
                         subtitle = when (themePreferences.themeMode) {
-                            ThemeMode.SYSTEM -> "Seguir sistema"
-                            ThemeMode.LIGHT -> "Claro"
-                            ThemeMode.DARK -> "Oscuro"
+                            ThemeMode.SYSTEM -> "Follow system"
+                            ThemeMode.LIGHT -> "Light"
+                            ThemeMode.DARK -> "Dark"
                         },
                         icon = Icons.Default.DarkMode,
-                        onClick = { /* Se manejará con un diálogo */ }
+                        onClick = { /* Will be handled with a dialog */ }
                     ) {
                         var showThemeDialog by remember { mutableStateOf(false) }
 
                         TextButton(
                             onClick = { showThemeDialog = true }
                         ) {
-                            Text("Cambiar")
+                            Text("Change")
                         }
 
                         if (showThemeDialog) {
@@ -88,10 +88,10 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Colores dinámicos (Android 12+)
+                    // Dynamic colors (Android 12+)
                     SettingItem(
-                        title = "Colores dinámicos",
-                        subtitle = "Usar colores del fondo de pantalla",
+                        title = "Dynamic colors",
+                        subtitle = "Use colors from wallpaper",
                         icon = Icons.Default.ColorLens
                     ) {
                         Switch(
@@ -102,10 +102,10 @@ fun SettingsScreen(
                 }
             }
 
-            // Sección de Notificaciones
+            // Notifications Section
             item {
                 SettingsSection(
-                    title = "Notificaciones",
+                    title = "Notifications",
                     icon = Icons.Default.Notifications
                 ) {
                     var notificationsEnabled by remember { mutableStateOf(true) }
@@ -113,8 +113,8 @@ fun SettingsScreen(
                     var vibrationEnabled by remember { mutableStateOf(true) }
 
                     SettingItem(
-                        title = "Notificaciones push",
-                        subtitle = "Recibir notificaciones de mensajes",
+                        title = "Push notifications",
+                        subtitle = "Receive message notifications",
                         icon = Icons.Default.NotificationsActive
                     ) {
                         Switch(
@@ -124,8 +124,8 @@ fun SettingsScreen(
                     }
 
                     SettingItem(
-                        title = "Sonido",
-                        subtitle = "Reproducir sonido al recibir mensajes",
+                        title = "Sound",
+                        subtitle = "Play sound when receiving messages",
                         icon = Icons.AutoMirrored.Filled.VolumeUp,
                         enabled = notificationsEnabled
                     ) {
@@ -137,8 +137,8 @@ fun SettingsScreen(
                     }
 
                     SettingItem(
-                        title = "Vibración",
-                        subtitle = "Vibrar al recibir mensajes",
+                        title = "Vibration",
+                        subtitle = "Vibrate when receiving messages",
                         icon = Icons.Default.Vibration,
                         enabled = notificationsEnabled
                     ) {
@@ -151,7 +151,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Sección de Chat
+            // Chat Section
             item {
                 SettingsSection(
                     title = "Chat",
@@ -161,8 +161,8 @@ fun SettingsScreen(
                     var saveToGallery by remember { mutableStateOf(false) }
 
                     SettingItem(
-                        title = "Descarga automática",
-                        subtitle = "Descargar imágenes automáticamente",
+                        title = "Auto download",
+                        subtitle = "Download images automatically",
                         icon = Icons.Default.Download
                     ) {
                         Switch(
@@ -172,8 +172,8 @@ fun SettingsScreen(
                     }
 
                     SettingItem(
-                        title = "Guardar en galería",
-                        subtitle = "Guardar imágenes recibidas en la galería",
+                        title = "Save to gallery",
+                        subtitle = "Save received images to gallery",
                         icon = Icons.Default.Photo
                     ) {
                         Switch(
@@ -184,31 +184,31 @@ fun SettingsScreen(
                 }
             }
 
-            // Sección de Info
+            // Info Section
             item {
                 SettingsSection(
-                    title = "Información",
+                    title = "Information",
                     icon = Icons.Default.Info
                 ) {
                     SettingItem(
-                        title = "Versión",
-                        subtitle = "1.0.0 (Fase 2)",
+                        title = "Version",
+                        subtitle = "1.0.0 (Phase 2)",
                         icon = Icons.Default.AppSettingsAlt,
-                        onClick = { /* Mostrar changelog */ }
+                        onClick = { /* Show changelog */ }
                     )
 
                     SettingItem(
-                        title = "Desarrollador",
+                        title = "Developer",
                         subtitle = "Yeray Yas",
                         icon = Icons.Default.Person,
-                        onClick = { /* Abrir perfil */ }
+                        onClick = { /* Open profile */ }
                     )
 
                     SettingItem(
-                        title = "Código fuente",
-                        subtitle = "Ver en GitHub",
+                        title = "Source code",
+                        subtitle = "View on GitHub",
                         icon = Icons.Default.Code,
-                        onClick = { /* Abrir GitHub */ }
+                        onClick = { /* Open GitHub */ }
                     )
                 }
             }
@@ -336,7 +336,7 @@ private fun ThemeSelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Seleccionar tema") },
+        title = { Text("Select theme") },
         text = {
             Column {
                 ThemeMode.entries.forEach { theme ->
@@ -355,9 +355,9 @@ private fun ThemeSelectionDialog(
 
                         Text(
                             text = when (theme) {
-                                ThemeMode.SYSTEM -> "Seguir sistema"
-                                ThemeMode.LIGHT -> "Claro"
-                                ThemeMode.DARK -> "Oscuro"
+                                ThemeMode.SYSTEM -> "Follow system"
+                                ThemeMode.LIGHT -> "Light"
+                                ThemeMode.DARK -> "Dark"
                             }
                         )
                     }
@@ -366,7 +366,7 @@ private fun ThemeSelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text("Close")
             }
         }
     )

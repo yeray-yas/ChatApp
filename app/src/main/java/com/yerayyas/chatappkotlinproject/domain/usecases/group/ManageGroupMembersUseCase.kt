@@ -6,7 +6,7 @@ import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import javax.inject.Inject
 
 /**
- * Use case para gestionar miembros de un grupo
+ * Use case for managing group members
  */
 class ManageGroupMembersUseCase @Inject constructor(
     private val groupRepository: GroupChatRepository,
@@ -14,7 +14,7 @@ class ManageGroupMembersUseCase @Inject constructor(
     private val sendGroupMessageUseCase: SendGroupMessageUseCase
 ) {
     /**
-     * Añade un miembro al grupo
+     * Adds a member to the group
      */
     suspend fun addMember(
         groupId: String,
@@ -24,24 +24,24 @@ class ManageGroupMembersUseCase @Inject constructor(
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
-            // Verificar que el usuario actual puede añadir miembros
+            // Verify that the current user can add members
             val group = groupRepository.getGroupById(groupId)
-                ?: return Result.failure(Exception("Grupo no encontrado"))
+                ?: return Result.failure(Exception("Group not found"))
 
             if (!group.canAddMembers(currentUserId)) {
-                return Result.failure(Exception("No tienes permisos para añadir miembros"))
+                return Result.failure(Exception("You don't have permission to add members"))
             }
 
-            // Añadir el miembro
+            // Add the member
             val result = groupRepository.addMemberToGroup(groupId, userId)
 
             if (result.isSuccess) {
-                // Enviar mensaje de notificación
+                // Send notification message
                 sendGroupMessageUseCase.sendSystemMessage(
                     groupId = groupId,
-                    message = "$addedByName agregó a $userName al grupo",
+                    message = "$addedByName added $userName to the group",
                     systemMessageType = GroupActivityType.USER_ADDED
                 )
             }
@@ -53,7 +53,7 @@ class ManageGroupMembersUseCase @Inject constructor(
     }
 
     /**
-     * Elimina un miembro del grupo
+     * Removes a member from the group
      */
     suspend fun removeMember(
         groupId: String,
@@ -63,30 +63,30 @@ class ManageGroupMembersUseCase @Inject constructor(
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
-            // Verificar permisos
+            // Verify permissions
             val group = groupRepository.getGroupById(groupId)
-                ?: return Result.failure(Exception("Grupo no encontrado"))
+                ?: return Result.failure(Exception("Group not found"))
 
             if (!group.isAdmin(currentUserId) && currentUserId != userId) {
-                return Result.failure(Exception("No tienes permisos para eliminar este miembro"))
+                return Result.failure(Exception("You don't have permission to remove this member"))
             }
 
-            // No permitir que se elimine el creador del grupo
+            // Don't allow removing the group creator
             if (userId == group.createdBy) {
-                return Result.failure(Exception("No se puede eliminar al creador del grupo"))
+                return Result.failure(Exception("Cannot remove the group creator"))
             }
 
-            // Eliminar el miembro
+            // Remove the member
             val result = groupRepository.removeMemberFromGroup(groupId, userId)
 
             if (result.isSuccess) {
-                // Enviar mensaje de notificación
+                // Send notification message
                 val message = if (currentUserId == userId) {
-                    "$userName dejó el grupo"
+                    "$userName left the group"
                 } else {
-                    "$removedByName eliminó a $userName del grupo"
+                    "$removedByName removed $userName from the group"
                 }
 
                 sendGroupMessageUseCase.sendSystemMessage(
@@ -104,7 +104,7 @@ class ManageGroupMembersUseCase @Inject constructor(
     }
 
     /**
-     * Promueve un miembro a administrador
+     * Promotes a member to administrator
      */
     suspend fun promoteToAdmin(
         groupId: String,
@@ -114,28 +114,28 @@ class ManageGroupMembersUseCase @Inject constructor(
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
-            // Verificar que el usuario actual es admin
+            // Verify that the current user is admin
             val group = groupRepository.getGroupById(groupId)
-                ?: return Result.failure(Exception("Grupo no encontrado"))
+                ?: return Result.failure(Exception("Group not found"))
 
             if (!group.isAdmin(currentUserId)) {
-                return Result.failure(Exception("Solo los administradores pueden promover a otros miembros"))
+                return Result.failure(Exception("Only administrators can promote other members"))
             }
 
             if (group.isAdmin(userId)) {
-                return Result.failure(Exception("El usuario ya es administrador"))
+                return Result.failure(Exception("User is already an administrator"))
             }
 
-            // Promover a admin
+            // Promote to admin
             val result = groupRepository.makeAdmin(groupId, userId)
 
             if (result.isSuccess) {
-                // Enviar mensaje de notificación
+                // Send notification message
                 sendGroupMessageUseCase.sendSystemMessage(
                     groupId = groupId,
-                    message = "$promotedByName nombró administrador a $userName",
+                    message = "$promotedByName made $userName an administrator",
                     systemMessageType = GroupActivityType.ADMIN_ADDED
                 )
             }
@@ -147,7 +147,7 @@ class ManageGroupMembersUseCase @Inject constructor(
     }
 
     /**
-     * Quita privilegios de administrador a un miembro
+     * Removes administrator privileges from a member
      */
     suspend fun demoteAdmin(
         groupId: String,
@@ -157,33 +157,33 @@ class ManageGroupMembersUseCase @Inject constructor(
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
-            // Verificar permisos
+            // Verify permissions
             val group = groupRepository.getGroupById(groupId)
-                ?: return Result.failure(Exception("Grupo no encontrado"))
+                ?: return Result.failure(Exception("Group not found"))
 
             if (!group.isAdmin(currentUserId)) {
-                return Result.failure(Exception("Solo los administradores pueden quitar privilegios"))
+                return Result.failure(Exception("Only administrators can remove privileges"))
             }
 
             if (!group.isAdmin(userId)) {
-                return Result.failure(Exception("El usuario no es administrador"))
+                return Result.failure(Exception("User is not an administrator"))
             }
 
-            // No permitir que se degrade al creador del grupo
+            // Don't allow demoting the group creator
             if (userId == group.createdBy) {
-                return Result.failure(Exception("No se puede quitar privilegios al creador del grupo"))
+                return Result.failure(Exception("Cannot remove privileges from the group creator"))
             }
 
-            // Quitar privilegios de admin
+            // Remove admin privileges
             val result = groupRepository.removeAdmin(groupId, userId)
 
             if (result.isSuccess) {
-                // Enviar mensaje de notificación
+                // Send notification message
                 sendGroupMessageUseCase.sendSystemMessage(
                     groupId = groupId,
-                    message = "$demotedByName quitó privilegios de administrador a $userName",
+                    message = "$demotedByName removed administrator privileges from $userName",
                     systemMessageType = GroupActivityType.ADMIN_REMOVED
                 )
             }
@@ -195,7 +195,7 @@ class ManageGroupMembersUseCase @Inject constructor(
     }
 
     /**
-     * Abandona el grupo (usuario actual)
+     * Leaves the group (current user)
      */
     suspend fun leaveGroup(
         groupId: String,
@@ -203,17 +203,17 @@ class ManageGroupMembersUseCase @Inject constructor(
     ): Result<Unit> {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid
-                ?: return Result.failure(Exception("Usuario no autenticado"))
+                ?: return Result.failure(Exception("User not authenticated"))
 
-            // Verificar que no es el creador
+            // Verify that user is not the creator
             val group = groupRepository.getGroupById(groupId)
-                ?: return Result.failure(Exception("Grupo no encontrado"))
+                ?: return Result.failure(Exception("Group not found"))
 
             if (currentUserId == group.createdBy) {
-                return Result.failure(Exception("El creador del grupo no puede abandonarlo. Debe transferir la propiedad primero."))
+                return Result.failure(Exception("The group creator cannot leave. Must transfer ownership first."))
             }
 
-            // Abandonar el grupo
+            // Leave the group
             removeMember(
                 groupId = groupId,
                 userId = currentUserId,
@@ -226,7 +226,7 @@ class ManageGroupMembersUseCase @Inject constructor(
     }
 
     /**
-     * Obtiene la lista de miembros del grupo
+     * Gets the list of group members
      */
     suspend fun getGroupMembers(groupId: String): List<String> {
         return try {

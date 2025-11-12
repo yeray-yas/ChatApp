@@ -1,5 +1,6 @@
 package com.yerayyas.chatappkotlinproject.presentation.viewmodel.group
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val TAG = "CreateGroupViewModel"
 
 @HiltViewModel
 class CreateGroupViewModel @Inject constructor(
@@ -39,34 +42,34 @@ class CreateGroupViewModel @Inject constructor(
     }
 
     /**
-     * Carga la información del usuario actual primero
+     * Loads the current user information first
      */
     private fun loadCurrentUser() {
         viewModelScope.launch {
             try {
                 val user = userRepository.getCurrentUser()
                 _currentUser.value = user
-                println("DEBUG: CreateGroupViewModel - Current user loaded: ${user?.username}")
+                Log.d(TAG, "Current user loaded: ${user?.username}")
             } catch (e: Exception) {
-                println("DEBUG: CreateGroupViewModel - Error loading current user: ${e.message}")
+                Log.e(TAG, "Error loading current user: ${e.message}")
             }
         }
     }
 
     /**
-     * Carga todos los usuarios disponibles de Firebase
+     * Loads all available users from Firebase
      */
     private fun loadUsers() {
         viewModelScope.launch {
             try {
-                println("DEBUG: CreateGroupViewModel - Loading users from Firebase...")
+                Log.d(TAG, "Loading users from Firebase...")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
-                // Recopilar usuarios desde Firebase usando Flow
+                // Collect users from Firebase using Flow
                 userRepository.getAllUsers().collect { users ->
-                    println("DEBUG: CreateGroupViewModel - Received ${users.size} users from Firebase")
+                    Log.d(TAG, "Received ${users.size} users from Firebase")
 
-                    // Filtrar el usuario actual para que no aparezca en la lista
+                    // Filter the current user so they don't appear in the list
                     val currentUserId = _currentUser.value?.id
                     val filteredUsers = if (currentUserId != null) {
                         users.filter { it.id != currentUserId }
@@ -81,7 +84,7 @@ class CreateGroupViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                println("DEBUG: CreateGroupViewModel - Error loading users: ${e.message}")
+                Log.e(TAG, "Error loading users: ${e.message}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "Error loading users: ${e.message}"
@@ -91,22 +94,22 @@ class CreateGroupViewModel @Inject constructor(
     }
 
     /**
-     * Busca usuarios por nombre de usuario
+     * Searches users by username
      */
     fun searchUsers(query: String) {
         if (query.isBlank()) {
-            loadUsers() // Recargar todos los usuarios si no hay query
+            loadUsers() // Reload all users if no query
             return
         }
 
         viewModelScope.launch {
             try {
-                println("DEBUG: CreateGroupViewModel - Searching users with query: '$query'")
+                Log.d(TAG, "Searching users with query: '$query'")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
                 val searchResults = userRepository.searchUsers(query)
 
-                // Filtrar el usuario actual
+                // Filter the current user
                 val currentUserId = _currentUser.value?.id
                 val filteredResults = if (currentUserId != null) {
                     searchResults.filter { it.id != currentUserId }
@@ -120,9 +123,9 @@ class CreateGroupViewModel @Inject constructor(
                     error = null
                 )
 
-                println("DEBUG: CreateGroupViewModel - Found ${filteredResults.size} users matching '$query'")
+                Log.d(TAG, "Found ${filteredResults.size} users matching '$query'")
             } catch (e: Exception) {
-                println("DEBUG: CreateGroupViewModel - Error searching users: ${e.message}")
+                Log.e(TAG, "Error searching users: ${e.message}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "Error searching users: ${e.message}"
@@ -144,14 +147,14 @@ class CreateGroupViewModel @Inject constructor(
 
         if (currentSelected.contains(user)) {
             currentSelected.remove(user)
-            println("DEBUG: CreateGroupViewModel - Removed user: ${user.username}")
+            Log.d(TAG, "Removed user: ${user.username}")
         } else {
             currentSelected.add(user)
-            println("DEBUG: CreateGroupViewModel - Added user: ${user.username}")
+            Log.d(TAG, "Added user: ${user.username}")
         }
 
         _selectedUsers.value = currentSelected
-        println("DEBUG: CreateGroupViewModel - Total selected users: ${currentSelected.size}")
+        Log.d(TAG, "Total selected users: ${currentSelected.size}")
     }
 
     fun createGroup() {
@@ -206,7 +209,7 @@ class CreateGroupViewModel @Inject constructor(
                 )
 
                 if (result.isSuccess) {
-                    println("DEBUG: CreateGroupViewModel - Group created successfully!")
+                    Log.d(TAG, "Group created successfully!")
                     _uiState.value = state.copy(
                         isLoading = false,
                         isGroupCreated = true,
@@ -214,14 +217,14 @@ class CreateGroupViewModel @Inject constructor(
                     )
                 } else {
                     val errorMessage = result.exceptionOrNull()?.message ?: "Unknown error"
-                    println("DEBUG: CreateGroupViewModel - Error creating group: $errorMessage")
+                    Log.e(TAG, "Error creating group: $errorMessage")
                     _uiState.value = state.copy(
                         isLoading = false,
                         error = "Error creating group: $errorMessage"
                     )
                 }
             } catch (e: Exception) {
-                println("DEBUG: CreateGroupViewModel - Exception creating group: ${e.message}")
+                Log.e(TAG, "Exception creating group: ${e.message}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "Error creating group: ${e.message}"

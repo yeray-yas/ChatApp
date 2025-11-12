@@ -8,14 +8,14 @@ import kotlinx.coroutines.flow.emptyFlow
 import javax.inject.Inject
 
 /**
- * Use case para obtener los grupos del usuario actual
+ * Use case for getting the current user's groups
  */
 class GetUserGroupsUseCase @Inject constructor(
     private val groupRepository: GroupChatRepository,
     private val firebaseAuth: FirebaseAuth
 ) {
     /**
-     * Obtiene todos los grupos del usuario actual como Flow
+     * Gets all groups of the current user as Flow
      */
     fun execute(): Flow<List<GroupChat>> {
         val currentUserId = firebaseAuth.currentUser?.uid
@@ -27,7 +27,7 @@ class GetUserGroupsUseCase @Inject constructor(
     }
 
     /**
-     * Obtiene grupos activos del usuario
+     * Gets active groups of the user
      */
     fun getActiveGroups(): Flow<List<GroupChat>> {
         val currentUserId = firebaseAuth.currentUser?.uid
@@ -39,14 +39,14 @@ class GetUserGroupsUseCase @Inject constructor(
     }
 
     /**
-     * Obtiene un grupo específico por ID
+     * Gets a specific group by ID
      */
     suspend fun getGroupById(groupId: String): GroupChat? {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return null
             val group = groupRepository.getGroupById(groupId)
 
-            // Verificar que el usuario es miembro del grupo
+            // Verify that the user is a member of the group
             if (group?.isMember(currentUserId) == true) {
                 group
             } else {
@@ -58,7 +58,7 @@ class GetUserGroupsUseCase @Inject constructor(
     }
 
     /**
-     * Verifica si el usuario es miembro de un grupo específico
+     * Checks if the user is a member of a specific group
      */
     suspend fun isUserMemberOfGroup(groupId: String): Boolean {
         return try {
@@ -71,7 +71,7 @@ class GetUserGroupsUseCase @Inject constructor(
     }
 
     /**
-     * Verifica si el usuario es administrador de un grupo específico
+     * Checks if the user is an administrator of a specific group
      */
     suspend fun isUserAdminOfGroup(groupId: String): Boolean {
         return try {
@@ -84,16 +84,16 @@ class GetUserGroupsUseCase @Inject constructor(
     }
 
     /**
-     * Obtiene estadísticas básicas de los grupos del usuario
+     * Gets basic statistics of the user's groups
      */
     suspend fun getUserGroupStats(): GroupStats {
         return try {
             val currentUserId = firebaseAuth.currentUser?.uid ?: return GroupStats()
 
-            // Esta sería una implementación simplificada
-            // En una app real, podrías tener endpoints específicos para estadísticas
+            // This would be a simplified implementation
+            // In a real app, you could have specific endpoints for statistics
             GroupStats(
-                totalGroups = 0, // Se calcularía desde el Flow
+                totalGroups = 0, // Would be calculated from the Flow
                 adminGroups = 0,
                 activeGroups = 0,
                 unreadMessages = 0
@@ -105,7 +105,7 @@ class GetUserGroupsUseCase @Inject constructor(
 }
 
 /**
- * Data class para estadísticas de grupos del usuario
+ * Data class for user's group statistics
  */
 data class GroupStats(
     val totalGroups: Int = 0,

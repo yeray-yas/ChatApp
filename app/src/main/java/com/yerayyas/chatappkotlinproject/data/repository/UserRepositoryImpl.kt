@@ -138,16 +138,16 @@ class UserRepositoryImpl @Inject constructor(
                             }
                         }
 
-                        println("DEBUG: UserRepository - Loaded ${usersList.size} users from Firebase")
+                        Log.d(TAG, "Loaded ${usersList.size} users from Firebase")
                         trySend(usersList)
                     } catch (e: Exception) {
-                        println("DEBUG: UserRepository - Error loading users: ${e.message}")
+                        Log.e(TAG, "Error loading users: ${e.message}")
                         trySend(emptyList())
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    println("DEBUG: UserRepository - Firebase cancelled: ${error.message}")
+                    Log.e(TAG, "Firebase listener cancelled: ${error.message}")
                     trySend(emptyList())
                 }
             })
@@ -158,7 +158,7 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getUserById(userId: String): User? {
         return try {
-            println("DEBUG: UserRepository - Getting user by ID: $userId")
+            Log.d(TAG, "Getting user by ID: $userId")
             val snapshot = database.child("Users").child(userId).get().await()
 
             if (snapshot.exists()) {
@@ -183,7 +183,7 @@ class UserRepositoryImpl @Inject constructor(
                 } else null
             } else null
         } catch (e: Exception) {
-            println("DEBUG: UserRepository - Error getting user $userId: ${e.message}")
+            Log.e(TAG, "Error getting user $userId: ${e.message}")
             null
         }
     }
@@ -192,7 +192,7 @@ class UserRepositoryImpl @Inject constructor(
         val currentUserId = auth.currentUser?.uid ?: return null
 
         return try {
-            println("DEBUG: UserRepository - Getting current user: $currentUserId")
+            Log.d(TAG, "Getting current user: $currentUserId")
             val snapshot = database.child("Users").child(currentUserId).get().await()
 
             if (snapshot.exists()) {
@@ -218,14 +218,14 @@ class UserRepositoryImpl @Inject constructor(
                 } else null
             } else null
         } catch (e: Exception) {
-            println("DEBUG: UserRepository - Error getting current user: ${e.message}")
+            Log.e(TAG, "Error getting current user: ${e.message}")
             null
         }
     }
 
     override suspend fun searchUsers(query: String): List<User> {
         return try {
-            println("DEBUG: UserRepository - Searching users with query: $query")
+            Log.d(TAG, "Searching users with query: $query")
             val snapshot = database.child("Users").get().await()
 
             val allUsers = snapshot.children.mapNotNull { userSnapshot ->
@@ -252,17 +252,17 @@ class UserRepositoryImpl @Inject constructor(
                 }
             }
 
-            println("DEBUG: UserRepository - Found ${allUsers.size} users matching '$query'")
+            Log.d(TAG, "Found ${allUsers.size} users matching '$query'")
             allUsers
         } catch (e: Exception) {
-            println("DEBUG: UserRepository - Error searching users: ${e.message}")
+            Log.e(TAG, "Error searching users: ${e.message}")
             emptyList()
         }
     }
 
     override suspend fun getUsersByIds(userIds: List<String>): List<User> {
         return try {
-            println("DEBUG: UserRepository - Getting ${userIds.size} users by IDs")
+            Log.d(TAG, "Getting ${userIds.size} users by IDs")
             val users = mutableListOf<User>()
 
             userIds.forEach { userId ->
@@ -271,10 +271,10 @@ class UserRepositoryImpl @Inject constructor(
                 }
             }
 
-            println("DEBUG: UserRepository - Successfully loaded ${users.size} users")
+            Log.d(TAG, "Successfully loaded ${users.size} users")
             users
         } catch (e: Exception) {
-            println("DEBUG: UserRepository - Error getting users by IDs: ${e.message}")
+            Log.e(TAG, "Error getting users by IDs: ${e.message}")
             emptyList()
         }
     }

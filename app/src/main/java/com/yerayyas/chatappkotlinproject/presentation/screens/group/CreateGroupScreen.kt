@@ -53,7 +53,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.LoadingState
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.group.CreateGroupViewModel
 
 /**
- * Pantalla para crear un nuevo grupo de chat
+ * Screen for creating a new chat group
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

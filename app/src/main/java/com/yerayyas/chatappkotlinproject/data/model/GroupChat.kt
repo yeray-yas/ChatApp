@@ -1,7 +1,7 @@
 package com.yerayyas.chatappkotlinproject.data.model
 
 /**
- * Representa un chat grupal completo con todas las funcionalidades avanzadas
+ * Represents a complete group chat with all advanced features
  */
 data class GroupChat(
     val id: String = "",
@@ -26,32 +26,32 @@ data class GroupChat(
     )
 
     /**
-     * Verifica si un usuario es administrador del grupo
+     * Checks if a user is an administrator of the group
      */
     fun isAdmin(userId: String): Boolean = adminIds.contains(userId)
 
     /**
-     * Verifica si un usuario es miembro del grupo
+     * Checks if a user is a member of the group
      */
     fun isMember(userId: String): Boolean = memberIds.contains(userId)
 
     /**
-     * Verifica si un usuario está silenciado
+     * Checks if a user is muted
      */
     fun isMuted(userId: String): Boolean = mutedMembers.contains(userId)
 
     /**
-     * Obtiene el número total de miembros
+     * Gets the total number of members
      */
     fun getMemberCount(): Int = memberIds.size
 
     /**
-     * Verifica si el usuario puede modificar el grupo
+     * Checks if the user can modify the group
      */
     fun canModify(userId: String): Boolean = isAdmin(userId) || createdBy == userId
 
     /**
-     * Verifica si el usuario puede enviar mensajes
+     * Checks if the user can send messages
      */
     fun canSendMessages(userId: String): Boolean {
         return when {
@@ -63,7 +63,7 @@ data class GroupChat(
     }
 
     /**
-     * Verifica si el usuario puede agregar miembros
+     * Checks if the user can add members
      */
     fun canAddMembers(userId: String): Boolean {
         return when {
@@ -74,7 +74,7 @@ data class GroupChat(
     }
 
     /**
-     * Obtiene la información de display del grupo
+     * Gets the group's display information
      */
     fun getDisplayInfo(): GroupDisplayInfo {
         return GroupDisplayInfo(
@@ -88,14 +88,14 @@ data class GroupChat(
 }
 
 /**
- * Configuraciones avanzadas del grupo
+ * Advanced group settings
  */
 data class GroupSettings(
     val onlyAdminsCanWrite: Boolean = false,
     val onlyAdminsCanAddMembers: Boolean = false,
     val onlyAdminsCanEditInfo: Boolean = true,
     val disappearingMessages: Boolean = false,
-    val disappearingMessageTimer: Long = 0L, // en milisegundos
+    val disappearingMessageTimer: Long = 0L, // in milliseconds
     val allowMemberInvites: Boolean = true,
     val showMemberAddedNotifications: Boolean = true,
     val showMemberLeftNotifications: Boolean = true,
@@ -106,7 +106,7 @@ data class GroupSettings(
 }
 
 /**
- * Información de display simplificada para listas
+ * Simplified display information for lists
  */
 data class GroupDisplayInfo(
     val name: String,
@@ -117,35 +117,35 @@ data class GroupDisplayInfo(
 )
 
 /**
- * Tipos de actividad en el grupo (expandidos)
+ * Types of group activities (expanded)
  */
 enum class GroupActivityType {
-    // Actividades de miembros
+    // Member activities
     USER_JOINED,
     USER_LEFT,
     USER_ADDED,
     USER_REMOVED,
     USER_INVITED,
 
-    // Actividades de administración
+    // Administration activities
     ADMIN_ADDED,
     ADMIN_REMOVED,
     MEMBER_MUTED,
     MEMBER_UNMUTED,
 
-    // Actividades del grupo
+    // Group activities
     GROUP_CREATED,
     GROUP_NAME_CHANGED,
     GROUP_DESCRIPTION_CHANGED,
     GROUP_IMAGE_CHANGED,
     GROUP_SETTINGS_CHANGED,
 
-    // Actividades de mensajes
+    // Message activities
     MESSAGE_PINNED,
     MESSAGE_UNPINNED,
     MESSAGES_CLEARED,
 
-    // Actividades de seguridad
+    // Security activities
     ENCRYPTION_ENABLED,
     ENCRYPTION_DISABLED,
     DISAPPEARING_MESSAGES_ENABLED,
@@ -153,7 +153,7 @@ enum class GroupActivityType {
 }
 
 /**
- * Representa una actividad en el grupo con información extendida
+ * Represents a group activity with extended information
  */
 data class GroupActivity(
     val id: String = "",
@@ -179,40 +179,40 @@ data class GroupActivity(
     )
 
     /**
-     * Genera el mensaje de actividad para mostrar en el chat
+     * Generates the activity message to display in the chat
      */
     fun getActivityMessage(performedByName: String, targetUserName: String? = null): String {
         return when (type) {
-            GroupActivityType.USER_JOINED -> "$performedByName se unió al grupo"
-            GroupActivityType.USER_LEFT -> "$performedByName dejó el grupo"
-            GroupActivityType.USER_ADDED -> "$performedByName agregó a ${targetUserName ?: "alguien"}"
-            GroupActivityType.USER_REMOVED -> "$performedByName eliminó a ${targetUserName ?: "alguien"}"
-            GroupActivityType.USER_INVITED -> "$performedByName invitó a ${targetUserName ?: "alguien"}"
+            GroupActivityType.USER_JOINED -> "$performedByName joined the group"
+            GroupActivityType.USER_LEFT -> "$performedByName left the group"
+            GroupActivityType.USER_ADDED -> "$performedByName added ${targetUserName ?: "someone"}"
+            GroupActivityType.USER_REMOVED -> "$performedByName removed ${targetUserName ?: "someone"}"
+            GroupActivityType.USER_INVITED -> "$performedByName invited ${targetUserName ?: "someone"}"
 
-            GroupActivityType.ADMIN_ADDED -> "$performedByName nombró administrador a ${targetUserName ?: "alguien"}"
-            GroupActivityType.ADMIN_REMOVED -> "$performedByName quitó como administrador a ${targetUserName ?: "alguien"}"
-            GroupActivityType.MEMBER_MUTED -> "$performedByName silenció a ${targetUserName ?: "alguien"}"
-            GroupActivityType.MEMBER_UNMUTED -> "$performedByName quitó el silencio a ${targetUserName ?: "alguien"}"
+            GroupActivityType.ADMIN_ADDED -> "$performedByName made ${targetUserName ?: "someone"} an administrator"
+            GroupActivityType.ADMIN_REMOVED -> "$performedByName removed ${targetUserName ?: "someone"} as an administrator"
+            GroupActivityType.MEMBER_MUTED -> "$performedByName muted ${targetUserName ?: "someone"}"
+            GroupActivityType.MEMBER_UNMUTED -> "$performedByName unmuted ${targetUserName ?: "someone"}"
 
-            GroupActivityType.GROUP_CREATED -> "$performedByName creó el grupo"
-            GroupActivityType.GROUP_NAME_CHANGED -> "$performedByName cambió el nombre del grupo a \"$newValue\""
-            GroupActivityType.GROUP_DESCRIPTION_CHANGED -> "$performedByName cambió la descripción del grupo"
-            GroupActivityType.GROUP_IMAGE_CHANGED -> "$performedByName cambió la imagen del grupo"
-            GroupActivityType.GROUP_SETTINGS_CHANGED -> "$performedByName cambió la configuración del grupo"
+            GroupActivityType.GROUP_CREATED -> "$performedByName created the group"
+            GroupActivityType.GROUP_NAME_CHANGED -> "$performedByName changed the group name to \"$newValue\""
+            GroupActivityType.GROUP_DESCRIPTION_CHANGED -> "$performedByName changed the group description"
+            GroupActivityType.GROUP_IMAGE_CHANGED -> "$performedByName changed the group image"
+            GroupActivityType.GROUP_SETTINGS_CHANGED -> "$performedByName changed the group settings"
 
-            GroupActivityType.MESSAGE_PINNED -> "$performedByName fijó un mensaje"
-            GroupActivityType.MESSAGE_UNPINNED -> "$performedByName desfijó un mensaje"
-            GroupActivityType.MESSAGES_CLEARED -> "$performedByName eliminó todos los mensajes"
+            GroupActivityType.MESSAGE_PINNED -> "$performedByName pinned a message"
+            GroupActivityType.MESSAGE_UNPINNED -> "$performedByName unpinned a message"
+            GroupActivityType.MESSAGES_CLEARED -> "$performedByName cleared all messages"
 
-            GroupActivityType.ENCRYPTION_ENABLED -> "$performedByName activó la encriptación"
-            GroupActivityType.ENCRYPTION_DISABLED -> "$performedByName desactivó la encriptación"
-            GroupActivityType.DISAPPEARING_MESSAGES_ENABLED -> "$performedByName activó los mensajes temporales"
-            GroupActivityType.DISAPPEARING_MESSAGES_DISABLED -> "$performedByName desactivó los mensajes temporales"
+            GroupActivityType.ENCRYPTION_ENABLED -> "$performedByName enabled encryption"
+            GroupActivityType.ENCRYPTION_DISABLED -> "$performedByName disabled encryption"
+            GroupActivityType.DISAPPEARING_MESSAGES_ENABLED -> "$performedByName enabled disappearing messages"
+            GroupActivityType.DISAPPEARING_MESSAGES_DISABLED -> "$performedByName disabled disappearing messages"
         }
     }
 
     /**
-     * Obtiene el ícono representativo de la actividad
+     * Gets the representative icon of the activity
      */
     fun getActivityIcon(): String {
         return when (type) {
@@ -240,7 +240,7 @@ data class GroupActivity(
 }
 
 /**
- * Representa una invitación a grupo
+ * Represents a group invitation
  */
 data class GroupInvitation(
     val id: String = "",
@@ -251,7 +251,7 @@ data class GroupInvitation(
     val invitedUser: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val status: InvitationStatus = InvitationStatus.PENDING,
-    val expiresAt: Long = System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000) // 7 días
+    val expiresAt: Long = System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000) // 7 days
 ) {
     constructor() : this("", "", "", "", "", "", 0L, InvitationStatus.PENDING, 0L)
 
@@ -260,7 +260,7 @@ data class GroupInvitation(
 }
 
 /**
- * Estados de invitación
+ * Invitation statuses
  */
 enum class InvitationStatus {
     PENDING,

@@ -179,7 +179,10 @@ class CreateGroupViewModel @Inject constructor(
                     return@launch
                 }
 
-                println("DEBUG: CreateGroupViewModel - Creating group '${state.groupName}' with ${_selectedUsers.value.size} members")
+                Log.d(
+                    TAG,
+                    "Creating group '${state.groupName}' with ${_selectedUsers.value.size} members"
+                )
                 _uiState.value = state.copy(isLoading = true, error = null)
 
                 // Crear lista de miembros (incluir usuario actual + seleccionados)

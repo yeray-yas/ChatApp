@@ -27,8 +27,8 @@ class OtherUsersProfileViewModel @Inject constructor(
     private val database: DatabaseReference
 ) : ViewModel() {
 
-    private val _userData = MutableStateFlow<User?>(null)
-    val userData: StateFlow<User?> = _userData
+    private val _userData = MutableStateFlow<OtherUserProfile?>(null)
+    val userData: StateFlow<OtherUserProfile?> = _userData
 
     /**
      * Loads the profile data of a user from Firebase Realtime Database.
@@ -44,7 +44,7 @@ class OtherUsersProfileViewModel @Inject constructor(
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val publicData = snapshot.child("public")
-                    val user = User(
+                    val user = OtherUserProfile(
                         username = publicData.child("username").getValue(String::class.java) ?: "",
                         profileImage = publicData.child("profileImage").getValue(String::class.java) ?: ""
                     )
@@ -59,15 +59,16 @@ class OtherUsersProfileViewModel @Inject constructor(
 }
 
 /**
- * Data class representing a user profile.
+ * Data class representing another user's profile information.
  *
- * This data class contains the basic public profile information of a user,
- * including their username and profile image URL.
+ * This data class contains the basic public profile information of another user,
+ * including their username and profile image URL. This is separate from the main
+ * User model to avoid conflicts and provide a focused data structure.
  *
  * @property username The username of the user.
  * @property profileImage The URL of the user's profile image.
  */
-data class User(
+data class OtherUserProfile(
     val username: String,
     val profileImage: String
 )

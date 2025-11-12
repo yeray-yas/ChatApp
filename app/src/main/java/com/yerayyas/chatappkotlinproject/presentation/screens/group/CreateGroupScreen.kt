@@ -1,5 +1,6 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.group
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,7 +60,7 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.group.CreateGrou
 @Composable
 fun CreateGroupScreen(
     onNavigateBack: () -> Unit,
-    onGroupCreated: (String) -> Unit, // Callback con el ID del grupo creado
+    onGroupCreated: (String) -> Unit, // Callback with the created group ID
     modifier: Modifier = Modifier,
     viewModel: CreateGroupViewModel = hiltViewModel()
 ) {
@@ -69,30 +70,30 @@ fun CreateGroupScreen(
 
     val context = LocalContext.current
 
-    // Observar resultado de creación
+    // Observe creation result
     LaunchedEffect(uiState.isGroupCreated) {
         if (uiState.isGroupCreated) {
-            // Por ahora usar un ID genérico, idealmente el ViewModel debería devolver el ID real
+            // For now use a generic ID, ideally the ViewModel should return the real ID
             onGroupCreated("group_created")
             viewModel.resetCreationState()
         }
     }
 
-    // Mostrar errores
+    // Show errors
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
-            // Aquí podrías mostrar un SnackBar o Toast
-            println("Error: $error")
+            // Here you could show a SnackBar or Toast
+            Log.e("CreateGroupScreen", "Error: $error")
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nuevo Grupo") },
+                title = { Text("New Group") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
@@ -102,7 +103,7 @@ fun CreateGroupScreen(
                                 selectedUsers.isNotEmpty() &&
                                 !uiState.isLoading
                     ) {
-                        Text("Crear")
+                        Text("Create")
                     }
                 }
             )
@@ -115,7 +116,7 @@ fun CreateGroupScreen(
         ) {
             if (uiState.isLoading) {
                 LoadingState(
-                    message = "Creando grupo...",
+                    message = "Creating group...",
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -124,7 +125,7 @@ fun CreateGroupScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Información del grupo
+                    // Group information
                     item {
                         GroupInfoSection(
                             groupName = uiState.groupName,
@@ -157,7 +158,7 @@ fun CreateGroupScreen(
                                     IconButton(onClick = viewModel::clearError) {
                                         Icon(
                                             Icons.Default.Close,
-                                            contentDescription = "Cerrar error",
+                                            contentDescription = "Close error",
                                             tint = MaterialTheme.colorScheme.onErrorContainer
                                         )
                                     }
@@ -166,7 +167,7 @@ fun CreateGroupScreen(
                         }
                     }
 
-                    // Miembros seleccionados
+                    // Selected members
                     if (selectedUsers.isNotEmpty()) {
                         item {
                             SelectedMembersSection(
@@ -176,10 +177,10 @@ fun CreateGroupScreen(
                         }
                     }
 
-                    // Lista de usuarios disponibles
+                    // Available users list
                     item {
                         Text(
-                            text = "Agregar miembros",
+                            text = "Add members",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -188,7 +189,7 @@ fun CreateGroupScreen(
                     if (availableUsers.isEmpty()) {
                         item {
                             EmptyState(
-                                message = "No hay usuarios disponibles",
+                                message = "No users available",
                                 icon = Icons.Default.People
                             )
                         }
@@ -210,7 +211,7 @@ fun CreateGroupScreen(
 }
 
 /**
- * Sección de información del grupo
+ * Group information section
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
@@ -231,23 +232,23 @@ private fun GroupInfoSection(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Nombre del grupo
+            // Group name
             OutlinedTextField(
                 value = groupName,
                 onValueChange = onGroupNameChange,
-                label = { Text("Nombre del grupo") },
-                placeholder = { Text("Ej: Familia, Trabajo, Amigos...") },
+                label = { Text("Group name") },
+                placeholder = { Text("E.g: Family, Work, Friends...") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 isError = groupName.length > 100
             )
 
-            // Descripción del grupo
+            // Group description
             OutlinedTextField(
                 value = groupDescription,
                 onValueChange = onGroupDescriptionChange,
-                label = { Text("Descripción (opcional)") },
-                placeholder = { Text("Describe de qué trata este grupo...") },
+                label = { Text("Description (optional)") },
+                placeholder = { Text("Describe what this group is about...") },
                 modifier = Modifier.fillMaxWidth(),
                 maxLines = 3,
                 isError = groupDescription.length > 500
@@ -257,7 +258,7 @@ private fun GroupInfoSection(
 }
 
 /**
- * Sección de miembros seleccionados
+ * Selected members section
  */
 @Composable
 private fun SelectedMembersSection(
@@ -276,11 +277,11 @@ private fun SelectedMembersSection(
             ) {
                 Icon(
                     imageVector = Icons.Default.People,
-                    contentDescription = "Miembros",
+                    contentDescription = "Members",
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Miembros seleccionados (${selectedMembers.size})",
+                    text = "Selected members (${selectedMembers.size})",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -328,7 +329,7 @@ private fun SelectedMembersSection(
                     IconButton(onClick = { onRemoveMember(user) }) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Eliminar",
+                            contentDescription = "Remove",
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -339,7 +340,7 @@ private fun SelectedMembersSection(
 }
 
 /**
- * Item de selección de usuario
+ * User selection item
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
@@ -371,11 +372,11 @@ private fun UserSelectionItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Avatar del usuario
+                // User avatar
                 if (user.profileImage.isNotEmpty()) {
                     GlideImage(
                         model = user.profileImage,
-                        contentDescription = "Avatar de ${user.username}",
+                        contentDescription = "Avatar of ${user.username}",
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape),
@@ -409,7 +410,7 @@ private fun UserSelectionItem(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (user.isOnline) "En línea" else "Desconectado",
+                        text = if (user.isOnline) "Online" else "Offline",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (user.isOnline) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),

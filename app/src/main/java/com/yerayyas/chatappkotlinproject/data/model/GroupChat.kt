@@ -1,7 +1,23 @@
 package com.yerayyas.chatappkotlinproject.data.model
 
 /**
- * Represents a complete group chat with all advanced features
+ * Represents a complete group chat with all advanced features.
+ *
+ * This data class encapsulates all information and functionality related to group chat management,
+ * including member administration, message handling, permissions, and group settings.
+ * It provides a comprehensive model for group chat operations in the application.
+ *
+ * Key features:
+ * - Complete member and admin management
+ * - Advanced permission system
+ * - Group settings and customization
+ * - Message tracking and activity monitoring
+ * - Firebase compatibility with no-argument constructor
+ * - Utility methods for common operations
+ * - Support for pinned messages and member muting
+ *
+ * The class includes multiple utility methods for checking permissions, managing members,
+ * and determining user capabilities within the group context.
  */
 data class GroupChat(
     val id: String = "",
@@ -19,39 +35,64 @@ data class GroupChat(
     val pinnedMessageIds: List<String> = emptyList(),
     val mutedMembers: List<String> = emptyList()
 ) {
-    // Constructor sin argumentos requerido por Firebase
+    /**
+     * No-argument constructor required by Firebase for deserialization.
+     * Initializes all properties with default values.
+     */
     constructor() : this(
         "", "", "", null, emptyList(), emptyList(),
         "", 0L, null, 0L, true, GroupSettings(), emptyList(), emptyList()
     )
 
     /**
-     * Checks if a user is an administrator of the group
+     * Checks if a user is an administrator of the group.
+     *
+     * @param userId The user ID to check for admin privileges
+     * @return true if the user is an admin, false otherwise
      */
     fun isAdmin(userId: String): Boolean = adminIds.contains(userId)
 
     /**
-     * Checks if a user is a member of the group
+     * Checks if a user is a member of the group.
+     *
+     * @param userId The user ID to check for membership
+     * @return true if the user is a member, false otherwise
      */
     fun isMember(userId: String): Boolean = memberIds.contains(userId)
 
     /**
-     * Checks if a user is muted
+     * Checks if a user is muted in the group.
+     *
+     * @param userId The user ID to check for muted status
+     * @return true if the user is muted, false otherwise
      */
     fun isMuted(userId: String): Boolean = mutedMembers.contains(userId)
 
     /**
-     * Gets the total number of members
+     * Gets the total number of members in the group.
+     *
+     * @return The count of group members
      */
     fun getMemberCount(): Int = memberIds.size
 
     /**
-     * Checks if the user can modify the group
+     * Checks if the user can modify group settings and information.
+     *
+     * @param userId The user ID to check for modification privileges
+     * @return true if the user can modify the group, false otherwise
      */
     fun canModify(userId: String): Boolean = isAdmin(userId) || createdBy == userId
 
     /**
-     * Checks if the user can send messages
+     * Checks if the user can send messages to the group.
+     *
+     * This method considers multiple factors:
+     * - Group membership requirement
+     * - User mute status
+     * - Group settings for admin-only messaging
+     *
+     * @param userId The user ID to check for messaging privileges
+     * @return true if the user can send messages, false otherwise
      */
     fun canSendMessages(userId: String): Boolean {
         return when {
@@ -63,7 +104,12 @@ data class GroupChat(
     }
 
     /**
-     * Checks if the user can add members
+     * Checks if the user can add new members to the group.
+     *
+     * This method considers group membership and admin-only settings.
+     *
+     * @param userId The user ID to check for member addition privileges
+     * @return true if the user can add members, false otherwise
      */
     fun canAddMembers(userId: String): Boolean {
         return when {
@@ -74,7 +120,12 @@ data class GroupChat(
     }
 
     /**
-     * Gets the group's display information
+     * Gets the group's display information for UI components.
+     *
+     * This method creates a simplified representation of the group
+     * suitable for list displays and summary views.
+     *
+     * @return [GroupDisplayInfo] containing essential display data
      */
     fun getDisplayInfo(): GroupDisplayInfo {
         return GroupDisplayInfo(
@@ -88,7 +139,7 @@ data class GroupChat(
 }
 
 /**
- * Advanced group settings
+ * Advanced group settings.
  */
 data class GroupSettings(
     val onlyAdminsCanWrite: Boolean = false,
@@ -106,7 +157,7 @@ data class GroupSettings(
 }
 
 /**
- * Simplified display information for lists
+ * Simplified display information for lists.
  */
 data class GroupDisplayInfo(
     val name: String,
@@ -117,7 +168,7 @@ data class GroupDisplayInfo(
 )
 
 /**
- * Types of group activities (expanded)
+ * Types of group activities (expanded).
  */
 enum class GroupActivityType {
     // Member activities
@@ -153,7 +204,7 @@ enum class GroupActivityType {
 }
 
 /**
- * Represents a group activity with extended information
+ * Represents a group activity with extended information.
  */
 data class GroupActivity(
     val id: String = "",
@@ -179,7 +230,7 @@ data class GroupActivity(
     )
 
     /**
-     * Generates the activity message to display in the chat
+     * Generates the activity message to display in the chat.
      */
     fun getActivityMessage(performedByName: String, targetUserName: String? = null): String {
         return when (type) {
@@ -212,7 +263,7 @@ data class GroupActivity(
     }
 
     /**
-     * Gets the representative icon of the activity
+     * Gets the representative icon of the activity.
      */
     fun getActivityIcon(): String {
         return when (type) {
@@ -240,7 +291,7 @@ data class GroupActivity(
 }
 
 /**
- * Represents a group invitation
+ * Represents a group invitation.
  */
 data class GroupInvitation(
     val id: String = "",
@@ -260,7 +311,7 @@ data class GroupInvitation(
 }
 
 /**
- * Invitation statuses
+ * Invitation statuses.
  */
 enum class InvitationStatus {
     PENDING,

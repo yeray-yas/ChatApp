@@ -25,6 +25,42 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
+/**
+ * Comprehensive implementation of [GroupChatRepository] for group chat operations.
+ *
+ * This repository provides a complete implementation of group chat functionality, including
+ * group management, member administration, messaging, invitations, and real-time data synchronization.
+ * It integrates with Firebase services to provide persistent, scalable group chat features.
+ *
+ * Key functionalities:
+ * - **Group Management**: Create, update, delete, and retrieve groups with full CRUD operations
+ * - **Member Administration**: Add/remove members, manage admin privileges, and permission control
+ * - **Group Messaging**: Send text/image messages with real-time message streaming
+ * - **Read Receipts**: Track message read status across group members for delivery confirmation
+ * - **Invitations**: Create and manage group invitations with status tracking
+ * - **Search**: Search messages within groups with query filtering
+ * - **Settings**: Manage group-specific settings and permissions
+ * - **File Upload**: Handle image uploads for group messages and avatars using Firebase Storage
+ * - **Mock Data Support**: Provides fallback mock data for development and testing scenarios
+ *
+ * Architecture pattern: Repository Pattern with Clean Architecture
+ * - Implements domain repository interface for clean separation of concerns
+ * - Integrates with Firebase services (Auth, Database, Storage) for backend operations
+ * - Provides reactive data streams through Flow for real-time UI updates
+ * - Includes comprehensive error handling and logging for debugging
+ * - Supports both production data and development mock data
+ *
+ * Firebase integration:
+ * - **Firebase Auth**: User authentication and current user management
+ * - **Firebase Realtime Database**: Real-time group and message synchronization with live updates
+ * - **Firebase Storage**: Secure image upload and management for group content
+ *
+ * Thread safety: All operations are designed to be thread-safe and can be called from
+ * background threads. Flow operations automatically handle threading concerns.
+ *
+ * Error handling: All operations return Result types or handle exceptions gracefully,
+ * with fallback to mock data when appropriate for development purposes.
+ */
 @Singleton
 class GroupChatRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
@@ -524,6 +560,13 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     // ===== MOCK DATA =====
 
+    /**
+     * Provides mock data for development and testing purposes.
+     * Returns sample group messages with various message types and read statuses.
+     *
+     * @param groupId The group ID to generate mock messages for
+     * @return List of sample [GroupMessage] objects for testing
+     */
     private fun getMockGroupMessages(groupId: String): List<GroupMessage> {
         val currentUserId = firebaseAuth.currentUser?.uid ?: "current_user"
 
@@ -533,7 +576,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 groupId = groupId,
                 senderId = "user2",
                 senderName = "Ana García",
-                message = "¡Hola a todos! 👋",
+                message = "Hello everyone! 👋",
                 timestamp = System.currentTimeMillis() - 3600000,
                 messageType = GroupMessageType.TEXT,
                 readStatus = ReadStatus.READ,
@@ -544,7 +587,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 groupId = groupId,
                 senderId = "user3",
                 senderName = "Carlos López",
-                message = "@Juan ¿cómo va todo?",
+                message = "@Juan how's everything going?",
                 timestamp = System.currentTimeMillis() - 1800000,
                 messageType = GroupMessageType.TEXT,
                 readStatus = ReadStatus.READ,
@@ -556,7 +599,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 groupId = groupId,
                 senderId = currentUserId,
                 senderName = "You",
-                message = "Todo bien por aquí, gracias por preguntar 😊",
+                message = "Everything's fine here, thanks for asking 😊",
                 timestamp = System.currentTimeMillis() - 900000,
                 messageType = GroupMessageType.TEXT,
                 readStatus = ReadStatus.DELIVERED,
@@ -567,7 +610,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 groupId = groupId,
                 senderId = "user4",
                 senderName = "María Rodríguez",
-                message = "¿Alguien para almorzar mañana? 🍕",
+                message = "Anyone up for lunch tomorrow? 🍕",
                 timestamp = System.currentTimeMillis() - 300000,
                 messageType = GroupMessageType.TEXT,
                 readStatus = ReadStatus.SENT
@@ -575,6 +618,13 @@ class GroupChatRepositoryImpl @Inject constructor(
         ).sortedBy { it.timestamp }
     }
 
+    /**
+     * Provides mock group data for development and testing purposes.
+     * Returns sample groups with various configurations and member setups.
+     *
+     * @param userId The user ID to include in the mock groups
+     * @return List of sample [GroupChat] objects for testing
+     */
     private fun getMockGroups(userId: String): List<GroupChat> {
         return listOf(
             GroupChat(
@@ -586,7 +636,7 @@ class GroupChatRepositoryImpl @Inject constructor(
                 createdBy = userId,
                 lastActivity = System.currentTimeMillis() - 300000,
                 lastMessage = ChatMessage(
-                    message = "¿Alguien para almorzar mañana? 🍕",
+                    message = "Anyone up for lunch tomorrow? 🍕",
                     timestamp = System.currentTimeMillis() - 300000
                 )
             ),

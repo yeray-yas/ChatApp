@@ -8,14 +8,43 @@ import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import javax.inject.Inject
 
 /**
- * Use case for sending messages to a group
+ * Domain use case for sending various types of messages to group chat conversations.
+ *
+ * This use case encapsulates the business logic for group message transmission,
+ * supporting text messages, image messages, and system notifications. It handles
+ * message validation, authentication verification, and proper message creation
+ * for different message types within group chat contexts.
+ *
+ * Key responsibilities:
+ * - Validate user authentication and message content
+ * - Handle different message types (text, image, system messages)
+ * - Support advanced features (mentions, replies, captions)
+ * - Manage image upload operations for media messages
+ * - Create properly formatted GroupMessage objects
+ * - Provide consistent error handling across all message types
+ *
+ * The use case follows Clean Architecture principles by delegating persistence
+ * operations to the repository while maintaining business logic validation.
  */
 class SendGroupMessageUseCase @Inject constructor(
     private val groupRepository: GroupChatRepository,
     private val firebaseAuth: FirebaseAuth
 ) {
     /**
-     * Sends a text message to a group
+     * Sends a text message to a group chat with optional advanced features.
+     *
+     * This method handles plain text message sending with support for user mentions,
+     * message replies, and comprehensive validation. The message is associated with
+     * the currently authenticated user as the sender.
+     *
+     * @param groupId Unique identifier of the target group chat
+     * @param message Text content of the message (1-1000 characters)
+     * @param senderName Display name of the sender at the time of sending
+     * @param senderImageUrl Optional profile image URL of the sender
+     * @param mentionedUsers List of user IDs mentioned in the message
+     * @param replyToMessageId Optional ID of the message being replied to
+     * @param replyToMessage Optional complete message object being replied to
+     * @return Result indicating success or failure with error details
      */
     suspend fun sendTextMessage(
         groupId: String,
@@ -61,7 +90,21 @@ class SendGroupMessageUseCase @Inject constructor(
     }
 
     /**
-     * Sends a message with image to a group
+     * Sends an image message to a group chat with optional caption and advanced features.
+     *
+     * This method handles image message sending including image upload to cloud storage,
+     * optional caption text, and support for mentions and replies. The image is uploaded
+     * to Firebase Storage before creating the message with the resulting URL.
+     *
+     * @param groupId Unique identifier of the target group chat
+     * @param imageUri Local URI of the image to upload and send
+     * @param caption Optional text caption for the image (max 1000 characters)
+     * @param senderName Display name of the sender at the time of sending
+     * @param senderImageUrl Optional profile image URL of the sender
+     * @param mentionedUsers List of user IDs mentioned in the caption
+     * @param replyToMessageId Optional ID of the message being replied to
+     * @param replyToMessage Optional complete message object being replied to
+     * @return Result indicating success or failure with error details
      */
     suspend fun sendImageMessage(
         groupId: String,
@@ -114,7 +157,16 @@ class SendGroupMessageUseCase @Inject constructor(
     }
 
     /**
-     * Sends a system message (automatic notifications)
+     * Sends a system-generated message for group activity notifications.
+     *
+     * This method creates automatic notification messages for group activities such as
+     * member additions, removals, admin promotions, and other group management events.
+     * System messages are distinguished by their isSystemMessage flag and special styling.
+     *
+     * @param groupId Unique identifier of the target group chat
+     * @param message Content of the system notification message
+     * @param systemMessageType Type of group activity this message represents
+     * @return Result indicating success or failure with error details
      */
     suspend fun sendSystemMessage(
         groupId: String,
@@ -129,7 +181,7 @@ class SendGroupMessageUseCase @Inject constructor(
             val groupMessage = GroupMessage(
                 groupId = groupId,
                 senderId = currentUserId,
-                senderName = "Sistema",
+                senderName = "System",
                 message = message,
                 timestamp = System.currentTimeMillis(),
                 messageType = GroupMessageType.SYSTEM_MESSAGE,

@@ -14,17 +14,35 @@ import javax.inject.Singleton
 /**
  * Dagger Hilt module for providing Firebase-related dependencies.
  *
- * This module installs bindings into the SingletonComponent,
- * meaning the provided instances will live as long as the application.
+ * This module configures and provides all Firebase service instances required by the application,
+ * including authentication, real-time database, and cloud storage. All instances are provided
+ * as singletons to ensure consistent state management and optimal resource usage.
+ *
+ * Firebase services provided:
+ * - **Firebase Authentication**: User authentication and session management
+ * - **Firebase Realtime Database**: Real-time data synchronization for messages and user data
+ * - **Firebase Storage**: Cloud storage for images and file uploads
+ *
+ * The module follows Clean Architecture principles by providing these services through
+ * dependency injection, allowing for easier testing and modularity.
+ *
+ * Installation: SingletonComponent ensures all Firebase instances live throughout
+ * the entire application lifecycle for consistent state management.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
 
     /**
-     * Provides a singleton instance of [FirebaseAuth].
+     * Provides a singleton instance of [FirebaseAuth] for user authentication.
      *
-     * @return An instance of FirebaseAuth.
+     * This instance handles all authentication operations including:
+     * - User sign-in and sign-up processes
+     * - Session management and persistence
+     * - User state observation and authentication tokens
+     * - Password reset and account management
+     *
+     * @return Singleton FirebaseAuth instance configured for the application
      */
     @Provides
     @Singleton
@@ -33,9 +51,13 @@ object FirebaseModule {
     }
 
     /**
-     * Provides a singleton instance of [FirebaseDatabase].
+     * Provides a singleton instance of [FirebaseDatabase] with named qualifier.
      *
-     * @return An instance of FirebaseDatabase.
+     * This named instance is specifically used by repositories that need access
+     * to the database instance itself for advanced operations like configuration
+     * or multiple database scenarios.
+     *
+     * @return Singleton FirebaseDatabase instance for advanced database operations
      */
     @Provides
     @Singleton
@@ -47,9 +69,16 @@ object FirebaseModule {
     /**
      * Provides the root [DatabaseReference] of the Firebase Realtime Database.
      *
-     * This reference can be used to read/write to the database.
+     * This reference serves as the entry point for all database operations including:
+     * - Reading and writing user data, messages, and group information
+     * - Setting up real-time listeners for live data updates
+     * - Managing database queries and transactions
+     * - Handling offline capabilities and data synchronization
      *
-     * @return A DatabaseReference pointing to the root node.
+     * The root reference allows repositories to navigate to specific database paths
+     * while maintaining a centralized configuration point.
+     *
+     * @return DatabaseReference pointing to the root node of the Firebase Realtime Database
      */
     @Provides
     fun provideFirebaseDatabase(): DatabaseReference {
@@ -57,9 +86,18 @@ object FirebaseModule {
     }
 
     /**
-     * Provides a singleton instance of [FirebaseStorage].
+     * Provides a singleton instance of [FirebaseStorage] for cloud file operations.
      *
-     * @return An instance of FirebaseStorage for uploading and downloading files.
+     * This instance manages all cloud storage operations including:
+     * - Image upload and download for profile pictures and messages
+     * - File management with proper access control
+     * - Optimized storage buckets for different file types
+     * - Secure download URL generation for file access
+     *
+     * The storage instance is configured with default settings suitable for
+     * chat application requirements including image compression and security rules.
+     *
+     * @return Singleton FirebaseStorage instance for file upload and management operations
      */
     @Provides
     @Singleton

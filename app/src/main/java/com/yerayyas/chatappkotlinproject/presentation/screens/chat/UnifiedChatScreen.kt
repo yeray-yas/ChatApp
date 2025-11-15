@@ -349,7 +349,7 @@ fun UnifiedChatScreen(
                             .padding(horizontal = 16.dp)
                             .padding(top = Constants.TOP_APP_BAR_HEIGHT)
                             .padding(bottom = smartBottomPadding),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
                             vertical = 8.dp
                         )

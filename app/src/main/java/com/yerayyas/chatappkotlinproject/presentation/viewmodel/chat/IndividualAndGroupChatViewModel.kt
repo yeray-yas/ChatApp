@@ -1,6 +1,7 @@
 package com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -8,9 +9,11 @@ import com.yerayyas.chatappkotlinproject.data.model.*
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import com.yerayyas.chatappkotlinproject.domain.usecases.*
-import com.yerayyas.chatappkotlinproject.domain.usecases.group.GetUserGroupsUseCase
-import com.yerayyas.chatappkotlinproject.domain.usecases.group.ManageGroupMembersUseCase
-import com.yerayyas.chatappkotlinproject.domain.usecases.group.SendGroupMessageUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetGroupByIdUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetUserGroupsUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.ManageGroupMembersUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.MarkGroupMessagesAsReadUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.SendGroupMessageUseCase
 import com.yerayyas.chatappkotlinproject.utils.AppState
 import com.yerayyas.chatappkotlinproject.utils.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -75,7 +78,9 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     firebaseAuth: FirebaseAuth,
     private val sendGroupMessageUseCase: SendGroupMessageUseCase,
     private val getUserGroupsUseCase: GetUserGroupsUseCase,
+    private val getGroupByIdUseCase: GetGroupByIdUseCase,
     private val manageGroupMembersUseCase: ManageGroupMembersUseCase,
+    private val markGroupMessagesAsReadUseCase: MarkGroupMessagesAsReadUseCase,
 
     val appState: AppState
 ) : ViewModel() {
@@ -219,11 +224,16 @@ class IndividualAndGroupChatViewModel @Inject constructor(
                 // Load group members
                 loadGroupMembers(groupId)
 
+                Log.d("CHAT_VM_LOG", "Attempting to mark messages as read for group $groupId")
+                val result = markGroupMessagesAsReadUseCase(groupId)
+                if (result.isSuccess) {
+                    Log.d("CHAT_VM_LOG", "Successfully marked messages as read for group $groupId")
+                } else {
+                    Log.e("CHAT_VM_LOG", "Failed to mark messages as read", result.exceptionOrNull())
+                }
+
                 // Load group messages
                 loadGroupMessages(groupId)
-
-                // Mark messages as read
-                markGroupMessagesAsRead(groupId)
 
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -488,8 +498,8 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     // Private methods for group chat
     private suspend fun loadGroupInfo(groupId: String) {
         try {
-            val group = getUserGroupsUseCase.getGroupById(groupId)
-            _groupInfo.value = group
+            val group = getGroupByIdUseCase(groupId)
+         _groupInfo.value = group
         } catch (e: Exception) {
             throw Exception("Failed to load group information")
         }
@@ -565,6 +575,15 @@ class IndividualAndGroupChatViewModel @Inject constructor(
                 it.username.equals(username, ignoreCase = true)
             }?.id
         }.toList()
+    }
+
+    fun markMessagesAsRead(groupId: String) {
+        viewModelScope.launch {
+            markGroupMessagesAsReadUseCase(groupId)
+                .onFailure { error ->
+                    Log.e("GroupChatViewModel", "Failed to mark messages as read", error)
+                }
+        }
     }
 
     override fun onCleared() {

@@ -1,6 +1,9 @@
 package com.yerayyas.chatappkotlinproject.presentation.screens.home
 
 import android.Manifest
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
@@ -10,6 +13,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -79,6 +83,8 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.ChatsListVi
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.home.ChatsUiState
 
 /**
  * Composable function representing the main Home screen of the app.
@@ -104,7 +110,8 @@ fun HomeScreen(
     var showMenu by remember { mutableStateOf(false) }
     val username by viewModel.username.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val unreadMessagesCount by chatsListViewModel.unreadMessagesCount.collectAsState()
+    val unreadMessagesCount by chatsListViewModel.totalUnreadCount.collectAsState()
+    val unreadGroupMessagesCount by viewModel.unreadGroupMessagesCount.collectAsState()
     val context = LocalContext.current
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -139,6 +146,21 @@ fun HomeScreen(
             } else {
                 Log.d("HomeScreen", "POST_NOTIFICATIONS permission already granted.")
             }
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadUnreadGroupMessagesCount()
+                chatsListViewModel.loadUserChatsAndUnreadCount()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -230,7 +252,7 @@ fun HomeScreen(
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.sign_out_btn)) },
                             onClick = {
-                                viewModel.signOut { 
+                                viewModel.signOut {
                                     navController.navigate(Routes.Main.route) {
                                         popUpTo(0) { inclusive = true }
                                     }
@@ -254,9 +276,11 @@ fun HomeScreen(
             }
         }
     ) { paddingValues ->
-        Column(modifier = Modifier
-            .padding(paddingValues)
-            .fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
             TabRow(selectedTabIndex = pagerState.currentPage) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -264,13 +288,20 @@ fun HomeScreen(
                         onClick = {
                             coroutineScope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        text = { 
-                            val tabTitle = if (index == 1 && unreadMessagesCount > 0) {
-                                "[$unreadMessagesCount] $title"
+                        text = {
+                            val count = when (title) {
+                                "Chats" -> unreadMessagesCount
+                                "Groups" -> unreadGroupMessagesCount
+                                else -> 0
+                            }
+
+                            val textToShow = if (count > 0) {
+                                "[$count] $title"
                             } else {
                                 title
                             }
-                            Text(tabTitle)
+
+                            Text(text = textToShow)
                         }
                     )
                 }
@@ -422,24 +453,53 @@ private fun ChatsList(
     navController: NavController,
     viewModel: ChatsListViewModel = hiltViewModel()
 ) {
-    val chats by viewModel.chats.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(chats) { chat ->
-            ChatListItem(
-                chat = chat,
-                onClick = {
-                    val route = "chat/${chat.otherUserId}/${chat.otherUsername}"
-                    try {
-                        navController.navigate(route)
-                    } catch (e: Exception) {
-                        Log.e("ChatsList", "Navigation failed for route: $route", e)
+    when (val state = uiState) {
+        is ChatsUiState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+
+        is ChatsUiState.Error -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = state.message,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+
+        is ChatsUiState.Success -> {
+            if (state.chats.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "You have no chats yet.\nStart a conversation from the Users tab.",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(state.chats, key = { it.chatId }) { chatItem ->
+                        ChatListItem(
+                            chat = chatItem,
+                            onClick = {
+                                navController.navigate(
+                                    Routes.Chat.createRoute(
+                                        userId = chatItem.otherUserId,
+                                        username = chatItem.otherUsername
+                                    )
+                                )
+                            }
+
+                        )
                     }
                 }
-            )
+            }
         }
     }
 }
@@ -516,8 +576,10 @@ private fun GroupsList(
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(groupsToShow) { group ->
+                    val unreadCount by viewModel.getUnreadCountForGroup(group.id).collectAsState(initial = 0)
                     GroupChatItem(
                         groupChat = group,
+                        unreadCount = unreadCount,
                         onGroupClick = { groupId ->
                             navController.navigate(Routes.GroupChat.createRoute(groupId))
                         }
@@ -555,17 +617,17 @@ private fun EmptyGroupsState(
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "You don't have any groups yet",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Create your first group to chat with multiple people",
             style = MaterialTheme.typography.bodyMedium,
@@ -573,9 +635,9 @@ private fun EmptyGroupsState(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         Button(
             onClick = onCreateGroupClick,
             modifier = Modifier.padding(horizontal = 32.dp)

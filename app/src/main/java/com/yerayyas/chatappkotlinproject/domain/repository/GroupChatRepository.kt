@@ -109,7 +109,7 @@ interface GroupChatRepository {
      * @param groupId The ID of the group chat.
      * @return The flow of messages.
      */
-    suspend fun getGroupMessages(groupId: String): Flow<List<GroupMessage>>
+    fun getGroupMessages(groupId: String): Flow<List<GroupMessage>>
 
     /**
      * Updates the last activity of a group chat.
@@ -172,7 +172,7 @@ interface GroupChatRepository {
      * @param userId The ID of the user.
      * @return The flow of invitations.
      */
-    suspend fun getInvitationsForUser(userId: String): Flow<List<GroupInvitation>>
+    fun getInvitationsForUser(userId: String): Flow<List<GroupInvitation>>
 
     // Read receipts
     /**
@@ -210,4 +210,22 @@ interface GroupChatRepository {
      * @return The flow of group chats.
      */
     fun getUserGroups(userId: String): Flow<List<GroupChat>>
+
+    /**
+     * Marks all unread messages in a group as read by a specific user.
+     *
+     * @param groupId The ID of the group chat.
+     * @param userId The ID of the user who is reading the messages.
+     * @return The result of the operation.
+     */
+    suspend fun markGroupMessagesAsRead(groupId: String, userId: String): Result<Unit>
+
+    /**
+     * Retrieves a flow of the number of unread messages for a specific group.
+     *
+     * @param groupId The ID of the group.
+     * @param userId The ID of the user.
+     * @return A flow emitting the count of unread messages for that group.
+     */
+    fun getUnreadMessagesCountForGroup(groupId: String, userId: String): Flow<Int>
 }

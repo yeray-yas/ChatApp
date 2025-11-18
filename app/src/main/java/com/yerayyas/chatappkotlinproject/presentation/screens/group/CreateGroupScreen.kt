@@ -40,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,8 +66,6 @@ fun CreateGroupScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val availableUsers by viewModel.availableUsers.collectAsStateWithLifecycle()
     val selectedUsers by viewModel.selectedUsers.collectAsStateWithLifecycle()
-
-    val context = LocalContext.current
 
     // Observe creation result
     LaunchedEffect(uiState.isGroupCreated) {
@@ -129,9 +126,9 @@ fun CreateGroupScreen(
                     item {
                         GroupInfoSection(
                             groupName = uiState.groupName,
-                            onGroupNameChange = viewModel::updateGroupName,
+                            onGroupNameChange = viewModel::onGroupNameChange,
                             groupDescription = uiState.groupDescription,
-                            onGroupDescriptionChange = viewModel::updateGroupDescription
+                            onGroupDescriptionChange = viewModel::onGroupDescriptionChange
                         )
                     }
 
@@ -172,7 +169,7 @@ fun CreateGroupScreen(
                         item {
                             SelectedMembersSection(
                                 selectedMembers = selectedUsers,
-                                onRemoveMember = viewModel::toggleUserSelection
+                                onRemoveMember = viewModel::onUserSelectionToggle
                             )
                         }
                     }
@@ -199,7 +196,7 @@ fun CreateGroupScreen(
                                 user = user,
                                 isSelected = selectedUsers.contains(user),
                                 onSelectionChange = {
-                                    viewModel.toggleUserSelection(user)
+                                    viewModel.onUserSelectionToggle(user)
                                 }
                             )
                         }

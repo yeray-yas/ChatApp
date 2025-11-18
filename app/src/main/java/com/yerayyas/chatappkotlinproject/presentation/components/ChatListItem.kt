@@ -1,38 +1,42 @@
 package com.yerayyas.chatappkotlinproject.presentation.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yerayyas.chatappkotlinproject.data.model.ChatListItem
-import java.text.SimpleDateFormat
-import java.util.*
-
+import com.yerayyas.chatappkotlinproject.utils.formatTimestamp
 /**
- * A composable function that displays a single chat item in the chat list.
+ * A Composable that displays a single chat conversation preview in a list.
  *
- * This component renders a chat conversation item showing essential information including
- * the other user's name, the last message preview, unread message count, and timestamp.
- * The entire item is clickable and provides proper Material Design 3 styling.
+ * This component is designed to be a self-contained row in a chat list, showing
+ * essential information like the participant's name, the last message, a timestamp,
+ * and a badge for unread messages. It's built for reusability and follows Material Design 3 guidelines.
  *
  * Key features:
- * - Username display with proper styling
- * - Last message preview with text overflow handling
- * - Unread message badge with count indicator
- * - Human-readable timestamp formatting
- * - Clickable interaction with ripple effect
- * - Consistent card-based layout
+ * - **Data-driven**: Populated by a [ChatListItem] model.
+ * - **Interactive**: The entire card is clickable, with a callback for navigation.
+ * - **Informative**: Clearly displays unread count and a relative timestamp.
+ * - **Accessible**: Provides meaningful content descriptions for UI elements (implicitly via Text).
+ * - **Consistent Styling**: Uses [MaterialTheme] for colors and typography.
  *
- * @param chat The [ChatListItem] containing the data to be displayed
- * @param onClick Lambda function to be executed when the item is clicked
- * @param modifier Optional [Modifier] for customizing layout and styling
+ * @param chat The [ChatListItem] data model containing the information to display.
+ * @param onClick A lambda function that is invoked when the user clicks on the chat item.
+ * @param modifier An optional [Modifier] to be applied to the root Card element.
  */
 @Composable
 fun ChatListItem(
@@ -43,96 +47,63 @@ fun ChatListItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        onClick = onClick,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Future: Add Avatar Composable here
+            // e.g., UserAvatar(user = ...)
+
+            // Column for Name, Last Message, and Badge
             Column(modifier = Modifier.weight(1f)) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = chat.otherUsername,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    if (chat.unreadCount > 0) {
-                        UnreadCountBadge(count = chat.unreadCount)
+                    // Row for Username and Unread Badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false) // Prevents pushing timestamp
+                    ) {
+                        Text(
+                            text = chat.otherUsername,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (chat.unreadCount > 0) {
+                            Spacer(Modifier.width(8.dp))
+                            UnreadCountBadge(count = chat.unreadCount)
+                        }
                     }
+                    // Timestamp aligned to the right of the username row
+                    Text(
+                        text = formatTimestamp(chat.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
                 Text(
                     text = chat.lastMessage,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Text(
-                text = formatTimestamp(chat.timestamp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
-    }
-}
-
-/**
- * A composable that displays an unread message count badge.
- *
- * This component renders a circular badge with the unread message count,
- * providing visual feedback for unread conversations.
- *
- * @param count The number of unread messages to display
- */
-@Composable
-private fun UnreadCountBadge(count: Int) {
-    Box(
-        modifier = Modifier
-            .size(24.dp)
-            .background(
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = count.toString(),
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall
-        )
-    }
-}
-
-/**
- * Formats a given timestamp into a human-readable string.
- *
- * The formatting follows a progressive pattern based on message recency:
- * - "Now" if less than an hour ago
- * - "{x} h" if less than 24 hours ago
- * - "{x} d" if within the last 7 days
- * - "dd/MM/yy" format for older messages
- *
- * @param timestamp The timestamp in milliseconds
- * @return A formatted time string representing the recency of the message
- */
-private fun formatTimestamp(timestamp: Long): String {
-    val date = Date(timestamp)
-    val now = Date()
-    val diff = now.time - date.time
-    val minutes = diff / (60 * 1000)
-    val hours = minutes / 60
-    val days = hours / 24
-
-    return when {
-        minutes < 60 -> "Now"
-        hours < 24 -> "$hours h"
-        days < 7 -> "$days d"
-        else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
     }
 }

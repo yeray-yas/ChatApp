@@ -70,7 +70,7 @@ interface UserRepository {
      *
      * @return Flow emitting lists of all discoverable users with real-time updates
      */
-    suspend fun getAllUsers(): Flow<List<User>>
+    fun getAllUsers(): Flow<List<User>>
 
     /**
      * Retrieves detailed information for a specific user by their unique identifier.

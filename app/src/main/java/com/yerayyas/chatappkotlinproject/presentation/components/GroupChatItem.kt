@@ -1,10 +1,12 @@
 package com.yerayyas.chatappkotlinproject.presentation.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,10 +22,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
+import com.bumptech.glide.integration.compose.GlideImage
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,6 +56,7 @@ import java.util.Locale
 @Composable
 fun GroupChatItem(
     groupChat: GroupChat,
+    unreadCount: Int,
     onGroupClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -68,6 +73,7 @@ fun GroupChatItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onGroupClick(groupChat.id) }
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -81,6 +87,7 @@ fun GroupChatItem(
 
             GroupInfoSection(
                 groupChat = groupChat,
+                unreadCount = unreadCount,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -99,7 +106,8 @@ fun GroupChatItem(
 @Composable
 private fun GroupInfoSection(
     groupChat: GroupChat,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    unreadCount: Int
 ) {
     Column(
         modifier = modifier,
@@ -137,14 +145,12 @@ private fun GroupInfoSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f, fill = false)
             )
-
-            Text(
-                text = "${groupChat.memberIds.size} members",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+            if (unreadCount > 0) {
+                Spacer(modifier = Modifier.width(8.dp))
+                UnreadCountBadge(count = unreadCount)
+            }
         }
     }
 }
@@ -161,30 +167,35 @@ private fun GroupInfoSection(
  * @param groupName Name of the group for accessibility purposes
  * @param modifier Optional [Modifier] for customizing layout and styling
  */
+@OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 private fun GroupAvatar(
     groupImageUrl: String?,
     groupName: String,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier.clip(CircleShape),
-        contentAlignment = Alignment.Center
+    Card(
+        modifier = modifier.size(50.dp),
+        shape = CircleShape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
     ) {
-        Card(
-            modifier = Modifier.size(50.dp),
-            shape = CircleShape,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+        if (!groupImageUrl.isNullOrEmpty()) {
+            GlideImage(
+                model = groupImageUrl,
+                contentDescription = "Avatar of group $groupName",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
-        ) {
+        } else {
             Box(
-                modifier = Modifier.size(50.dp),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Group,
-                    contentDescription = "Group $groupName",
+                    contentDescription = "Default avatar for group $groupName",
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(24.dp)
                 )
@@ -192,6 +203,7 @@ private fun GroupAvatar(
         }
     }
 }
+
 
 /**
  * Formats timestamp to display date in a user-friendly way.

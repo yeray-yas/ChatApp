@@ -99,7 +99,7 @@ class UserRepositoryImpl @Inject constructor(
     // ===== NEW FUNCTIONS FOR REAL USERS =====
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun getAllUsers(): Flow<List<User>> {
+    override fun getAllUsers(): Flow<List<User>> {
         return callbackFlow {
             val usersRef = database.child("Users")
 

@@ -1,4 +1,4 @@
-package com.yerayyas.chatappkotlinproject.domain.usecases.group
+package com.yerayyas.chatappkotlinproject.domain.usecases.chat.group
 
 import com.google.firebase.auth.FirebaseAuth
 import com.yerayyas.chatappkotlinproject.data.model.GroupActivityType

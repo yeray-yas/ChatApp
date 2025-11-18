@@ -1,4 +1,4 @@
-package com.yerayyas.chatappkotlinproject.domain.usecases.group
+package com.yerayyas.chatappkotlinproject.domain.usecases.chat.group
 
 import android.net.Uri
 import android.util.Log
@@ -33,7 +33,7 @@ class CreateGroupUseCase @Inject constructor(
      * @param imageUri Group image URI (optional)
      * @return Result containing the created group ID on success, or an exception on failure
      */
-    suspend fun execute(
+    suspend operator fun invoke(
         name: String,
         description: String,
         memberIds: List<String>,

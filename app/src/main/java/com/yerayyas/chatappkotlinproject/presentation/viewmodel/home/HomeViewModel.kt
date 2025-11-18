@@ -3,6 +3,7 @@ package com.yerayyas.chatappkotlinproject.presentation.viewmodel.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetUnreadGroupMessagesCountUseCase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -14,12 +15,15 @@ import com.yerayyas.chatappkotlinproject.data.model.User
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetUnreadMessagesCountForGroupUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelAllNotificationsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
@@ -27,6 +31,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.onEach
 
 private const val TAG = "HomeViewModel"
 
@@ -40,6 +46,8 @@ private const val TAG = "HomeViewModel"
  * @property userRepository Repository for user-related data operations.
  * @property cancelAllNotificationsUseCase Helper for managing app notifications.
  * @property groupChatRepository Repository for group chat data operations.
+ * @property getUnreadGroupMessagesCountUseCase UseCase for get unread group messages count for a specific group.
+ * @property getUnreadMessagesCountForGroupUseCase UseCase for get unread messages count for a specific group.
  */
 @HiltViewModel
 @OptIn(FlowPreview::class)
@@ -48,24 +56,35 @@ class HomeViewModel @Inject constructor(
     private val database: DatabaseReference,
     private val userRepository: UserRepository,
     private val cancelAllNotificationsUseCase: CancelAllNotificationsUseCase,
-    private val groupChatRepository: GroupChatRepository
+    private val groupChatRepository: GroupChatRepository,
+    private val getUnreadGroupMessagesCountUseCase: GetUnreadGroupMessagesCountUseCase,
+    private val getUnreadMessagesCountForGroupUseCase: GetUnreadMessagesCountForGroupUseCase
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
+
     /** Emits true while loading user data. */
     val isLoading: StateFlow<Boolean> = _isLoading
 
     private val _username = MutableStateFlow("")
+
     /** Emits the current user's display name. */
     val username: StateFlow<String> = _username
 
     private val _users = MutableStateFlow<List<User>>(emptyList())
+
     /** Emits the list of other users matching the search. */
     val users: StateFlow<List<User>> = _users
 
     private val _searchQuery = MutableStateFlow("")
+
     /** Holds the current search query. */
     val searchQuery: StateFlow<String> = _searchQuery
+
+    private val _unreadGroupMessagesCount = MutableStateFlow(0)
+    val unreadGroupMessagesCount: StateFlow<Int> = _unreadGroupMessagesCount.asStateFlow()
+
+    private var unreadGroupCountJob: Job? = null
 
     private var connectionListener: ValueEventListener? = null
 
@@ -82,6 +101,7 @@ class HomeViewModel @Inject constructor(
         initializePresenceListener()
         loadCurrentUserProfile()
         clearAllNotificationsOnStart()
+        loadUnreadGroupMessagesCount()
         viewModelScope.launch {
             _searchQuery
                 .debounce(300)
@@ -90,6 +110,29 @@ class HomeViewModel @Inject constructor(
                     fetchUsers(query.lowercase(Locale.getDefault()))
                 }
         }
+    }
+
+    fun loadUnreadGroupMessagesCount() {
+        unreadGroupCountJob?.cancel()
+        unreadGroupCountJob = viewModelScope.launch {
+            getUnreadGroupMessagesCountUseCase()
+                .catch { exception ->
+                    Log.e(TAG, "Error collecting GLOBAL unread group messages count", exception)
+                    _unreadGroupMessagesCount.value = 0
+                }
+                .collect { count ->
+                    Log.d("PROFESSIONAL_LOG", "HomeViewModel: GLOBAL count updated to: $count")
+                    _unreadGroupMessagesCount.value = count
+                }
+        }
+    }
+
+    fun getUnreadCountForGroup(groupId: String): Flow<Int> {
+        Log.d("PROFESSIONAL_LOG", "HomeViewModel: Requesting INDIVIDUAL count for group $groupId")
+        return getUnreadMessagesCountForGroupUseCase(groupId)
+            .onEach { count ->
+                Log.d("PROFESSIONAL_LOG", "HomeViewModel: INDIVIDUAL count for group $groupId emitted: $count")
+            }
     }
 
     /**
@@ -234,9 +277,12 @@ class HomeViewModel @Inject constructor(
                         id = id,
                         username = publicData.child("username").getValue(String::class.java) ?: "",
                         email = privateData.child("email").getValue(String::class.java) ?: "",
-                        profileImage = publicData.child("profileImage").getValue(String::class.java) ?: "",
-                        status = privateData.child("status").getValue(String::class.java) ?: "offline",
-                        isOnline = privateData.child("status").getValue(String::class.java) == "online",
+                        profileImage = publicData.child("profileImage").getValue(String::class.java)
+                            ?: "",
+                        status = privateData.child("status").getValue(String::class.java)
+                            ?: "offline",
+                        isOnline = privateData.child("status")
+                            .getValue(String::class.java) == "online",
                         lastSeen = privateData.child("lastSeen").getValue(Long::class.java) ?: 0L
                     )
                 }

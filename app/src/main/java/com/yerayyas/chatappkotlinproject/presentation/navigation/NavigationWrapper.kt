@@ -108,6 +108,22 @@ fun NavigationWrapper(
             route = Routes.GroupChat.route,
             arguments = listOf(navArgument("groupId") { type = NavType.StringType })
         ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId")
+            if (groupId != null) {
+                GroupChatScreenUnified(
+                    groupId = groupId,
+                    navController = navController
+                )
+            } else {
+                Log.e("NavGraph", "groupId is null for GroupChat route, navigating back.")
+                navController.popBackStack()
+            }
+        }
+
+        composable(
+            route = Routes.GroupChat.route,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
             GroupChatScreenUnified(
                 groupId = groupId,

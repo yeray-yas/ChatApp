@@ -1,6 +1,8 @@
-package com.yerayyas.chatappkotlinproject.domain.usecases.group
+package com.yerayyas.chatappkotlinproject.domain.usecases.chat.group
 
+import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
+import com.yerayyas.chatappkotlinproject.data.model.GroupActivityType
 import com.yerayyas.chatappkotlinproject.data.model.GroupMessage
 import com.yerayyas.chatappkotlinproject.data.model.GroupMessageType
 import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
@@ -108,7 +110,7 @@ class SendGroupMessageUseCase @Inject constructor(
      */
     suspend fun sendImageMessage(
         groupId: String,
-        imageUri: android.net.Uri,
+        imageUri: Uri,
         caption: String = "",
         senderName: String,
         senderImageUrl: String? = null,
@@ -171,7 +173,7 @@ class SendGroupMessageUseCase @Inject constructor(
     suspend fun sendSystemMessage(
         groupId: String,
         message: String,
-        systemMessageType: com.yerayyas.chatappkotlinproject.data.model.GroupActivityType
+        systemMessageType: GroupActivityType
     ): Result<Unit> {
         return try {
             // Validate authentication

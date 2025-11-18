@@ -1,27 +1,42 @@
 package com.yerayyas.chatappkotlinproject.presentation.viewmodel.group
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.data.model.User
-import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
-import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
-import com.yerayyas.chatappkotlinproject.domain.usecases.group.CreateGroupUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.CreateGroupUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.GetAllUsersUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.SearchUsersUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "CreateGroupViewModel"
 
+/**
+ * ViewModel for the group creation screen.
+ *
+ * This ViewModel orchestrates the group creation process by delegating all data
+ * and business logic operations to specific use cases, adhering to Clean Architecture principles.
+ * Its responsibilities are limited to:
+ * - Managing UI state (`CreateGroupUiState`).
+ * - Handling user input and selection.
+ * - Calling use cases to load user lists, search users, and create the group.
+ *
+ * @property createGroupUseCase Use case for handling the entire group creation logic.
+ * @property getAllUsersUseCase Use case for fetching a list of all available users, excluding the current one.
+ * @property searchUsersUseCase Use case for searching users by a query, excluding the current one.
+ */
 @HiltViewModel
 class CreateGroupViewModel @Inject constructor(
     private val createGroupUseCase: CreateGroupUseCase,
-    private val groupChatRepository: GroupChatRepository,
-    private val userRepository: UserRepository
+    private val getAllUsersUseCase: GetAllUsersUseCase,
+    private val searchUsersUseCase: SearchUsersUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateGroupUiState())
@@ -33,205 +48,83 @@ class CreateGroupViewModel @Inject constructor(
     private val _selectedUsers = MutableStateFlow<List<User>>(emptyList())
     val selectedUsers: StateFlow<List<User>> = _selectedUsers.asStateFlow()
 
-    private val _currentUser = MutableStateFlow<User?>(null)
-    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
-
     init {
-        loadCurrentUser()
         loadUsers()
     }
 
-    /**
-     * Loads the current user information first
-     */
-    private fun loadCurrentUser() {
-        viewModelScope.launch {
-            try {
-                val user = userRepository.getCurrentUser()
-                _currentUser.value = user
-                Log.d(TAG, "Current user loaded: ${user?.username}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading current user: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Loads all available users from Firebase
-     */
     private fun loadUsers() {
         viewModelScope.launch {
-            try {
-                Log.d(TAG, "Loading users from Firebase...")
-                _uiState.value = _uiState.value.copy(isLoading = true)
-
-                // Collect users from Firebase using Flow
-                userRepository.getAllUsers().collect { users ->
-                    Log.d(TAG, "Received ${users.size} users from Firebase")
-
-                    // Filter the current user so they don't appear in the list
-                    val currentUserId = _currentUser.value?.id
-                    val filteredUsers = if (currentUserId != null) {
-                        users.filter { it.id != currentUserId }
-                    } else {
-                        users
-                    }
-
-                    _availableUsers.value = filteredUsers
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = null
-                    )
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            // Call the UseCase, which returns a Flow
+            getAllUsersUseCase()
+                .catch { e ->
+                    Log.e(TAG, "Error loading users", e)
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Failed to load users: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading users: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Error loading users: ${e.message}"
-                )
-            }
+                .collect { users ->
+                    _availableUsers.value = users
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
         }
     }
 
-    /**
-     * Searches users by username
-     */
     fun searchUsers(query: String) {
         if (query.isBlank()) {
-            loadUsers() // Reload all users if no query
+            loadUsers()
             return
         }
-
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                Log.d(TAG, "Searching users with query: '$query'")
-                _uiState.value = _uiState.value.copy(isLoading = true)
-
-                val searchResults = userRepository.searchUsers(query)
-
-                // Filter the current user
-                val currentUserId = _currentUser.value?.id
-                val filteredResults = if (currentUserId != null) {
-                    searchResults.filter { it.id != currentUserId }
-                } else {
-                    searchResults
-                }
-
-                _availableUsers.value = filteredResults
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = null
-                )
-
-                Log.d(TAG, "Found ${filteredResults.size} users matching '$query'")
+                // Call the suspend UseCase
+                val users = searchUsersUseCase(query)
+                _availableUsers.value = users
+                _uiState.value = _uiState.value.copy(isLoading = false)
             } catch (e: Exception) {
-                Log.e(TAG, "Error searching users: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Error searching users: ${e.message}"
-                )
+                Log.e(TAG, "Error searching users", e)
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "Search failed: ${e.message}")
             }
         }
     }
 
-    fun updateGroupName(name: String) {
-        _uiState.value = _uiState.value.copy(groupName = name)
+    fun onGroupNameChange(name: String) {
+        _uiState.value = _uiState.value.copy(groupName = name, error = null)
     }
 
-    fun updateGroupDescription(description: String) {
-        _uiState.value = _uiState.value.copy(groupDescription = description)
+    fun onGroupDescriptionChange(description: String) {
+        _uiState.value = _uiState.value.copy(groupDescription = description, error = null)
     }
 
-    fun toggleUserSelection(user: User) {
+    fun onUserSelectionToggle(user: User) {
         val currentSelected = _selectedUsers.value.toMutableList()
-
         if (currentSelected.contains(user)) {
             currentSelected.remove(user)
-            Log.d(TAG, "Removed user: ${user.username}")
         } else {
             currentSelected.add(user)
-            Log.d(TAG, "Added user: ${user.username}")
         }
-
         _selectedUsers.value = currentSelected
-        Log.d(TAG, "Total selected users: ${currentSelected.size}")
     }
 
-    fun createGroup() {
+    fun createGroup(imageUri: Uri? = null) {
         viewModelScope.launch {
-            try {
-                val state = _uiState.value
-                val currentUserData = _currentUser.value
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-                // Validaciones
-                if (state.groupName.isBlank()) {
-                    _uiState.value = state.copy(error = "Group name is required")
-                    return@launch
-                }
+            // The ViewModel's only job is to collect data from the UI
+            // and pass it to the UseCase. All logic is in the UseCase.
+            val result = createGroupUseCase(
+                name = _uiState.value.groupName,
+                description = _uiState.value.groupDescription,
+                memberIds = _selectedUsers.value.map { it.id },
+                imageUri = imageUri
+            )
 
-                if (_selectedUsers.value.isEmpty()) {
-                    _uiState.value = state.copy(error = "At least one member must be selected")
-                    return@launch
-                }
-
-                if (currentUserData == null) {
-                    _uiState.value = state.copy(error = "Current user not found")
-                    return@launch
-                }
-
-                Log.d(
-                    TAG,
-                    "Creating group '${state.groupName}' with ${_selectedUsers.value.size} members"
-                )
-                _uiState.value = state.copy(isLoading = true, error = null)
-
-                // Crear lista de miembros (incluir usuario actual + seleccionados)
-                val allMembers = mutableListOf<String>().apply {
-                    add(currentUserData.id) // Agregar usuario actual
-                    addAll(_selectedUsers.value.map { it.id }) // Agregar usuarios seleccionados
-                }
-
-                // Crear el grupo
-                val groupChat = GroupChat(
-                    id = "", // Firebase generará el ID
-                    name = state.groupName,
-                    description = state.groupDescription,
-                    memberIds = allMembers,
-                    adminIds = listOf(currentUserData.id), // Usuario actual es admin
-                    createdBy = currentUserData.id,
-                    createdAt = System.currentTimeMillis(),
-                    lastActivity = System.currentTimeMillis(),
-                    isActive = true
-                )
-
-                val result = createGroupUseCase.execute(
-                    name = state.groupName,
-                    description = state.groupDescription,
-                    memberIds = allMembers,
-                    imageUri = null
-                )
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "Group created successfully!")
-                    _uiState.value = state.copy(
-                        isLoading = false,
-                        isGroupCreated = true,
-                        error = null
-                    )
-                } else {
-                    val errorMessage = result.exceptionOrNull()?.message ?: "Unknown error"
-                    Log.e(TAG, "Error creating group: $errorMessage")
-                    _uiState.value = state.copy(
-                        isLoading = false,
-                        error = "Error creating group: $errorMessage"
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception creating group: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Error creating group: ${e.message}"
-                )
+            if (result.isSuccess) {
+                Log.d(TAG, "Group created successfully with ID: ${result.getOrNull()}")
+                _uiState.value = _uiState.value.copy(isLoading = false, isGroupCreated = true)
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "An unknown error occurred"
+                Log.e(TAG, "Failed to create group: $error")
+                _uiState.value = _uiState.value.copy(isLoading = false, error = error)
             }
         }
     }
@@ -246,7 +139,7 @@ class CreateGroupViewModel @Inject constructor(
 }
 
 /**
- * Estado de UI para la creación de grupos
+ * Represents the UI state for the group creation screen.
  */
 data class CreateGroupUiState(
     val isLoading: Boolean = false,

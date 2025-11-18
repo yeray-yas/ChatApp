@@ -5,21 +5,21 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseException
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.getValue
 import com.google.firebase.storage.FirebaseStorage
 import com.yerayyas.chatappkotlinproject.data.model.GroupChat
 import com.yerayyas.chatappkotlinproject.data.model.GroupInvitation
 import com.yerayyas.chatappkotlinproject.data.model.GroupMessage
-import com.yerayyas.chatappkotlinproject.data.model.GroupMessageType
-import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
-import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Named
@@ -138,13 +138,15 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun addMemberToGroup(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Group not found")
-            val updatedMembers = group.memberIds.toMutableList().apply {
-                if (!contains(userId)) add(userId)
-            }
-            val updatedGroup = group.copy(memberIds = updatedMembers)
-
-            updateGroup(updatedGroup)
+            // Actualiza directamente el campo del miembro en Firebase. Atómico y eficiente.
+            firebaseDatabase.reference
+                .child("groups")
+                .child(groupId)
+                .child("memberIds") // Asume que memberIds es un Map<String, Boolean>
+                .child(userId)
+                .setValue(true)
+                .await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -152,15 +154,17 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun removeMemberFromGroup(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Group not found")
-            val updatedMembers = group.memberIds.toMutableList().apply { remove(userId) }
-            val updatedAdmins = group.adminIds.toMutableList().apply { remove(userId) }
-            val updatedGroup = group.copy(
-                memberIds = updatedMembers,
-                adminIds = updatedAdmins
+            // Ejecuta dos borrados atómicos en una sola operación de actualización.
+            val updates = mapOf(
+                "memberIds/$userId" to null, // Borra al usuario de la lista de miembros
+                "adminIds/$userId" to null   // Borra al usuario de la lista de admins (si estaba)
             )
-
-            updateGroup(updatedGroup)
+            firebaseDatabase.reference
+                .child("groups")
+                .child(groupId)
+                .updateChildren(updates)
+                .await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -168,35 +172,44 @@ class GroupChatRepositoryImpl @Inject constructor(
 
     override suspend fun makeAdmin(groupId: String, userId: String): Result<Unit> {
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Group not found")
-            val updatedAdmins = group.adminIds.toMutableList().apply {
-                if (!contains(userId)) add(userId)
-            }
-            val updatedGroup = group.copy(adminIds = updatedAdmins)
-
-            updateGroup(updatedGroup)
+            // Actualiza directamente el campo de admin
+            firebaseDatabase.reference
+                .child("groups")
+                .child(groupId)
+                .child("adminIds")
+                .child(userId)
+                .setValue(true)
+                .await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     override suspend fun removeAdmin(groupId: String, userId: String): Result<Unit> {
+        // Para esta operación, SÍ necesitamos leer primero para no borrar al último admin.
+        // Así que la dejamos como estaba, porque la lógica de negocio es más importante que la optimización.
         return try {
             val group = getGroupById(groupId) ?: throw Exception("Group not found")
 
-            // Do not allow removing the last admin
-            if (group.adminIds.size <= 1) {
+            if (group.adminIds.size <= 1 && group.adminIds.contains(userId)) {
                 throw Exception("Cannot remove the last administrator")
             }
 
-            val updatedAdmins = group.adminIds.toMutableList().apply { remove(userId) }
-            val updatedGroup = group.copy(adminIds = updatedAdmins)
+            firebaseDatabase.reference
+                .child("groups")
+                .child(groupId)
+                .child("adminIds")
+                .child(userId)
+                .removeValue()
+                .await()
 
-            updateGroup(updatedGroup)
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
 
     override suspend fun getGroupMembers(groupId: String): List<String> {
         return try {
@@ -262,7 +275,7 @@ class GroupChatRepositoryImpl @Inject constructor(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun getGroupMessages(groupId: String): Flow<List<GroupMessage>> {
+    override fun getGroupMessages(groupId: String): Flow<List<GroupMessage>> {
         return callbackFlow {
             val messagesRef = firebaseDatabase.reference
                 .child("group_messages")
@@ -452,7 +465,7 @@ class GroupChatRepositoryImpl @Inject constructor(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun getInvitationsForUser(userId: String): Flow<List<GroupInvitation>> {
+    override fun getInvitationsForUser(userId: String): Flow<List<GroupInvitation>> {
         return callbackFlow {
             val invitationsRef = firebaseDatabase.reference
                 .child("group_invitations")
@@ -483,189 +496,125 @@ class GroupChatRepositoryImpl @Inject constructor(
     // ===== SEARCH AND FILTERS =====
 
     override suspend fun searchGroupMessages(groupId: String, query: String): List<GroupMessage> {
-        return try {
-            val snapshot = firebaseDatabase.reference
-                .child("group_messages")
-                .child(groupId)
-                .get()
-                .await()
+        return try {            val snapshot = firebaseDatabase.reference
+            .child("group_messages")
+            .child(groupId)
+            .get()
+            .await()
 
-            snapshot.children.mapNotNull {
-                it.getValue(GroupMessage::class.java)
-            }.filter {
-                it.message.contains(query, ignoreCase = true)
+            snapshot.children.mapNotNull { dataSnapshot ->
+                dataSnapshot.getValue(GroupMessage::class.java)
+            }.filter { groupMessage ->
+                groupMessage.message.contains(query, ignoreCase = true)
             }
         } catch (e: Exception) {
-            // If there is an error, use mock data
-            getMockGroupMessages(groupId).filter {
-                it.message.contains(query, ignoreCase = true)
-            }
+            Log.e("GroupChatRepository", "Error searching group messages for query '$query'", e)
+            // If there is an error, just return an empty list. Don't use mock data.
+            emptyList()
         }
     }
 
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getUserGroups(userId: String): Flow<List<GroupChat>> {
-        return callbackFlow {
-            val groupsRef = firebaseDatabase.reference.child("groups")
+        if (userId.isBlank()) {
+            return flowOf(emptyList())
+        }
+     /*   val query = firebaseDatabase.reference.child("groups")
+            .orderByChild("memberIds/$userId")
+            .equalTo(true)*/
 
+        val groupsRef = firebaseDatabase.reference.child("groups")
+        return callbackFlow {
             val listener = groupsRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    try {
-                        val allGroups = snapshot.children.mapNotNull {
-                            it.getValue(GroupChat::class.java)
-                        }
-
-                        Log.d(
-                            "GroupChatRepository",
-                            "Firebase returned ${allGroups.size} total groups"
-                        )
-
-                        // Filter groups where the user is a member
-                        val userGroups = allGroups.filter { group ->
-                            group.memberIds.contains(userId)
-                        }.sortedByDescending { it.lastActivity }
-
-                        Log.d(
-                            "GroupChatRepository",
-                            "User $userId is member of ${userGroups.size} groups"
-                        )
-
-                        // If no real groups are found, use mock data only in development
-                        val groupsToSend = userGroups.ifEmpty {
-                            Log.d("GroupChatRepository", "No real groups found, using mock data")
-                            getMockGroups(userId)
-                        }
-
-                        trySend(groupsToSend)
-                    } catch (e: Exception) {
-                        Log.d(
-                            "GroupChatRepository",
-                            "Error loading groups from Firebase: ${e.message}"
-                        )
-                        // In case of an error, use mock data as a fallback
-                        trySend(getMockGroups(userId))
-                    }
+                    val groups = snapshot.children.mapNotNull { it.getValue(GroupChat::class.java) }
+                    val userGroups = groups.filter { it.memberIds.contains(userId) }
+                    Log.d("GroupChatRepository", "User $userId is member of ${userGroups.size} groups.")
+                    trySend(userGroups)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.d("GroupChatRepository", "Firebase groups cancelled: ${error.message}")
-                    // In case of an error, use mock data as a fallback
-                    trySend(getMockGroups(userId))
+                    Log.w("GroupChatRepository", "Listener for user groups cancelled.", error.toException())
+                    close(error.toException())
                 }
             })
-
             awaitClose { groupsRef.removeEventListener(listener) }
         }
     }
 
-    // ===== MOCK DATA =====
 
-    /**
-     * Provides mock data for development and testing purposes.
-     * Returns sample group messages with various message types and read statuses.
-     *
-     * @param groupId The group ID to generate mock messages for
-     * @return List of sample [GroupMessage] objects for testing
-     */
-    private fun getMockGroupMessages(groupId: String): List<GroupMessage> {
-        val currentUserId = firebaseAuth.currentUser?.uid ?: "current_user"
+    override suspend fun markGroupMessagesAsRead(groupId: String, userId: String): Result<Unit> {
+        return try {
+            val messagesRef = firebaseDatabase.reference.child("group_messages").child(groupId)
+            val snapshot = messagesRef.get().await()
 
-        return listOf(
-            GroupMessage(
-                id = "msg1",
-                groupId = groupId,
-                senderId = "user2",
-                senderName = "Ana García",
-                message = "Hello everyone! 👋",
-                timestamp = System.currentTimeMillis() - 3600000,
-                messageType = GroupMessageType.TEXT,
-                readStatus = ReadStatus.READ,
-                readBy = mapOf("user3" to System.currentTimeMillis() - 3500000)
-            ),
-            GroupMessage(
-                id = "msg2",
-                groupId = groupId,
-                senderId = "user3",
-                senderName = "Carlos López",
-                message = "@Juan how's everything going?",
-                timestamp = System.currentTimeMillis() - 1800000,
-                messageType = GroupMessageType.TEXT,
-                readStatus = ReadStatus.READ,
-                mentionedUsers = listOf("user1"),
-                readBy = mapOf(currentUserId to System.currentTimeMillis() - 1700000)
-            ),
-            GroupMessage(
-                id = "msg3",
-                groupId = groupId,
-                senderId = currentUserId,
-                senderName = "You",
-                message = "Everything's fine here, thanks for asking 😊",
-                timestamp = System.currentTimeMillis() - 900000,
-                messageType = GroupMessageType.TEXT,
-                readStatus = ReadStatus.DELIVERED,
-                readBy = mapOf("user2" to System.currentTimeMillis() - 800000)
-            ),
-            GroupMessage(
-                id = "msg4",
-                groupId = groupId,
-                senderId = "user4",
-                senderName = "María Rodríguez",
-                message = "Anyone up for lunch tomorrow? 🍕",
-                timestamp = System.currentTimeMillis() - 300000,
-                messageType = GroupMessageType.TEXT,
-                readStatus = ReadStatus.SENT
-            )
-        ).sortedBy { it.timestamp }
+            if (!snapshot.exists()) {
+                return Result.success(Unit)
+            }
+
+            val updates = mutableMapOf<String, Any>()
+
+            snapshot.children.forEach { messageSnapshot ->
+                val messageId = messageSnapshot.key
+                val readByMap = messageSnapshot.child("readBy").value as? Map<*, *> ?: emptyMap<Any, Any>()
+                val senderId = messageSnapshot.child("senderId").getValue(String::class.java)
+
+                if (messageId != null && senderId != userId && !readByMap.containsKey(userId)) {
+                    updates["$messageId/readBy/$userId"] = ServerValue.TIMESTAMP
+                }
+            }
+
+            if (updates.isNotEmpty()) {
+                messagesRef.updateChildren(updates).await()
+                Log.d("GroupChatRepoImpl", "SUCCESS: Marked ${updates.size} messages as read for user $userId")
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("GroupChatRepoImpl", "FAILURE: Could not mark messages as read.", e)
+            Result.failure(e)
+        }
     }
 
-    /**
-     * Provides mock group data for development and testing purposes.
-     * Returns sample groups with various configurations and member setups.
-     *
-     * @param userId The user ID to include in the mock groups
-     * @return List of sample [GroupChat] objects for testing
-     */
-    private fun getMockGroups(userId: String): List<GroupChat> {
-        return listOf(
-            GroupChat(
-                id = "group1",
-                name = "Family ❤️",
-                description = "Family chat",
-                memberIds = listOf(userId, "user2", "user3", "user4"),
-                adminIds = listOf(userId),
-                createdBy = userId,
-                lastActivity = System.currentTimeMillis() - 300000,
-                lastMessage = ChatMessage(
-                    message = "Anyone up for lunch tomorrow? 🍕",
-                    timestamp = System.currentTimeMillis() - 300000
-                )
-            ),
-            GroupChat(
-                id = "group2",
-                name = "Work - Dev Team 💻",
-                description = "Development team",
-                memberIds = listOf(userId, "user5", "user6", "user7", "user8"),
-                adminIds = listOf(userId, "user5"),
-                createdBy = userId,
-                lastActivity = System.currentTimeMillis() - 7200000,
-                lastMessage = ChatMessage(
-                    message = "The new feature is ready for testing",
-                    timestamp = System.currentTimeMillis() - 7200000
-                )
-            ),
-            GroupChat(
-                id = "group3",
-                name = "University Friends 🎓",
-                description = "The usual ones",
-                memberIds = listOf(userId, "user9", "user10", "user11"),
-                adminIds = listOf(userId),
-                createdBy = userId,
-                lastActivity = System.currentTimeMillis() - 86400000,
-                lastMessage = ChatMessage(
-                    message = "When do we meet?",
-                    timestamp = System.currentTimeMillis() - 86400000
-                )
-            )
-        ).sortedByDescending { it.lastActivity }
+    override fun getUnreadMessagesCountForGroup(groupId: String, userId: String): Flow<Int> {
+        if (groupId.isBlank() || userId.isBlank()) {
+            return flowOf(0)
+        }
+
+        val messagesRef = firebaseDatabase.reference.child("group_messages").child(groupId)
+
+        return callbackFlow {
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (!snapshot.exists()) {
+                        trySend(0)
+                        return
+                    }
+                    var unreadCount = 0
+                    snapshot.children.forEach { messageSnapshot ->
+                        try {
+                            val message = messageSnapshot.getValue(GroupMessage::class.java)
+                            if (message != null && message.senderId != userId && !message.readBy.containsKey(userId)) {
+                                unreadCount++
+                            }
+                        } catch (e: DatabaseException) {
+                            Log.e(
+                                "GroupChatRepoImpl",
+                                "Error deserializing message ${messageSnapshot.key} in group $groupId. SKIPPING. Error: ${e.message}"
+                            )
+                        }
+                    }
+                    Log.d("GroupChatRepoImpl", "Unread count for group $groupId for user $userId IS: $unreadCount")
+                    trySend(unreadCount)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.w("GroupChatRepoImpl", "Listener for group count $groupId cancelled.", error.toException())
+                    close(error.toException())
+                }
+            }
+            messagesRef.addValueEventListener(listener)
+            awaitClose { messagesRef.removeEventListener(listener) }
+        }
     }
 }

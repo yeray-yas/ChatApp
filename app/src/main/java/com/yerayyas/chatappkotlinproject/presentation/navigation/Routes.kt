@@ -54,6 +54,25 @@ sealed class Routes(
         fun createRoute(selectedTab: Int = 0) = "home_screen?selectedTab=$selectedTab"
     }
 
+    /** Screen for an individual one-on-one chat conversation. */
+    data object Chat : Routes(
+        route = "direct_chat/{userId}/{username}",
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(ANIMATION_DURATION)
+            )
+        }
+    ) {
+        fun createRoute(userId: String, username: String) = "direct_chat/$userId/$username"
+    }
+
     /** Screen for viewing the current user's profile. */
     data object UserProfile : Routes("user_profile")
 

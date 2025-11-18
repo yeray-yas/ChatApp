@@ -4,21 +4,40 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.yerayyas.chatappkotlinproject.data.model.*
-import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
-import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
-import com.yerayyas.chatappkotlinproject.domain.usecases.*
-import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetGroupByIdUseCase
-import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetUserGroupsUseCase
-import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.ManageGroupMembersUseCase
+import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
+import com.yerayyas.chatappkotlinproject.data.model.GroupChat
+import com.yerayyas.chatappkotlinproject.data.model.GroupMessage
+import com.yerayyas.chatappkotlinproject.data.model.GroupMessageType
+import com.yerayyas.chatappkotlinproject.data.model.MessageType
+import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
+import com.yerayyas.chatappkotlinproject.data.model.User
+import com.yerayyas.chatappkotlinproject.domain.usecases.CancelChatNotificationsUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.LoadChatMessagesUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.SendImageMessageReplyUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.SendImageMessageUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.SendTextMessageReplyUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.SendTextMessageUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.LoadGroupInfoUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.LoadGroupMessagesUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.MarkGroupMessagesAsReadUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.SendGroupImageMessageUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.SendGroupMessageUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.GetCurrentUserIdUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.GetUsersByIdsUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.LoadUserProfileUseCase
 import com.yerayyas.chatappkotlinproject.utils.AppState
 import com.yerayyas.chatappkotlinproject.utils.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,38 +51,11 @@ sealed class ChatType {
 
 /**
  * Unified ViewModel for handling both individual and group chats.
- *
- * This ViewModel provides a unified interface for managing different types of chat conversations,
- * handling message loading, sending, and various chat operations for both individual and group chats.
- * It follows Clean Architecture principles and uses use cases for business logic operations.
- *
- * Key features:
- * - Unified message handling for individual and group chats
- * - Reply functionality with message referencing
- * - Real-time message loading and state management
- * - Image and text message support
- * - Group-specific features like mentions and typing indicators
- * - Permission management for group chats
- * - Notification management integration
- *
- * @param loadChatMessagesUseCase Use case for loading individual chat messages
- * @param sendTextMessageUseCase Use case for sending text messages in individual chats
- * @param sendImageMessageUseCase Use case for sending image messages in individual chats
- * @param sendTextMessageReplyUseCase Use case for sending text replies in individual chats
- * @param sendImageMessageReplyUseCase Use case for sending image replies in individual chats
- * @param getCurrentUserIdUseCase Use case for getting current user ID
- * @param cancelChatNotificationsUseCase Use case for canceling chat notifications
- * @param groupChatRepository Repository for group chat operations
- * @param userRepository Repository for user data operations
- * @param firebaseAuth Firebase authentication instance
- * @param sendGroupMessageUseCase Use case for sending messages in group chats
- * @param getUserGroupsUseCase Use case for retrieving user's groups
- * @param manageGroupMembersUseCase Use case for managing group members
- * @param appState Application state for tracking current chat context
+ * Refactored to use Clean Architecture with UseCases.
  */
 @HiltViewModel
 class IndividualAndGroupChatViewModel @Inject constructor(
-    // Use cases for individual chat
+    // --- Use cases for individual chat ---
     private val loadChatMessagesUseCase: LoadChatMessagesUseCase,
     private val sendTextMessageUseCase: SendTextMessageUseCase,
     private val sendImageMessageUseCase: SendImageMessageUseCase,
@@ -72,14 +64,13 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     getCurrentUserIdUseCase: GetCurrentUserIdUseCase,
     private val cancelChatNotificationsUseCase: CancelChatNotificationsUseCase,
 
-    // Use cases for group chat
-    private val groupChatRepository: GroupChatRepository,
-    private val userRepository: UserRepository,
-    firebaseAuth: FirebaseAuth,
+    // --- Use cases for group chat & User ---
     private val sendGroupMessageUseCase: SendGroupMessageUseCase,
-    private val getUserGroupsUseCase: GetUserGroupsUseCase,
-    private val getGroupByIdUseCase: GetGroupByIdUseCase,
-    private val manageGroupMembersUseCase: ManageGroupMembersUseCase,
+    private val sendGroupImageMessageUseCase: SendGroupImageMessageUseCase,
+    private val loadGroupInfoUseCase: LoadGroupInfoUseCase,
+    private val loadGroupMessagesUseCase: LoadGroupMessagesUseCase,
+    private val getUsersByIdsUseCase: GetUsersByIdsUseCase,
+    private val loadUserProfileUseCase: LoadUserProfileUseCase,
     private val markGroupMessagesAsReadUseCase: MarkGroupMessagesAsReadUseCase,
 
     val appState: AppState
@@ -160,29 +151,21 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         initialValue = null
     )
 
-    private val currentUserId = firebaseAuth.currentUser?.uid ?: getCurrentUserIdUseCase()
+    private val currentUserId = getCurrentUserIdUseCase() ?: ""
     private var currentChatId: String = ""
 
-    /**
-     * Get the current user ID
-     */
     fun getCurrentUserId(): String = currentUserId
 
-    /**
-     * Initialize individual chat
-     */
     fun initializeIndividualChat(otherUserId: String) {
         currentChatId = otherUserId
         _chatType.value = ChatType.Individual
         _isLoading.value = true
         _error.value = null
 
-        // Cancel chat notifications
         viewModelScope.launch {
             cancelChatNotificationsUseCase(otherUserId)
         }
 
-        // Clear group messages and load individual messages
         _groupMessages.value = emptyList()
 
         loadChatMessagesUseCase(otherUserId)
@@ -196,13 +179,9 @@ class IndividualAndGroupChatViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Mark as open chat in AppState
         appState.currentOpenChatUserId = otherUserId
     }
 
-    /**
-     * Initialize group chat
-     */
     fun initializeGroupChat(groupId: String) {
         currentChatId = groupId
         _chatType.value = ChatType.Group
@@ -211,17 +190,11 @@ class IndividualAndGroupChatViewModel @Inject constructor(
             try {
                 _isLoading.value = true
                 _error.value = null
-
-                // Clear individual messages
                 _individualMessages.value = emptyList()
 
-                // Cancel group notifications
                 cancelChatNotificationsUseCase.cancelGroupNotifications(groupId)
 
-                // Load group information
                 loadGroupInfo(groupId)
-
-                // Load group members
                 loadGroupMembers(groupId)
 
                 Log.d("CHAT_VM_LOG", "Attempting to mark messages as read for group $groupId")
@@ -229,10 +202,13 @@ class IndividualAndGroupChatViewModel @Inject constructor(
                 if (result.isSuccess) {
                     Log.d("CHAT_VM_LOG", "Successfully marked messages as read for group $groupId")
                 } else {
-                    Log.e("CHAT_VM_LOG", "Failed to mark messages as read", result.exceptionOrNull())
+                    Log.e(
+                        "CHAT_VM_LOG",
+                        "Failed to mark messages as read",
+                        result.exceptionOrNull()
+                    )
                 }
 
-                // Load group messages
                 loadGroupMessages(groupId)
 
                 _isLoading.value = false
@@ -242,13 +218,9 @@ class IndividualAndGroupChatViewModel @Inject constructor(
             }
         }
 
-        // Mark as open group chat in AppState
         appState.currentOpenGroupChatId = groupId
     }
 
-    /**
-     * Send a message (text or image depending on chat type)
-     */
     fun sendMessage(receiverId: String? = null, imageUri: Uri? = null) {
         when (_chatType.value) {
             is ChatType.Individual -> {
@@ -365,19 +337,19 @@ class IndividualAndGroupChatViewModel @Inject constructor(
                 _isLoading.value = true
 
                 val currentUser = getCurrentUserInfo()
+                val senderId = getCurrentUserId()
                 val senderName = currentUser?.username ?: "User"
                 val senderImageUrl = currentUser?.profileImage
 
                 val currentReplyTo = _replyToGroupMessage.value
 
-                val result = sendGroupMessageUseCase.sendImageMessage(
+                // Usamos el UseCase con los parámetros corregidos
+                val result = sendGroupImageMessageUseCase(
                     groupId = currentChatId,
-                    imageUri = imageUri,
-                    caption = caption,
+                    senderId = senderId,
                     senderName = senderName,
                     senderImageUrl = senderImageUrl,
-                    mentionedUsers = extractMentions(caption),
-                    replyToMessageId = currentReplyTo?.id,
+                    imageUri = imageUri,
                     replyToMessage = currentReplyTo
                 )
 
@@ -395,13 +367,8 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Update message text
-     */
     fun updateMessageText(text: String) {
         _messageText.value = text
-
-        // Only for group chats - manage typing indicator
         if (_chatType.value is ChatType.Group) {
             if (text.isNotEmpty() && !_isTyping.value) {
                 _isTyping.value = true
@@ -412,9 +379,6 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Set message to reply to
-     */
     fun setReplyToMessage(message: UnifiedMessage) {
         when (message) {
             is UnifiedMessage.Individual -> _replyToIndividualMessage.value = message.message
@@ -422,17 +386,11 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Cancel reply
-     */
     fun clearReply() {
         _replyToIndividualMessage.value = null
         _replyToGroupMessage.value = null
     }
 
-    /**
-     * Scroll to original message (works for both individual and group chats)
-     */
     fun scrollToOriginalMessage(messageId: String) {
         viewModelScope.launch {
             _scrollToMessageId.value = messageId
@@ -444,9 +402,6 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Extract original message ID from a UnifiedMessage that is a reply
-     */
     fun getOriginalMessageId(replyMessage: UnifiedMessage): String? {
         return when (replyMessage) {
             is UnifiedMessage.Individual -> {
@@ -454,6 +409,7 @@ class IndividualAndGroupChatViewModel @Inject constructor(
                     replyMessage.message.replyToMessageId
                 } else null
             }
+
             is UnifiedMessage.Group -> {
                 if (replyMessage.isReply) {
                     replyMessage.message.replyToMessage?.id
@@ -462,9 +418,6 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Check if the current user can send messages
-     */
     fun canSendMessages(): Boolean {
         return when (_chatType.value) {
             is ChatType.Individual -> true
@@ -475,9 +428,6 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Check if the current user is an administrator (only for groups)
-     */
     fun isCurrentUserAdmin(): Boolean {
         return when (_chatType.value) {
             is ChatType.Individual -> false
@@ -488,18 +438,14 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Clear error
-     */
     fun clearError() {
         _error.value = null
     }
 
-    // Private methods for group chat
     private suspend fun loadGroupInfo(groupId: String) {
         try {
-            val group = getGroupByIdUseCase(groupId)
-         _groupInfo.value = group
+            val group = loadGroupInfoUseCase(groupId)
+            _groupInfo.value = group
         } catch (e: Exception) {
             throw Exception("Failed to load group information")
         }
@@ -509,7 +455,7 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         try {
             val group = _groupInfo.value ?: return
             val memberIds = group.memberIds
-            val members = userRepository.getUsersByIds(memberIds)
+            val members = getUsersByIdsUseCase(memberIds)
             _groupMembers.value = members
         } catch (e: Exception) {
             throw Exception("Failed to load group members")
@@ -519,7 +465,7 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     private fun loadGroupMessages(groupId: String) {
         try {
             viewModelScope.launch {
-                groupChatRepository.getGroupMessages(groupId).collect { messagesList ->
+                loadGroupMessagesUseCase(groupId).collect { messagesList ->
                     _groupMessages.value = messagesList.sortedBy { it.timestamp }
                 }
             }
@@ -530,25 +476,18 @@ class IndividualAndGroupChatViewModel @Inject constructor(
 
     private suspend fun getCurrentUserInfo(): User? {
         return try {
-            userRepository.getCurrentUser()
+            loadUserProfileUseCase().getOrNull()
         } catch (e: Exception) {
             null
         }
     }
 
-    private fun markGroupMessagesAsRead(groupId: String) {
+    fun markMessagesAsRead(groupId: String) {
         viewModelScope.launch {
-            try {
-                val unreadMessages = _groupMessages.value.filter { message ->
-                    message.senderId != currentUserId && !message.isReadBy(currentUserId)
+            markGroupMessagesAsReadUseCase(groupId)
+                .onFailure { error ->
+                    Log.e("GroupChatViewModel", "Failed to mark messages as read", error)
                 }
-
-                unreadMessages.forEach { message ->
-                    groupChatRepository.markMessageAsRead(groupId, message.id, currentUserId)
-                }
-            } catch (e: Exception) {
-                // Handle read receipt errors silently
-            }
         }
     }
 
@@ -577,18 +516,8 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         }.toList()
     }
 
-    fun markMessagesAsRead(groupId: String) {
-        viewModelScope.launch {
-            markGroupMessagesAsReadUseCase(groupId)
-                .onFailure { error ->
-                    Log.e("GroupChatViewModel", "Failed to mark messages as read", error)
-                }
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
-        // Clear states from AppState
         when (_chatType.value) {
             is ChatType.Individual -> {
                 if (appState.currentOpenChatUserId == currentChatId) {
@@ -605,9 +534,7 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     }
 }
 
-/**
- * Unified message that can be either individual or group
- */
+
 sealed class UnifiedMessage {
     abstract val id: String
     abstract val senderId: String
@@ -640,22 +567,13 @@ sealed class UnifiedMessage {
         override val isReply: Boolean = message.isReply()
     }
 
-    /**
-     * Check if the message was sent by a specific user
-     */
     fun isSentBy(userId: String): Boolean = senderId == userId
 
-    /**
-     * Get the sender's name (only for group messages)
-     */
     fun getSenderName(): String? = when (this) {
         is Individual -> null
         is Group -> message.senderName
     }
 
-    /**
-     * Get the read status
-     */
     fun getReadStatus(): ReadStatus = when (this) {
         is Individual -> message.readStatus
         is Group -> message.readStatus

@@ -187,25 +187,18 @@ fun NavigationWrapper(
         }
         composable(
             route = Routes.Home.route,
-            arguments = listOf(
-                navArgument("selectedTab") {
-                    type = NavType.IntType
-                    defaultValue = 0
-                }
-            )
-        ) { backStackEntry ->
-            val selectedTab = backStackEntry.arguments?.getInt("selectedTab") ?: 0
-            HomeScreen(navController, selectedTab = selectedTab)
+            arguments = emptyList()
+        ) {
+            HomeScreen(navController = navController)
         }
 
-        // Settings Screen - Nueva funcionalidad Fase 2
+
         composable(Routes.Settings.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        // Search Screen - Nueva funcionalidad Fase 2
         composable(
             route = Routes.Search.route,
             arguments = listOf(

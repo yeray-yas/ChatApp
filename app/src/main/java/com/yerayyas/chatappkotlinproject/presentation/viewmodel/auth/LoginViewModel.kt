@@ -45,8 +45,16 @@ class LoginViewModel @Inject constructor(
                 Log.d(TAG, "Attempting login for email: $email")
                 auth.signInWithEmailAndPassword(email, password).await()
                 Log.i(TAG, "Login successful for email: $email. User ID: ${auth.currentUser?.uid}")
+
+                try {
+                    userRepository.updateUserStatus("online")
+                    Log.i(TAG, "User status updated to online manually.")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update user status to online", e)
+                }
                 updateFcmTokenAfterLogin()
                 onResult(true, null)
+
             } catch (e: Exception) {
                 Log.e(TAG, "Login failed for email: $email", e)
                 onResult(false, e.localizedMessage ?: "Unknown error occurred")

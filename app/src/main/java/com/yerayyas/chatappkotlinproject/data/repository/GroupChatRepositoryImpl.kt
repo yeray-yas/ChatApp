@@ -2,7 +2,6 @@ package com.yerayyas.chatappkotlinproject.data.repository
 
 import android.net.Uri
 import android.util.Log
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseException
@@ -25,51 +24,41 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
+private const val TAG = "GroupChatRepoImpl"
+
 /**
- * Comprehensive implementation of [GroupChatRepository] for group chat operations.
+ * Comprehensive implementation of [GroupChatRepository] handling all group-related operations.
  *
- * This repository provides a complete implementation of group chat functionality, including
- * group management, member administration, messaging, invitations, and real-time data synchronization.
- * It integrates with Firebase services to provide persistent, scalable group chat features.
+ * Integrates Firebase Realtime Database and Storage to manage the lifecycle of groups,
+ * memberships, messages, and invitations.
  *
- * Key functionalities:
- * - **Group Management**: Create, update, delete, and retrieve groups with full CRUD operations
- * - **Member Administration**: Add/remove members, manage admin privileges, and permission control
- * - **Group Messaging**: Send text/image messages with real-time message streaming
- * - **Read Receipts**: Track message read status across group members for delivery confirmation
- * - **Invitations**: Create and manage group invitations with status tracking
- * - **Search**: Search messages within groups with query filtering
- * - **Settings**: Manage group-specific settings and permissions
- * - **File Upload**: Handle image uploads for group messages and avatars using Firebase Storage
- * - **Mock Data Support**: Provides fallback mock data for development and testing scenarios
+ * **Data Structure Note (Lists vs Maps):**
+ * This repository adheres to a Data Model where `memberIds` and `adminIds` are defined as
+ * [List<String>]. Consequently, membership operations (add/remove) utilize a
+ * **"Fetch-Modify-Save"** strategy rather than atomic key-value updates.
  *
- * Architecture pattern: Repository Pattern with Clean Architecture
- * - Implements domain repository interface for clean separation of concerns
- * - Integrates with Firebase services (Auth, Database, Storage) for backend operations
- * - Provides reactive data streams through Flow for real-time UI updates
- * - Includes comprehensive error handling and logging for debugging
- * - Supports both production data and development mock data
- *
- * Firebase integration:
- * - **Firebase Auth**: User authentication and current user management
- * - **Firebase Realtime Database**: Real-time group and message synchronization with live updates
- * - **Firebase Storage**: Secure image upload and management for group content
- *
- * Thread safety: All operations are designed to be thread-safe and can be called from
- * background threads. Flow operations automatically handle threading concerns.
- *
- * Error handling: All operations return Result types or handle exceptions gracefully,
- * with fallback to mock data when appropriate for development purposes.
+ * **Key Features:**
+ * - **Real-time Synchronization:** Uses [Flow] and `ValueEventListener` for live updates.
+ * - **Hybrid Storage:** Stores structural data in Realtime Database and binaries (images) in Storage.
+ * - **Client-Side Filtering:** Used for complex queries (like searching within groups) where
+ * backend indexing is limited.
  */
 @Singleton
 class GroupChatRepositoryImpl @Inject constructor(
-    private val firebaseAuth: FirebaseAuth,
     @Named("firebaseDatabaseInstance") private val firebaseDatabase: FirebaseDatabase,
     private val firebaseStorage: FirebaseStorage
 ) : GroupChatRepository {
 
-    // ===== BASIC GROUP MANAGEMENT =====
+    // region Group Management (CRUD)
 
+    /**
+     * Creates a new group node in the database.
+     *
+     * Generates a unique key locally before pushing data to `groups/{groupId}`.
+     *
+     * @param group The group data object to be created.
+     * @return [Result] containing the new Group ID on success.
+     */
     override suspend fun createGroup(group: GroupChat): Result<String> {
         return try {
             val reference = firebaseDatabase.reference.child("groups").push()
@@ -84,6 +73,12 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Retrieves a specific group by its ID.
+     *
+     * @param groupId The unique identifier of the group.
+     * @return The [GroupChat] object or null if not found/error.
+     */
     override suspend fun getGroupById(groupId: String): GroupChat? {
         return try {
             val snapshot = firebaseDatabase.reference
@@ -98,6 +93,11 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing group's top-level data.
+     *
+     * @param group The group object with updated values.
+     */
     override suspend fun updateGroup(group: GroupChat): Result<Unit> {
         return try {
             firebaseDatabase.reference
@@ -112,16 +112,21 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Deletes a group and its associated messages.
+     *
+     * **Operation:** Performs two separate delete operations (groups and group_messages).
+     *
+     * @param groupId The ID of the group to delete.
+     */
     override suspend fun deleteGroup(groupId: String): Result<Unit> {
         return try {
-            // Delete the group
             firebaseDatabase.reference
                 .child("groups")
                 .child(groupId)
                 .removeValue()
                 .await()
 
-            // Delete group messages
             firebaseDatabase.reference
                 .child("group_messages")
                 .child(groupId)
@@ -134,75 +139,116 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== MEMBER MANAGEMENT =====
+    // endregion
 
+    // region Member Management
+
+    /**
+     * Adds a user to the group's member list.
+     *
+     * **Implementation Detail:**
+     * Since `memberIds` is a [List], this method performs a read-modify-write operation:
+     * 1. Fetches the current group state.
+     * 2. Appends the user ID to the list (if not present).
+     * 3. Overwrites the `memberIds` field.
+     *
+     * @param groupId The target group ID.
+     * @param userId The ID of the user to add.
+     */
     override suspend fun addMemberToGroup(groupId: String, userId: String): Result<Unit> {
         return try {
-            // Actualiza directamente el campo del miembro en Firebase. Atómico y eficiente.
-            firebaseDatabase.reference
-                .child("groups")
-                .child(groupId)
-                .child("memberIds") // Asume que memberIds es un Map<String, Boolean>
-                .child(userId)
-                .setValue(true)
-                .await()
+            val groupRef = firebaseDatabase.reference.child("groups").child(groupId)
+            val groupSnapshot = groupRef.get().await()
+            val group = groupSnapshot.getValue(GroupChat::class.java)
+                ?: throw Exception("Group not found")
+
+            if (!group.memberIds.contains(userId)) {
+                val updatedList = group.memberIds.toMutableList().apply { add(userId) }
+                groupRef.child("memberIds").setValue(updatedList).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Removes a user from the group (and admin list if applicable).
+     *
+     * **Implementation Detail:**
+     * Filters the user ID out of both `memberIds` and `adminIds` lists locally,
+     * then performs an update on the group node.
+     *
+     * @param groupId The target group ID.
+     * @param userId The ID of the user to remove.
+     */
     override suspend fun removeMemberFromGroup(groupId: String, userId: String): Result<Unit> {
         return try {
-            // Ejecuta dos borrados atómicos en una sola operación de actualización.
+            val groupRef = firebaseDatabase.reference.child("groups").child(groupId)
+            val groupSnapshot = groupRef.get().await()
+            val group = groupSnapshot.getValue(GroupChat::class.java)
+                ?: throw Exception("Group not found")
+
+            // Remove from members and admins locally
+            val updatedMembers = group.memberIds.filter { it != userId }
+            val updatedAdmins = group.adminIds.filter { it != userId }
+
             val updates = mapOf(
-                "memberIds/$userId" to null, // Borra al usuario de la lista de miembros
-                "adminIds/$userId" to null   // Borra al usuario de la lista de admins (si estaba)
+                "memberIds" to updatedMembers,
+                "adminIds" to updatedAdmins
             )
-            firebaseDatabase.reference
-                .child("groups")
-                .child(groupId)
-                .updateChildren(updates)
-                .await()
+
+            groupRef.updateChildren(updates).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Promotes a member to administrator status.
+     *
+     * @param groupId The target group ID.
+     * @param userId The ID of the user to promote.
+     */
     override suspend fun makeAdmin(groupId: String, userId: String): Result<Unit> {
         return try {
-            // Actualiza directamente el campo de admin
-            firebaseDatabase.reference
-                .child("groups")
-                .child(groupId)
-                .child("adminIds")
-                .child(userId)
-                .setValue(true)
-                .await()
+            val groupRef = firebaseDatabase.reference.child("groups").child(groupId)
+            val groupSnapshot = groupRef.get().await()
+            val group = groupSnapshot.getValue(GroupChat::class.java)
+                ?: throw Exception("Group not found")
+
+            if (!group.adminIds.contains(userId) && group.memberIds.contains(userId)) {
+                val updatedAdmins = group.adminIds.toMutableList().apply { add(userId) }
+                groupRef.child("adminIds").setValue(updatedAdmins).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Downgrades an admin to a regular member.
+     *
+     * **Validation:** Prevents removing the last administrator to ensure the group is not orphaned.
+     *
+     * @param groupId The target group ID.
+     * @param userId The ID of the admin to downgrade.
+     */
     override suspend fun removeAdmin(groupId: String, userId: String): Result<Unit> {
-        // Para esta operación, SÍ necesitamos leer primero para no borrar al último admin.
-        // Así que la dejamos como estaba, porque la lógica de negocio es más importante que la optimización.
         return try {
-            val group = getGroupById(groupId) ?: throw Exception("Group not found")
+            val groupRef = firebaseDatabase.reference.child("groups").child(groupId)
+            val groupSnapshot = groupRef.get().await()
+            val group = groupSnapshot.getValue(GroupChat::class.java)
+                ?: throw Exception("Group not found")
 
             if (group.adminIds.size <= 1 && group.adminIds.contains(userId)) {
                 throw Exception("Cannot remove the last administrator")
             }
 
-            firebaseDatabase.reference
-                .child("groups")
-                .child(groupId)
-                .child("adminIds")
-                .child(userId)
-                .removeValue()
-                .await()
+            val updatedAdmins = group.adminIds.filter { it != userId }
+            groupRef.child("adminIds").setValue(updatedAdmins).await()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -210,7 +256,9 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-
+    /**
+     * Retrieves the list of member IDs for a group.
+     */
     override suspend fun getGroupMembers(groupId: String): List<String> {
         return try {
             val group = getGroupById(groupId)
@@ -220,14 +268,19 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== GROUP MESSAGING =====
+    // endregion
 
+    // region Messaging
+
+    /**
+     * Sends a message and updates the group's metadata.
+     *
+     * 1. Pushes the message to `group_messages/{groupId}`.
+     * 2. Triggers [updateLastActivity] to refresh the group's preview in the list.
+     */
     override suspend fun sendMessageToGroup(groupId: String, message: GroupMessage): Result<Unit> {
-        val TAG = "GroupChatRepository"
         return try {
             Log.d(TAG, "Sending message to group $groupId")
-            Log.d(TAG, "Message content: ${message.message}")
-            Log.d(TAG, "Sender: ${message.senderId}")
 
             val reference = firebaseDatabase.reference
                 .child("group_messages")
@@ -237,34 +290,29 @@ class GroupChatRepositoryImpl @Inject constructor(
             val messageId = reference.key ?: throw Exception("Could not generate message ID")
             val messageWithId = message.copy(id = messageId, groupId = groupId)
 
-            Log.d(TAG, "Generated message ID: $messageId")
-            Log.d(TAG, "Saving to Firebase path: group_messages/$groupId/$messageId")
-
             reference.setValue(messageWithId).await()
 
-            Log.d(TAG, "Message saved successfully to Firebase")
-
-            // Update last activity of the group
             updateLastActivity(groupId, messageWithId)
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("GroupChatRepository", "Error sending message to group: ${e.message}")
+            Log.e(TAG, "Error sending message: ${e.message}")
             Result.failure(e)
         }
     }
 
     /**
-     * Uploads an image to Firebase Storage and returns the download URL
-     * for use in group messages with images
+     * Uploads an image to Firebase Storage for use in a group message.
+     *
+     * @param groupId The group context.
+     * @param imageUri The local URI of the image.
+     * @return [Result] containing the download URL of the uploaded image.
      */
     override suspend fun uploadGroupMessageImage(groupId: String, imageUri: Uri): Result<String> {
         return try {
-            // Define the path and name for the image in Firebase Storage
             val imageFileName = "group_chat_images/$groupId/${java.util.UUID.randomUUID()}.jpg"
             val imageRef = firebaseStorage.reference.child(imageFileName)
 
-            // Upload the file and get its public URL
             imageRef.putFile(imageUri).await()
             val imageUrl = imageRef.downloadUrl.await().toString()
 
@@ -274,6 +322,9 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Provides a real-time stream of messages for a specific group.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getGroupMessages(groupId: String): Flow<List<GroupMessage>> {
         return callbackFlow {
@@ -287,25 +338,15 @@ class GroupChatRepositoryImpl @Inject constructor(
                     try {
                         val messagesList = snapshot.children.mapNotNull {
                             it.getValue(GroupMessage::class.java)
-                        }.sortedBy { it.timestamp }
-                        Log.d(
-                            "GroupChatRepository",
-                            "Firebase returned ${messagesList.size} messages for group $groupId"
-                        )
+                        }
                         trySend(messagesList)
                     } catch (e: Exception) {
-                        Log.d(
-                            "GroupChatRepository",
-                            "Error parsing Firebase messages: ${e.message}"
-                        )
-                        // If there is an error parsing, send an empty list instead of mock data
+                        Log.e(TAG, "Error parsing messages: ${e.message}")
                         trySend(emptyList())
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.d("GroupChatRepository", "Firebase cancelled: ${error.message}")
-                    // In case of a Firebase error, send an empty list
                     trySend(emptyList())
                 }
             })
@@ -314,6 +355,10 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Updates the `lastActivity` and `lastMessage` fields of the group.
+     * Used to sort the group list by recency in the UI.
+     */
     override suspend fun updateLastActivity(groupId: String, message: GroupMessage): Result<Unit> {
         return try {
             val group = getGroupById(groupId) ?: throw Exception("Group not found")
@@ -321,15 +366,19 @@ class GroupChatRepositoryImpl @Inject constructor(
                 lastMessage = message.toChatMessage(),
                 lastActivity = message.timestamp
             )
-
             updateGroup(updatedGroup)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // ===== READ RECEIPTS =====
+    // endregion
 
+    // region Read Receipts
+
+    /**
+     * Marks a specific message as read in a dedicated receipt node.
+     */
     override suspend fun markMessageAsRead(
         groupId: String,
         messageId: String,
@@ -372,7 +421,82 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== SETTINGS =====
+    /**
+     * Batch marks all valid unread messages in a group as read for the current user.
+     *
+     * Scans messages in `group_messages/{groupId}` and updates the `readBy` map
+     * inside each message object.
+     */
+    override suspend fun markGroupMessagesAsRead(groupId: String, userId: String): Result<Unit> {
+        return try {
+            val messagesRef = firebaseDatabase.reference.child("group_messages").child(groupId)
+            val snapshot = messagesRef.get().await()
+
+            if (!snapshot.exists()) return Result.success(Unit)
+
+            val updates = mutableMapOf<String, Any>()
+
+            snapshot.children.forEach { messageSnapshot ->
+                val messageId = messageSnapshot.key
+                val readByMap = messageSnapshot.child("readBy").value as? Map<*, *> ?: emptyMap<Any, Any>()
+                val senderId = messageSnapshot.child("senderId").getValue(String::class.java)
+
+                if (messageId != null && senderId != userId && !readByMap.containsKey(userId)) {
+                    updates["$messageId/readBy/$userId"] = ServerValue.TIMESTAMP
+                }
+            }
+
+            if (updates.isNotEmpty()) {
+                messagesRef.updateChildren(updates).await()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not mark messages as read.", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Observes the count of unread messages in real-time for a user in a specific group.
+     */
+    override fun getUnreadMessagesCountForGroup(groupId: String, userId: String): Flow<Int> {
+        if (groupId.isBlank() || userId.isBlank()) return flowOf(0)
+
+        val messagesRef = firebaseDatabase.reference.child("group_messages").child(groupId)
+
+        return callbackFlow {
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (!snapshot.exists()) {
+                        trySend(0)
+                        return
+                    }
+                    var unreadCount = 0
+                    snapshot.children.forEach { messageSnapshot ->
+                        try {
+                            val message = messageSnapshot.getValue(GroupMessage::class.java)
+                            if (message != null && message.senderId != userId && !message.readBy.containsKey(userId)) {
+                                unreadCount++
+                            }
+                        } catch (e: DatabaseException) {
+                            // Skip malformed messages
+                        }
+                    }
+                    trySend(unreadCount)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    close(error.toException())
+                }
+            }
+            messagesRef.addValueEventListener(listener)
+            awaitClose { messagesRef.removeEventListener(listener) }
+        }
+    }
+
+    // endregion
+
+    // region Settings & Media
 
     override suspend fun updateGroupSettings(
         groupId: String,
@@ -385,7 +509,6 @@ class GroupChatRepositoryImpl @Inject constructor(
                 .child("settings")
                 .updateChildren(settings)
                 .await()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -401,7 +524,6 @@ class GroupChatRepositoryImpl @Inject constructor(
             imageRef.putFile(imageUri).await()
             val downloadUrl = imageRef.downloadUrl.await().toString()
 
-            // Update URL in the group
             firebaseDatabase.reference
                 .child("groups")
                 .child(groupId)
@@ -415,13 +537,14 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-    // ===== INVITATIONS =====
+    // endregion
+
+    // region Invitations
 
     override suspend fun createInvitation(invitation: GroupInvitation): Result<String> {
         return try {
             val reference = firebaseDatabase.reference.child("group_invitations").push()
-            val invitationId =
-                reference.key ?: throw Exception("Could not generate invitation ID")
+            val invitationId = reference.key ?: throw Exception("No ID gen")
 
             val invitationWithId = invitation.copy(id = invitationId)
             reference.setValue(invitationWithId).await()
@@ -445,7 +568,6 @@ class GroupChatRepositoryImpl @Inject constructor(
 
             val status = if (accept) "ACCEPTED" else "DECLINED"
 
-            // Update invitation status
             firebaseDatabase.reference
                 .child("group_invitations")
                 .child(invitationId)
@@ -453,7 +575,6 @@ class GroupChatRepositoryImpl @Inject constructor(
                 .setValue(status)
                 .await()
 
-            // If accepted, add to group
             if (accept) {
                 addMemberToGroup(invitation.groupId, invitation.invitedUser)
             }
@@ -488,19 +609,28 @@ class GroupChatRepositoryImpl @Inject constructor(
                     trySend(emptyList())
                 }
             })
-
             awaitClose { invitationsRef.removeEventListener(listener) }
         }
     }
 
-    // ===== SEARCH AND FILTERS =====
+    // endregion
 
+    // region Search & Filtering
+
+    /**
+     * Performs a client-side search on group messages.
+     *
+     * @param groupId The group to search in.
+     * @param query The search text.
+     * @return List of matching messages.
+     */
     override suspend fun searchGroupMessages(groupId: String, query: String): List<GroupMessage> {
-        return try {            val snapshot = firebaseDatabase.reference
-            .child("group_messages")
-            .child(groupId)
-            .get()
-            .await()
+        return try {
+            val snapshot = firebaseDatabase.reference
+                .child("group_messages")
+                .child(groupId)
+                .get()
+                .await()
 
             snapshot.children.mapNotNull { dataSnapshot ->
                 dataSnapshot.getValue(GroupMessage::class.java)
@@ -508,34 +638,36 @@ class GroupChatRepositoryImpl @Inject constructor(
                 groupMessage.message.contains(query, ignoreCase = true)
             }
         } catch (e: Exception) {
-            Log.e("GroupChatRepository", "Error searching group messages for query '$query'", e)
-            // If there is an error, just return an empty list. Don't use mock data.
+            Log.e(TAG, "Error searching group messages", e)
             emptyList()
         }
     }
 
-
+    /**
+     * Retrieves all groups where the user is a member.
+     *
+     * **Performance Note:**
+     * Since members are stored in a List structure, we fetch groups and filter
+     * client-side using [List.contains].
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getUserGroups(userId: String): Flow<List<GroupChat>> {
-        if (userId.isBlank()) {
-            return flowOf(emptyList())
-        }
-     /*   val query = firebaseDatabase.reference.child("groups")
-            .orderByChild("memberIds/$userId")
-            .equalTo(true)*/
+        if (userId.isBlank()) return flowOf(emptyList())
 
         val groupsRef = firebaseDatabase.reference.child("groups")
+
         return callbackFlow {
             val listener = groupsRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val groups = snapshot.children.mapNotNull { it.getValue(GroupChat::class.java) }
+                    // Filter using List.contains (Since memberIds is a List)
                     val userGroups = groups.filter { it.memberIds.contains(userId) }
-                    Log.d("GroupChatRepository", "User $userId is member of ${userGroups.size} groups.")
+                    Log.d(TAG, "User $userId is member of ${userGroups.size} groups.")
                     trySend(userGroups)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.w("GroupChatRepository", "Listener for user groups cancelled.", error.toException())
+                    Log.w(TAG, "Listener for user groups cancelled.", error.toException())
                     close(error.toException())
                 }
             })
@@ -543,78 +675,5 @@ class GroupChatRepositoryImpl @Inject constructor(
         }
     }
 
-
-    override suspend fun markGroupMessagesAsRead(groupId: String, userId: String): Result<Unit> {
-        return try {
-            val messagesRef = firebaseDatabase.reference.child("group_messages").child(groupId)
-            val snapshot = messagesRef.get().await()
-
-            if (!snapshot.exists()) {
-                return Result.success(Unit)
-            }
-
-            val updates = mutableMapOf<String, Any>()
-
-            snapshot.children.forEach { messageSnapshot ->
-                val messageId = messageSnapshot.key
-                val readByMap = messageSnapshot.child("readBy").value as? Map<*, *> ?: emptyMap<Any, Any>()
-                val senderId = messageSnapshot.child("senderId").getValue(String::class.java)
-
-                if (messageId != null && senderId != userId && !readByMap.containsKey(userId)) {
-                    updates["$messageId/readBy/$userId"] = ServerValue.TIMESTAMP
-                }
-            }
-
-            if (updates.isNotEmpty()) {
-                messagesRef.updateChildren(updates).await()
-                Log.d("GroupChatRepoImpl", "SUCCESS: Marked ${updates.size} messages as read for user $userId")
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("GroupChatRepoImpl", "FAILURE: Could not mark messages as read.", e)
-            Result.failure(e)
-        }
-    }
-
-    override fun getUnreadMessagesCountForGroup(groupId: String, userId: String): Flow<Int> {
-        if (groupId.isBlank() || userId.isBlank()) {
-            return flowOf(0)
-        }
-
-        val messagesRef = firebaseDatabase.reference.child("group_messages").child(groupId)
-
-        return callbackFlow {
-            val listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if (!snapshot.exists()) {
-                        trySend(0)
-                        return
-                    }
-                    var unreadCount = 0
-                    snapshot.children.forEach { messageSnapshot ->
-                        try {
-                            val message = messageSnapshot.getValue(GroupMessage::class.java)
-                            if (message != null && message.senderId != userId && !message.readBy.containsKey(userId)) {
-                                unreadCount++
-                            }
-                        } catch (e: DatabaseException) {
-                            Log.e(
-                                "GroupChatRepoImpl",
-                                "Error deserializing message ${messageSnapshot.key} in group $groupId. SKIPPING. Error: ${e.message}"
-                            )
-                        }
-                    }
-                    Log.d("GroupChatRepoImpl", "Unread count for group $groupId for user $userId IS: $unreadCount")
-                    trySend(unreadCount)
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.w("GroupChatRepoImpl", "Listener for group count $groupId cancelled.", error.toException())
-                    close(error.toException())
-                }
-            }
-            messagesRef.addValueEventListener(listener)
-            awaitClose { messagesRef.removeEventListener(listener) }
-        }
-    }
+    // endregion
 }

@@ -6,14 +6,25 @@ import javax.inject.Inject
 
 /**
  * Use case to sign out the current user.
- * It also clears the FCM token from the repository.
+ * Ensures the user is marked as offline BEFORE destroying the session.
  */
 class SignOutUseCase @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val userRepository: UserRepository
 ) {
     suspend operator fun invoke() {
-        userRepository.clearCurrentUserFCMToken()
+        try {
+            userRepository.updateUserStatus("offline")
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            userRepository.clearCurrentUserFCMToken()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         firebaseAuth.signOut()
     }
 }

@@ -130,4 +130,12 @@ interface UserRepository {
      * @return List of user objects for all found users (may be fewer than requested)
      */
     suspend fun getUsersByIds(userIds: List<String>): List<User>
+
+    /**
+     * Updates the online/offline status of the current user manually.
+     * This is crucial to call BEFORE signing out to ensure the status is reflected correctly.
+     *
+     * @param status "online" or "offline"
+     */
+    suspend fun updateUserStatus(status: String)
 }

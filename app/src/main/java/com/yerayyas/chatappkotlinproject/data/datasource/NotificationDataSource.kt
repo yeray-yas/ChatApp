@@ -5,55 +5,43 @@ import com.yerayyas.chatappkotlinproject.domain.model.NotificationData
 import com.yerayyas.chatappkotlinproject.domain.model.NotificationPermissionState
 
 /**
- * Data source contract for notification operations.
+ * Data source contract for handling notification operations.
  *
- * This interface defines the operations that can be performed on the notification system
- * at the data layer level. It abstracts the underlying notification platform specifics
- * and provides a clean contract for notification management across different implementations.
+ * This interface abstracts the underlying notification platform specifics, providing
+ * a clean contract for the data layer. It adheres to Clean Architecture principles,
+ * allowing for platform-specific implementations (Android, wrappers, etc.).
  *
- * The interface follows Clean Architecture principles by defining domain-agnostic operations
- * that can be implemented by platform-specific data sources (Android, iOS, etc.).
+ * **Key responsibilities:**
+ * - Permission state checking and validation.
+ * - Notification display with device-specific optimization.
+ * - Management of active notifications (cancellation, counting).
  *
- * Key responsibilities:
- * - Permission state checking and validation
- * - Notification display with device optimization
- * - Notification cancellation and management
- * - Active notification tracking and counting
- * - Error handling through Result types
- *
- * Implementation considerations:
- * - Should handle platform-specific permission requirements
- * - Must provide proper error handling for all operations
- * - Should support both individual and batch notification operations
- * - Must be thread-safe for concurrent access
- * - Should optimize for device-specific capabilities
+ * **Implementation considerations:**
+ * - Implementations must be thread-safe.
+ * - Platform-specific permission handling (e.g., Android 13+) is required.
+ * - Errors should be encapsulated within the returned [Result] types.
  */
 interface NotificationDataSource {
 
     /**
      * Checks the current notification permission state.
      *
-     * This method determines whether the application has the necessary permissions
-     * to display notifications to the user. The implementation should handle
-     * platform-specific permission requirements (e.g., Android 13+ explicit permissions).
+     * Determines if the application has the necessary privileges to post notifications.
+     * Handles platform-specific logic (e.g., `POST_NOTIFICATIONS` permission on Android 13+).
      *
-     * @return The current [NotificationPermissionState] indicating permission status
+     * @return The current [NotificationPermissionState].
      */
     fun checkNotificationPermission(): NotificationPermissionState
 
     /**
      * Displays a notification to the user.
      *
-     * This method handles the display of a single notification with proper device
-     * optimization and compatibility handling. The implementation should:
-     * - Validate permission state before displaying
-     * - Apply device-specific optimizations
-     * - Handle notification grouping and management
-     * - Provide proper error handling for display failures
+     * Handles the construction and dispatch of a notification. Implementations should
+     * validate permissions and apply device-specific optimizations before displaying.
      *
-     * @param notificationData The notification data to display including content and metadata
-     * @param deviceCompatibility Device information for optimization and compatibility
-     * @return [Result] indicating success or failure with error details
+     * @param notificationData The content and metadata for the notification.
+     * @param deviceCompatibility Configuration for device-specific behavior and optimization.
+     * @return A [Result] indicating success or containing an exception on failure.
      */
     fun displayNotification(
         notificationData: NotificationData,
@@ -61,34 +49,30 @@ interface NotificationDataSource {
     ): Result<Unit>
 
     /**
-     * Cancels all notifications for a specific user.
+     * Cancels all notifications associated with a specific user.
      *
-     * This method removes all active notifications associated with a particular user.
-     * Useful for clearing notifications when entering a chat with that user or
-     * when user-specific events occur (blocking, etc.).
+     * Typically used when the user opens a chat with a specific contact or when
+     * user-specific events (like blocking) occur to clear relevant clutter.
      *
-     * @param userId The unique identifier of the user whose notifications should be cancelled
-     * @return [Result] indicating success or failure with error details
+     * @param userId The unique identifier of the target user.
+     * @return A [Result] indicating the outcome of the operation.
      */
     fun cancelUserNotifications(userId: String): Result<Unit>
 
     /**
-     * Cancels all active notifications.
+     * Cancels all active notifications issued by the application.
      *
-     * This method removes all notifications displayed by the application.
-     * Commonly used when the app becomes active or when performing bulk cleanup operations.
+     * Useful for global cleanup operations or when the app comes to the foreground.
      *
-     * @return [Result] indicating success or failure with error details
+     * @return A [Result] indicating the outcome of the operation.
      */
     fun cancelAllNotifications(): Result<Unit>
 
     /**
-     * Gets the count of currently active notifications.
+     * Retrieves the count of currently active notifications.
      *
-     * This method returns the number of notifications currently displayed by the application.
-     * Useful for UI indicators, notification management, and analytics tracking.
-     *
-     * @return The number of active notifications, or 0 if unable to determine count
+     * @return The number of notifications currently displayed in the system tray,
+     * or 0 if the count cannot be determined.
      */
     fun getActiveNotificationsCount(): Int
 }

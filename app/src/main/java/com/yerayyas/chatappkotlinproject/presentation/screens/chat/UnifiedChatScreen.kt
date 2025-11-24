@@ -4,19 +4,23 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,10 +28,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -38,6 +45,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +54,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -60,6 +69,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -68,9 +81,11 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -88,6 +103,7 @@ import com.yerayyas.chatappkotlinproject.presentation.components.UserStatusAndAc
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatType
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.IndividualAndGroupChatViewModel
+import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.MessageDeliveryStatus
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.UnifiedMessage
 import com.yerayyas.chatappkotlinproject.utils.Constants
 import kotlinx.coroutines.delay
@@ -95,10 +111,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.composed
 
-/**
- * Unified chat screen that handles both individual and group conversations
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnifiedChatScreen(
@@ -350,7 +364,7 @@ fun UnifiedChatScreen(
                             .padding(top = Constants.TOP_APP_BAR_HEIGHT)
                             .padding(bottom = smartBottomPadding),
                         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        contentPadding = PaddingValues(
                             vertical = 8.dp
                         )
                     ) {
@@ -406,11 +420,8 @@ fun UnifiedChatScreen(
             onBackClick = {
                 // Ensure we always have a way back to Home
                 if (!navController.popBackStack()) {
-                    // If popBackStack returns false (no previous destination), navigate to Home
-                    // For group chats, go to Groups tab (index 2), for individual chats, go to default tab (index 0)
                     val targetTab = if (currentChatType is ChatType.Group) 2 else 0
                     navController.navigate(Routes.Home.createRoute(targetTab)) {
-                        // Clear entire back stack and make Home the new root
                         popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
@@ -548,6 +559,8 @@ private fun UnifiedChatTopBar(
 /**
  * Unified message input bar with support for replies
  */
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun UnifiedMessageInputBar(
     messageText: String,
@@ -563,6 +576,11 @@ private fun UnifiedMessageInputBar(
 ) {
     val isSendEnabled = isEnabled && messageText.trim().isNotEmpty()
 
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
@@ -573,7 +591,6 @@ private fun UnifiedMessageInputBar(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Show reply preview if replying to a message
             replyToMessage?.let { replyMsg ->
                 ReplyPreview(
                     replyToMessage = replyMsg,
@@ -599,17 +616,54 @@ private fun UnifiedMessageInputBar(
                     )
                 }
 
-                TextField(
-                    value = messageText,
-                    onValueChange = onMessageTextChange,
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
-                    enabled = isEnabled,
-                    maxLines = 4,
-                    shape = RoundedCornerShape(24.dp),
-                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { if (isSendEnabled) onSendMessage() })
-                )
+                // Contenedor con altura limitada
+                // ... dentro de UnifiedMessageInputBar ...
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(max = 140.dp)
+                ) {
+                    TextField(
+                        value = messageText,
+                        onValueChange = { newValue ->
+                            onMessageTextChange(newValue)
+
+                            scope.launch {
+                                delay(50)
+                                bringIntoViewRequester.bringIntoView()
+
+                                // Hack para el Enter al final
+                                if (newValue.length > messageText.length &&
+                                    scrollState.value > scrollState.maxValue - 100) {
+                                    scrollState.scrollTo(scrollState.maxValue)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .simpleVerticalScrollbar(
+                                state = scrollState,
+                                width = 4.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) // O tu color preferido
+                            )
+                            .verticalScroll(scrollState)
+                            .bringIntoViewRequester(bringIntoViewRequester),
+                        placeholder = { Text("Type a message...") },
+                        singleLine = false,
+                        enabled = isEnabled,
+                        shape = RoundedCornerShape(24.dp),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Default
+                        ),
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
+                        )
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
@@ -639,6 +693,7 @@ private fun UnifiedMessageInputBar(
         }
     }
 }
+
 
 /**
  * Unified message bubble that adapts to the chat type
@@ -752,33 +807,89 @@ private fun UnifiedMessageBubble(
                     }
 
                     MessageType.IMAGE -> {
-                        message.imageUrl?.let { imageUrl ->
-                            GlideImage(
-                                model = imageUrl,
-                                contentDescription = "Message image",
+                        // 1. DETECTAR SI ES UN MENSAJE DE SUBIDA ("PENDING_UPLOAD")
+                        if (message.imageUrl == "PENDING_UPLOAD") {
+                            // Como ya filtramos en el ViewModel, si entramos aquí
+                            // ES SEGURO que es un mensaje del OTRO usuario (Receiver).
+
+                            Box(
                                 modifier = Modifier
                                     .size(200.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(8.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        strokeWidth = 3.dp,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
-                                    .clickable {
-                                        try {
-                                            val imageId = imageUrl.hashCode().toString()
-                                            navController.navigate("fullScreenImage/$imageId")
-                                            com.yerayyas.chatappkotlinproject.data.cache.ImageUrlStore.addImageUrl(
-                                                imageId,
-                                                imageUrl
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Receiving photo...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        else {
+                            val imageModel = message.localUri ?: message.imageUrl
+
+                            if (imageModel != null) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    GlideImage(
+                                        model = imageModel,
+                                        contentDescription = "Message image",
+                                        modifier = Modifier
+                                            .size(200.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                                RoundedCornerShape(8.dp)
                                             )
-                                        } catch (e: Exception) {
-                                            android.util.Log.e(
-                                                "UnifiedMessageBubble",
-                                                "Navigation error: ${e.message}"
+                                            .clickable(enabled = message.deliveryStatus == MessageDeliveryStatus.SENT) {
+                                                try {
+                                                    val imageId = imageModel.hashCode().toString()
+
+                                                    message.imageUrl?.let { url ->
+                                                        if (url != "PENDING_UPLOAD") {
+                                                            com.yerayyas.chatappkotlinproject.data.cache.ImageUrlStore.addImageUrl(
+                                                                imageId,
+                                                                url
+                                                            )
+                                                            navController.navigate("fullScreenImage/$imageId")
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e(
+                                                        "UnifiedMessageBubble",
+                                                        "Navigation error",
+                                                        e
+                                                    )
+                                                }
+                                            }
+
+                                    )
+
+                                    if (message.deliveryStatus == MessageDeliveryStatus.SENDING) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(200.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color.Black.copy(alpha = 0.4f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = Color.White,
+                                                modifier = Modifier.size(32.dp),
+                                                strokeWidth = 3.dp
                                             )
                                         }
                                     }
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -790,13 +901,21 @@ private fun UnifiedMessageBubble(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (isFromCurrentUser) {
-                        MessageStatusIndicator(
-                            readStatus = message.getReadStatus(),
-                            timestamp = message.timestamp,
-                            isOwnMessage = true,
-                            showTime = true,
-                            animated = true
-                        )
+                        if (message.deliveryStatus == MessageDeliveryStatus.SENT) {
+                            MessageStatusIndicator(
+                                readStatus = message.getReadStatus(),
+                                timestamp = message.timestamp,
+                                isOwnMessage = true,
+                                showTime = true,
+                                animated = true
+                            )
+                        } else if (message.deliveryStatus == MessageDeliveryStatus.SENDING) {
+                            Text(
+                                text = formatTimestamp(message.timestamp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = textColor.copy(alpha = 0.7f)
+                            )
+                        }
                     } else {
                         Text(
                             text = formatTimestamp(message.timestamp),
@@ -840,6 +959,8 @@ private fun ReplyPreview(
                 replyToMessage.messageType == MessageType.IMAGE
             )
         }
+
+        is UnifiedMessage.Pending -> TODO()
     }
 
     Card(
@@ -866,6 +987,7 @@ private fun ReplyPreview(
                             "Replying to $chatName"
                         }
                     }
+
                     is UnifiedMessage.Group -> {
                         if (replyToMessage.senderId == currentUserId) {
                             "Replying to yourself"
@@ -874,6 +996,8 @@ private fun ReplyPreview(
                             "Replying to $senderName"
                         }
                     }
+
+                    is UnifiedMessage.Pending -> TODO()
                 }
                 Text(
                     text = replyText,
@@ -1046,6 +1170,8 @@ private fun ReplyBubbleContent(
                 replyMsg?.messageType
             )
         }
+
+        is UnifiedMessage.Pending -> TODO()
     }
 
     val originalSenderName = when (message) {
@@ -1064,6 +1190,8 @@ private fun ReplyBubbleContent(
                 originalSenderName ?: "User"
             }
         }
+
+        is UnifiedMessage.Pending -> TODO()
     }
 
     // Determine if the original message is an image
@@ -1235,5 +1363,70 @@ private fun formatTimestamp(timestamp: Long): String {
     } else {
         // Different day - show date and time
         SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(date)
+    }
+}
+fun Modifier.simpleVerticalScrollbar(
+    state: ScrollState,
+    width: Dp = 4.dp,
+    minHeight: Dp = 20.dp,
+    rightPadding: Dp = 4.dp,
+    cornerRadius: Dp = 24.dp,
+    color: Color = Color.Gray.copy(alpha = 0.5f)
+): Modifier = composed {
+    var isVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.value, state.isScrollInProgress) {
+        if (state.maxValue > 0) {
+            isVisible = true
+            if (!state.isScrollInProgress) {
+                delay(600)
+                isVisible = false
+            }
+        }
+    }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 300),
+        label = "ScrollbarAlpha"
+    )
+
+    drawWithContent {
+        drawContent()
+
+        if (state.maxValue <= 0 || alpha == 0f) return@drawWithContent
+
+        val radiusPx = cornerRadius.toPx()
+        val rightPaddingPx = rightPadding.toPx()
+        val minBarHeightPx = minHeight.toPx()
+
+        val viewportHeight = this.size.height - (radiusPx * 2)
+        val totalContentHeight = viewportHeight + state.maxValue
+
+        val viewableRatio = if (totalContentHeight > 0) {
+            viewportHeight / totalContentHeight
+        } else {
+            1f
+        }
+
+        val scrollBarHeightRaw = viewportHeight * viewableRatio
+        val targetBarHeight = scrollBarHeightRaw.coerceIn(minBarHeightPx, viewportHeight)
+
+        val scrollableTrackHeight = viewportHeight - targetBarHeight
+        val scrollProgress = state.value.toFloat() / state.maxValue.toFloat()
+
+        val offset = scrollProgress * scrollableTrackHeight
+        val finalTopOffset = radiusPx + offset
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(
+                x = this.size.width - width.toPx() - rightPaddingPx,
+                y = finalTopOffset
+            ),
+            size = Size(width.toPx(), targetBarHeight),
+            cornerRadius = CornerRadius(x = width.toPx() / 2, y = width.toPx() / 2),
+            alpha = alpha
+        )
     }
 }

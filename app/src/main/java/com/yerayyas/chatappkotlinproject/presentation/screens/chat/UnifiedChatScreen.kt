@@ -65,7 +65,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -112,6 +114,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.composed
+import kotlinx.coroutines.cancel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,6 +147,9 @@ fun UnifiedChatScreen(
 
     // Track if user is at the bottom of the message list
     var isAtBottom by remember { mutableStateOf(true) }
+
+    // Make it survive if we navigate to another screen and back to the chat
+    var hasPerformedInitialScroll by rememberSaveable { mutableStateOf(false) }
 
     // Track if keyboard is currently open
     var isKeyboardOpen by remember { mutableStateOf(false) }
@@ -194,8 +200,13 @@ fun UnifiedChatScreen(
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.scrollToItem(messages.size - 1)
-            isAtBottom = true
+            if (!hasPerformedInitialScroll) {
+                listState.scrollToItem(messages.size - 1)
+                isAtBottom = true
+                hasPerformedInitialScroll = true
+            } else if (isAtBottom) {
+                listState.animateScrollToItem(messages.size - 1)
+            }
         }
     }
 
@@ -210,77 +221,52 @@ fun UnifiedChatScreen(
 
     // Scroll to specific message if needed (works for both individual and group chats)
     LaunchedEffect(scrollToMessageId) {
-        if (scrollToMessageId != null) {
-            val index = messages.indexOfFirst { it.id == scrollToMessageId }
+        val messageId = scrollToMessageId
+        if (messageId != null) {
+            val index = messages.indexOfFirst { it.id == messageId }
             if (index != -1) {
-                // Calculate the visible area precisely
-                val layoutInfo = listState.layoutInfo
-                val viewportHeight = layoutInfo.viewportSize.height.toFloat()
-
-                // TopAppBar height in pixels
-                val topAppBarHeightPx = with(density) { Constants.TOP_APP_BAR_HEIGHT.toPx() }
-
-                // Calculate the actual bottom boundary based on current state
-                val bottomBoundaryPx = if (isKeyboardOpen) {
-                    // When keyboard is open: viewport height - keyboard height
-                    viewportHeight - imeBottomPx.toFloat()
-                } else {
-                    // When keyboard is closed: viewport height - input area height - navigation bar
-                    viewportHeight - with(density) { 100.dp.toPx() } - navBarHeightPx.toFloat()
-                }
-
-                // Calculate the actual visible content area accounting for all padding
-                val visibleAreaStart =
-                    topAppBarHeightPx + with(density) { 8.dp.toPx() } // LazyColumn top padding
-                val visibleAreaEnd =
-                    bottomBoundaryPx - with(density) { 8.dp.toPx() } // LazyColumn bottom padding
-                val visibleAreaHeight = visibleAreaEnd - visibleAreaStart
-
-                // Ensure we have a positive visible area
-                if (visibleAreaHeight <= 0) return@LaunchedEffect
-
-                // First, scroll to the message to get its actual dimensions
+                // PASO 1: Scroll inicial imperativo.
+                // Llevamos el item a la zona visible (posición 0, pegado arriba).
+                // Esto fuerza a LazyColumn a componer y medir el item.
                 listState.scrollToItem(index)
 
-                // Wait for layout to settle
-                delay(150)
+                // PASO 2: Observación reactiva del Layout (La forma correcta).
+                // Usamos snapshotFlow para recibir notificaciones cada vez que cambie el layout.
+                // Esto elimina la necesidad de 'delay' y funciona en cualquier dispositivo/velocidad.
+                snapshotFlow { listState.layoutInfo }
+                    .collect { layoutInfo ->
 
-                // Get updated layout info after scrolling
-                val updatedLayoutInfo = listState.layoutInfo
-                val visibleItems = updatedLayoutInfo.visibleItemsInfo
-                val targetItem = visibleItems.find { it.index == index }
+                        // Buscamos la información de layout de nuestro mensaje objetivo
+                        val itemInfo = layoutInfo.visibleItemsInfo.find { it.index == index }
 
-                if (targetItem != null) {
-                    val itemHeight = targetItem.size.toFloat()
-                    val itemCurrentTop = targetItem.offset.toFloat()
+                        if (itemInfo != null) {
+                            // AQUI TENEMOS DATOS REALES Y PRECISOS
+                            val viewportHeight = layoutInfo.viewportSize.height
+                            val itemHeight = itemInfo.size
 
-                    // Calculate where the item's center currently is relative to LazyColumn
-                    val itemCurrentCenter = itemCurrentTop + (itemHeight / 2)
+                            // Lógica Matemática:
+                            // Queremos repartir el espacio sobrante equitativamente arriba y abajo.
+                            // EspacioSobrante = (AlturaTotal - AlturaMensaje)
+                            // MargenSuperior = EspacioSobrante / 2
+                            val targetTopMargin = (viewportHeight - itemHeight) / 2
 
-                    // Calculate where we want the center to be (middle of visible area)
-                    val desiredCenter = (visibleAreaHeight / 2)
+                            // En LazyColumn:
+                            // - Offset 0: Alineado al borde superior.
+                            // - Offset Negativo: Desplaza el contenido hacia abajo (crea margen arriba).
 
-                    // Calculate the offset needed to move the item center to desired center
-                    val scrollOffset = (itemCurrentCenter - desiredCenter).toInt()
+                            // coerceAtLeast(0) es importante: Si el mensaje es más alto que la pantalla,
+                            // targetTopMargin será negativo. En ese caso usamos 0 para alinearlo arriba
+                            // y poder leer el principio, en vez de centrar el medio del mensaje fuera de pantalla.
+                            val centeringOffset = -targetTopMargin.coerceAtLeast(0)
 
-                    // Apply the scroll with animation
-                    listState.animateScrollToItem(
-                        index = index,
-                        scrollOffset = scrollOffset
-                    )
-                } else {
-                    // Fallback: if item is not visible after initial scroll
-                    val estimatedItemHeight = with(density) { 80.dp.toPx() }
-                    val desiredCenter = visibleAreaHeight / 2
+                            // Aplicamos el scroll final suave
+                            listState.animateScrollToItem(index, centeringOffset)
 
-                    // Calculate offset to center the estimated item
-                    val scrollOffset = -(desiredCenter - (estimatedItemHeight / 2)).toInt()
-
-                    listState.animateScrollToItem(
-                        index = index,
-                        scrollOffset = scrollOffset
-                    )
-                }
+                            // Importante: Cancelamos el flow para dejar de observar, ya hemos terminado.
+                            // Esto equivale a un 'break' en el loop de eventos.
+                            this.cancel()
+                        }
+                    }
             }
         }
     }

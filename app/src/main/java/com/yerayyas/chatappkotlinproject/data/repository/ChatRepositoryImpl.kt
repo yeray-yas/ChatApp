@@ -1,8 +1,6 @@
 package com.yerayyas.chatappkotlinproject.data.repository
 
-import android.content.Context
 import android.net.Uri
-import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -14,30 +12,20 @@ import com.yerayyas.chatappkotlinproject.data.model.ChatMessage
 import com.yerayyas.chatappkotlinproject.data.model.MessageType
 import com.yerayyas.chatappkotlinproject.data.model.ReadStatus
 import com.yerayyas.chatappkotlinproject.domain.repository.ChatRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "ChatRepositoryImpl"
-
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val auth: FirebaseAuth,
     private val database: DatabaseReference,
     private val storage: FirebaseStorage
 ) : ChatRepository {
-
-    private val repositoryScope = CoroutineScope(Dispatchers.IO)
-
     override fun getCurrentUserId(): String = auth.currentUser?.uid ?: ""
 
     private fun getChatId(userId1: String, userId2: String): String {
@@ -59,18 +47,6 @@ class ChatRepositoryImpl @Inject constructor(
                 try {
                     val messagesList = snapshot.children.mapNotNull { it.getValue(ChatMessage::class.java) }
                     trySend(messagesList)
-
-                    val hasUnread = messagesList.any { it.receiverId == currentUserId && it.readStatus != ReadStatus.READ }
-                    if (hasUnread) {
-                        repositoryScope.launch {
-                            try {
-                                markMessagesAsRead(chatId)
-                                resetUnreadCount(chatId, currentUserId, otherUserId)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Failed to mark messages as read", e)
-                            }
-                        }
-                    }
                 } catch (e: Exception) {
                     close(e)
                 }
@@ -87,7 +63,10 @@ class ChatRepositoryImpl @Inject constructor(
         val currentUserId = getCurrentUserId()
         if (currentUserId.isEmpty()) return
 
-        val messagesRef = database.child("Chats").child("Messages").child(chatId)
+        val realChatId = getChatId(currentUserId, chatId)
+        // -----------------------
+
+        val messagesRef = database.child("Chats").child("Messages").child(realChatId)
         val snapshot = messagesRef.get().await()
 
         snapshot.children.forEach { messageSnapshot ->
@@ -95,19 +74,6 @@ class ChatRepositoryImpl @Inject constructor(
             if (message?.receiverId == currentUserId && message.readStatus != ReadStatus.READ) {
                 messageSnapshot.ref.child("readStatus").setValue(ReadStatus.READ)
             }
-        }
-
-    }
-    private suspend fun resetUnreadCount(chatId: String, currentUserId: String, otherUserId: String) {
-        try {
-            database.child("Chats").child("User-Chats")
-                .child(currentUserId)
-                .child(otherUserId)
-                .child("unreadCount")
-                .setValue(0)
-                .await()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resetting unread count", e)
         }
     }
 

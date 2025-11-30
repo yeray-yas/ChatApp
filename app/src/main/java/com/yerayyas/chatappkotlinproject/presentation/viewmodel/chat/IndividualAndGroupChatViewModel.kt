@@ -76,12 +76,12 @@ class IndividualAndGroupChatViewModel @Inject constructor(
 ) : ViewModel() {
 
     // region Common States
+    private var isChatVisible = false
     private val _chatHeaderInfo = MutableStateFlow<ChatHeaderInfo?>(null)
     //val chatHeaderInfo: StateFlow<ChatHeaderInfo?> = _chatHeaderInfo.asStateFlow()
 
     private val _chatType = MutableStateFlow<ChatType>(ChatType.Individual)
     val chatType: StateFlow<ChatType> = _chatType.asStateFlow()
-
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -233,6 +233,9 @@ class IndividualAndGroupChatViewModel @Inject constructor(
             .onEach { unifiedList ->
                 _serverMessages.value = unifiedList
                 _isLoading.value = false
+                if (isChatVisible) {
+                    markUnifiedMessagesAsReadUseCase(chatId, type)
+                }
             }
             .catch { exception ->
                 _error.value = "${Constants.ERROR_LOADING_MESSAGES}: ${exception.message}"
@@ -298,6 +301,20 @@ class IndividualAndGroupChatViewModel @Inject constructor(
 
     private fun removePendingMessage(tempId: String) {
         _pendingMessages.value = _pendingMessages.value.filter { it.id != tempId }
+    }
+
+    fun onChatResumed() {
+        isChatVisible = true
+        val currentId = currentChatId.ifEmpty { return }
+        val currentType = _chatType.value
+
+        viewModelScope.launch {
+            markUnifiedMessagesAsReadUseCase(currentId, currentType)
+        }
+    }
+
+    fun onChatPaused() {
+        isChatVisible = false
     }
 
     /**

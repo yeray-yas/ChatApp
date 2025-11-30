@@ -154,6 +154,25 @@ fun UnifiedChatScreen(
     // Track if keyboard is currently open
     var isKeyboardOpen by remember { mutableStateOf(false) }
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                    viewModel.onChatResumed()
+                }
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.onChatPaused()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     DisposableEffect(view) {
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             imeBottomPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom

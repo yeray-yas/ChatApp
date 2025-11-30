@@ -198,13 +198,21 @@ fun UnifiedChatScreen(
     }
 
     // Auto-scroll to bottom when new messages arrive
-    LaunchedEffect(messages.size) {
+// Auto-scroll mejorado
+    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
+            val lastMessage = messages.last()
+
             if (!hasPerformedInitialScroll) {
                 listState.scrollToItem(messages.size - 1)
                 isAtBottom = true
                 hasPerformedInitialScroll = true
-            } else if (isAtBottom) {
+            }
+            else if (lastMessage.isSentBy(viewModel.getCurrentUserId())) {
+                listState.animateScrollToItem(messages.size - 1)
+                isAtBottom = true
+            }
+            else if (isAtBottom) {
                 listState.animateScrollToItem(messages.size - 1)
             }
         }
@@ -1157,7 +1165,11 @@ private fun ReplyBubbleContent(
             )
         }
 
-        is UnifiedMessage.Pending -> TODO()
+        is UnifiedMessage.Pending -> Triple(
+            "Replying...",
+            null,
+            MessageType.TEXT
+        )
     }
 
     val originalSenderName = when (message) {
@@ -1177,7 +1189,7 @@ private fun ReplyBubbleContent(
             }
         }
 
-        is UnifiedMessage.Pending -> TODO()
+        is UnifiedMessage.Pending -> "..."
     }
 
     // Determine if the original message is an image

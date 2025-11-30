@@ -1,5 +1,7 @@
 package com.yerayyas.chatappkotlinproject.data.model
 
+import com.google.firebase.database.IgnoreExtraProperties
+
 /**
  * Represents a message within a group chat conversation.
  *
@@ -43,6 +45,7 @@ package com.yerayyas.chatappkotlinproject.data.model
  * @property isSystemMessage Whether this is a system-generated message (join/leave notifications)
  * @property systemMessageType The type of system activity this message represents, if applicable
  */
+@IgnoreExtraProperties
 data class GroupMessage(
     val id: String = "",
     val groupId: String = "",

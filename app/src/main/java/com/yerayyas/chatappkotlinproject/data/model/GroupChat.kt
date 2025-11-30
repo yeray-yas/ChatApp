@@ -1,5 +1,9 @@
 package com.yerayyas.chatappkotlinproject.data.model
 
+import com.google.firebase.database.Exclude
+import com.google.firebase.database.IgnoreExtraProperties
+import com.google.firebase.database.PropertyName
+
 /**
  * Represents a complete group chat with all advanced features.
  *
@@ -19,6 +23,7 @@ package com.yerayyas.chatappkotlinproject.data.model
  * The class includes multiple utility methods for checking permissions, managing members,
  * and determining user capabilities within the group context.
  */
+@IgnoreExtraProperties
 data class GroupChat(
     val id: String = "",
     val name: String = "",
@@ -30,6 +35,7 @@ data class GroupChat(
     val createdAt: Long = System.currentTimeMillis(),
     val lastMessage: ChatMessage? = null,
     val lastActivity: Long = System.currentTimeMillis(),
+    @get:PropertyName("active")
     val isActive: Boolean = true,
     val settings: GroupSettings = GroupSettings(),
     val pinnedMessageIds: List<String> = emptyList(),
@@ -73,6 +79,7 @@ data class GroupChat(
      *
      * @return The count of group members
      */
+    @Exclude
     fun getMemberCount(): Int = memberIds.size
 
     /**
@@ -81,6 +88,7 @@ data class GroupChat(
      * @param userId The user ID to check for modification privileges
      * @return true if the user can modify the group, false otherwise
      */
+    @Exclude
     fun canModify(userId: String): Boolean = isAdmin(userId) || createdBy == userId
 
     /**
@@ -127,6 +135,7 @@ data class GroupChat(
      *
      * @return [GroupDisplayInfo] containing essential display data
      */
+    @Exclude
     fun getDisplayInfo(): GroupDisplayInfo {
         return GroupDisplayInfo(
             name = name,

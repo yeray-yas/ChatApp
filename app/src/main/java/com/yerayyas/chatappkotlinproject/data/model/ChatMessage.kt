@@ -1,5 +1,7 @@
 package com.yerayyas.chatappkotlinproject.data.model
 
+import com.google.firebase.database.IgnoreExtraProperties
+
 /**
  * Represents a single message within a chat conversation.
  *
@@ -33,6 +35,7 @@ package com.yerayyas.chatappkotlinproject.data.model
  * @property replyToMessageType The type of the message being replied to
  * @property replyToImageUrl The URL of the image being replied to, if it's an image message
  */
+@IgnoreExtraProperties
 data class ChatMessage(
     val id: String = "",
     val senderId: String = "",

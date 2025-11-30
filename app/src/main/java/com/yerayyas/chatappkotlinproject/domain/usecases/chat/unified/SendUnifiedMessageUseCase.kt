@@ -85,7 +85,6 @@ class SendUnifiedMessageUseCase @Inject constructor(
         val senderImageUrl = currentUser?.profileImage
 
         if (uri != null) {
-            // --- IMAGEN GRUPAL ---
             sendGroupImageMessageUseCase(
                 groupId = groupId,
                 imageUri = uri,
@@ -95,8 +94,6 @@ class SendUnifiedMessageUseCase @Inject constructor(
                 replyToMessage = replyToGroupMessage
             )
         } else if (text != null) {
-            // --- TEXTO GRUPAL ---
-
             sendGroupMessageUseCase.sendTextMessage(
                 groupId = groupId,
                 message = text,

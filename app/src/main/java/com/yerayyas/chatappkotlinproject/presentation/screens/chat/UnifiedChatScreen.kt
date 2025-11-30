@@ -198,7 +198,6 @@ fun UnifiedChatScreen(
     }
 
     // Auto-scroll to bottom when new messages arrive
-// Auto-scroll mejorado
     LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
             val lastMessage = messages.last()
@@ -233,45 +232,24 @@ fun UnifiedChatScreen(
         if (messageId != null) {
             val index = messages.indexOfFirst { it.id == messageId }
             if (index != -1) {
-                // PASO 1: Scroll inicial imperativo.
-                // Llevamos el item a la zona visible (posición 0, pegado arriba).
-                // Esto fuerza a LazyColumn a componer y medir el item.
                 listState.scrollToItem(index)
 
-                // PASO 2: Observación reactiva del Layout (La forma correcta).
-                // Usamos snapshotFlow para recibir notificaciones cada vez que cambie el layout.
-                // Esto elimina la necesidad de 'delay' y funciona en cualquier dispositivo/velocidad.
                 snapshotFlow { listState.layoutInfo }
                     .collect { layoutInfo ->
 
-                        // Buscamos la información de layout de nuestro mensaje objetivo
                         val itemInfo = layoutInfo.visibleItemsInfo.find { it.index == index }
 
                         if (itemInfo != null) {
-                            // AQUI TENEMOS DATOS REALES Y PRECISOS
                             val viewportHeight = layoutInfo.viewportSize.height
                             val itemHeight = itemInfo.size
 
-                            // Lógica Matemática:
-                            // Queremos repartir el espacio sobrante equitativamente arriba y abajo.
-                            // EspacioSobrante = (AlturaTotal - AlturaMensaje)
-                            // MargenSuperior = EspacioSobrante / 2
                             val targetTopMargin = (viewportHeight - itemHeight) / 2
 
-                            // En LazyColumn:
-                            // - Offset 0: Alineado al borde superior.
-                            // - Offset Negativo: Desplaza el contenido hacia abajo (crea margen arriba).
-
-                            // coerceAtLeast(0) es importante: Si el mensaje es más alto que la pantalla,
-                            // targetTopMargin será negativo. En ese caso usamos 0 para alinearlo arriba
-                            // y poder leer el principio, en vez de centrar el medio del mensaje fuera de pantalla.
                             val centeringOffset = -targetTopMargin.coerceAtLeast(0)
 
-                            // Aplicamos el scroll final suave
                             listState.animateScrollToItem(index, centeringOffset)
 
-                            // Importante: Cancelamos el flow para dejar de observar, ya hemos terminado.
-                            // Esto equivale a un 'break' en el loop de eventos.
+                            // Cancel the flow
                             this.cancel()
                         }
                     }
@@ -610,9 +588,6 @@ private fun UnifiedMessageInputBar(
                     )
                 }
 
-                // Contenedor con altura limitada
-                // ... dentro de UnifiedMessageInputBar ...
-
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -627,7 +602,6 @@ private fun UnifiedMessageInputBar(
                                 delay(50)
                                 bringIntoViewRequester.bringIntoView()
 
-                                // Hack para el Enter al final
                                 if (newValue.length > messageText.length &&
                                     scrollState.value > scrollState.maxValue - 100) {
                                     scrollState.scrollTo(scrollState.maxValue)
@@ -639,7 +613,7 @@ private fun UnifiedMessageInputBar(
                             .simpleVerticalScrollbar(
                                 state = scrollState,
                                 width = 4.dp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) // O tu color preferido
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                             )
                             .verticalScroll(scrollState)
                             .bringIntoViewRequester(bringIntoViewRequester),
@@ -801,11 +775,7 @@ private fun UnifiedMessageBubble(
                     }
 
                     MessageType.IMAGE -> {
-                        // 1. DETECTAR SI ES UN MENSAJE DE SUBIDA ("PENDING_UPLOAD")
                         if (message.imageUrl == "PENDING_UPLOAD") {
-                            // Como ya filtramos en el ViewModel, si entramos aquí
-                            // ES SEGURO que es un mensaje del OTRO usuario (Receiver).
-
                             Box(
                                 modifier = Modifier
                                     .size(200.dp)

@@ -77,10 +77,11 @@ class IndividualAndGroupChatViewModel @Inject constructor(
 
     // region Common States
     private val _chatHeaderInfo = MutableStateFlow<ChatHeaderInfo?>(null)
-
     //val chatHeaderInfo: StateFlow<ChatHeaderInfo?> = _chatHeaderInfo.asStateFlow()
+
     private val _chatType = MutableStateFlow<ChatType>(ChatType.Individual)
     val chatType: StateFlow<ChatType> = _chatType.asStateFlow()
+
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -153,9 +154,9 @@ class IndividualAndGroupChatViewModel @Inject constructor(
      * Unified stream for the message being replied to, adapting based on ChatType.
      */
     val replyToMessage: StateFlow<UnifiedMessage?> = combine(
-        _replyToIndividualMessage,
-        _replyToGroupMessage,
-        _chatType
+        flow = _replyToIndividualMessage,
+        flow2 = _replyToGroupMessage,
+        flow3 = _chatType
     ) { individualReply, groupReply, type ->
         when (type) {
             is ChatType.Individual -> individualReply?.let { UnifiedMessage.Individual(it) }

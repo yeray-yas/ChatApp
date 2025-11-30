@@ -1,5 +1,6 @@
 package com.yerayyas.chatappkotlinproject.notifications
 
+import android.os.PowerManager
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -207,29 +208,31 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         try {
             Log.d(TAG, "Processing individual chat message from: $senderName")
 
-            // Use domain layer to determine if notification should be shown
-            val shouldShow =
-                shouldShowChatNotification.shouldShowIndividualChatNotification(senderId)
-            Log.d(TAG, "Should show individual notification for $senderName: $shouldShow")
+            // 1. System/Context Check (Screen, Background, Home vs Chat)
+            val systemAllowsNotification = shouldDisplayNotification(targetId = senderId, isGroup = false)
 
-            if (shouldShow) {
-                val chatId =
-                    messageData["chatId"] ?: senderId // Fallback to senderId for legacy messages
+            if (systemAllowsNotification) {
+                // 2. Business Logic Check (Muted chats, blocked users, etc. handled by UseCase)
+                // Note: The UseCase might basically duplicate the AppState check, but that's okay.
+                // The important part is that 'systemAllowsNotification' has filtered the Home screen case.
+                val shouldShow = shouldShowChatNotification.shouldShowIndividualChatNotification(senderId)
 
-                // Use domain layer to show notification
-                val result = showChatNotificationUseCase(
-                    senderId = senderId,
-                    senderName = senderName,
-                    messageBody = messageContent ?: "New message",
-                    chatId = chatId
-                )
+                Log.d(TAG, "Should show individual notification for $senderName: $shouldShow")
 
-                handleNotificationResult(result, "individual", senderName)
+                if (shouldShow) {
+                    val chatId = messageData["chatId"] ?: senderId
+
+                    val result = showChatNotificationUseCase(
+                        senderId = senderId,
+                        senderName = senderName,
+                        messageBody = messageContent ?: "New message",
+                        chatId = chatId
+                    )
+
+                    handleNotificationResult(result, "individual", senderName)
+                }
             } else {
-                Log.d(
-                    TAG,
-                    "Individual notification suppressed - user is in active chat with $senderName"
-                )
+                Log.d(TAG, "Individual notification suppressed by System Rules (Screen ON + Home/SameChat)")
             }
 
         } catch (e: Exception) {
@@ -265,32 +268,84 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             Log.d(TAG, "Processing group chat message from: $senderName in group: $groupName")
 
-            // Use domain layer to determine if group notification should be shown
-            val shouldShow = shouldShowChatNotification.shouldShowGroupChatNotification(groupId)
-            Log.d(TAG, "Should show group notification for $groupName: $shouldShow")
+            // 1. System/Context Check
+            val systemAllowsNotification = shouldDisplayNotification(targetId = groupId, isGroup = true)
 
-            if (shouldShow) {
-                // Use domain layer to show group notification
-                val result = showChatNotificationUseCase(
-                    senderId = senderId,
-                    senderName = senderName,
-                    messageBody = messageContent ?: "New message",
-                    chatId = groupId,
-                    isGroupMessage = true,
-                    groupName = groupName
-                )
+            if (systemAllowsNotification) {
+                // 2. Business Logic Check
+                val shouldShow = shouldShowChatNotification.shouldShowGroupChatNotification(groupId)
 
-                handleNotificationResult(result, "group", "$senderName in $groupName")
+                Log.d(TAG, "Should show group notification for $groupName: $shouldShow")
+
+                if (shouldShow) {
+                    val result = showChatNotificationUseCase(
+                        senderId = senderId,
+                        senderName = senderName,
+                        messageBody = messageContent ?: "New message",
+                        chatId = groupId,
+                        isGroupMessage = true,
+                        groupName = groupName
+                    )
+
+                    handleNotificationResult(result, "group", "$senderName in $groupName")
+                }
             } else {
-                Log.d(
-                    TAG,
-                    "Group notification suppressed - user is in active group chat: $groupName"
-                )
+                Log.d(TAG, "Group notification suppressed by System Rules (Screen ON + Home/SameChat)")
             }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing group chat message from: $senderName", e)
         }
+    }
+
+    /**
+     * Determines whether a notification should be displayed based on System State (Screen On/Off)
+     * and Application UI State (Background, Home, Specific Chat).
+     *
+     * Rules:
+     * 1. Screen OFF -> Show
+     * 2. App Background -> Show
+     * 3. App Foreground + Screen ON:
+     *    - If target chat is OPEN -> Suppress (already reading)
+     *    - If ANY OTHER chat is open -> Show (Heads-up)
+     *    - If NO chat is open (Home, Settings, etc.) -> Suppress
+     *
+     * @param targetId The ID of the sender (individual) or group (group chat).
+     * @param isGroup True if checking a group chat, false otherwise.
+     */
+    private fun shouldDisplayNotification(targetId: String, isGroup: Boolean): Boolean {
+        // 1. Check Screen State
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        val isScreenOn = powerManager.isInteractive
+
+        // If Screen is OFF, we ALWAYS want to notify (so phone vibrates/sounds)
+        if (!isScreenOn) return true
+
+        // 2. Check Background State
+        // If App is in Background, we ALWAYS want to notify
+        if (!appState.isAppInForeground) return true
+
+        // --- At this point: App is Foreground AND Screen is ON ---
+
+        // Get the ID of the chat currently visible to the user (if any)
+        val currentOpenChatId = if (isGroup) {
+            appState.currentOpenGroupChatId
+        } else {
+            appState.currentOpenChatUserId
+        }
+
+        // 3. Check if user is inside the SAME chat
+        if (currentOpenChatId == targetId) {
+            return false // Suppress: User is looking at this chat
+        }
+
+        // 4. Check if user is inside ANY OTHER chat
+        if (!currentOpenChatId.isNullOrEmpty()) {
+            return true // Show: User is in chat A, message from chat B (Heads-up needed)
+        }
+
+        // 5. User is in Home, Group List, Settings, etc. (No specific chat open)
+        return false
     }
 
     /**

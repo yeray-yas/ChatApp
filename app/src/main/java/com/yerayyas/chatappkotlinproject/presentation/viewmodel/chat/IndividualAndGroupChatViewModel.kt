@@ -117,7 +117,7 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     private val _isTyping = MutableStateFlow(false)
     //val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
-    private val _typingUsers = MutableStateFlow<List<String>>(emptyList())
+    //private val _typingUsers = MutableStateFlow<List<String>>(emptyList())
     //val typingUsers: StateFlow<List<String>> = _typingUsers.asStateFlow()
 
     private val _mentionedUsers = MutableStateFlow<List<String>>(emptyList())

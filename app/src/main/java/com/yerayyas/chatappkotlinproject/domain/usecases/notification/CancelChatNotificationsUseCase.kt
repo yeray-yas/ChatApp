@@ -1,7 +1,6 @@
-package com.yerayyas.chatappkotlinproject.domain.usecases
+package com.yerayyas.chatappkotlinproject.domain.usecases.notification
 
 import android.util.Log
-import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelUserNotificationsUseCase
 import javax.inject.Inject
 import javax.inject.Singleton
 

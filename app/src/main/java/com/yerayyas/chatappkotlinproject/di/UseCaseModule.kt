@@ -1,6 +1,6 @@
 package com.yerayyas.chatappkotlinproject.di
 
-import com.yerayyas.chatappkotlinproject.domain.usecases.CancelChatNotificationsUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelChatNotificationsUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelUserNotificationsUseCase
 import dagger.Module
 import dagger.Provides

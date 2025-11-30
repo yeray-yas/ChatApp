@@ -2,7 +2,7 @@ package com.yerayyas.chatappkotlinproject.domain.usecases.chat.unified
 
 import com.yerayyas.chatappkotlinproject.domain.repository.ChatRepository
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
-import com.yerayyas.chatappkotlinproject.domain.usecases.CancelChatNotificationsUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelChatNotificationsUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.user.GetCurrentUserIdUseCase
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.ChatType
 import javax.inject.Inject

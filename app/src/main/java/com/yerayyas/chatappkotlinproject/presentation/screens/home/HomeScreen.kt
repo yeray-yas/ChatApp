@@ -157,13 +157,13 @@ fun HomeScreen(
                                 Toast.makeText(context, "About user", Toast.LENGTH_SHORT).show()
                             }
                         )
-                        // BOTÓN DE BORRAR USUARIO ELIMINADO POR AHORA
+                        // Erased the Delete user button (for the moment)
                         // DropdownMenuItem(text = { Text("Delete user") }, onClick = { ... })
 
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.sign_out_btn)) },
                             onClick = {
-                                // LLAMADA CORRECTA AL NUEVO VIEWMODEL
+                                // Correct call to the new viewmodel
                                 viewModel.signOut {
                                     navController.navigate(Routes.Main.route) {
                                         popUpTo(0) { inclusive = true }
@@ -176,7 +176,6 @@ fun HomeScreen(
                 }
             )
         }
-        // FAB ELIMINADO. El FAB para crear grupos debe estar en GroupListScreen.
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -321,7 +320,7 @@ private fun ChatsContent(
 }
 
 
-// --- HELPERS PARA MANTENER LA UI MÁS LIMPIA ---
+// --- HELPERS  ---
 
 @Composable
 private fun RequestNotificationPermission() {
@@ -351,7 +350,6 @@ private fun ObserveLifecycleEvents(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                // homeViewModel.loadUnreadGroupMessagesCount()  // Esta llamada estaba dando error y es mejorada
                 chatsListViewModel.loadUserChatsAndUnreadCount()
             }
         }

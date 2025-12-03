@@ -91,12 +91,12 @@ fun NavigationWrapper(
         startDestination = startDestination,
         modifier = modifier
     ) {
-        // --- Group screens routes (Fase 3) ---
+        // --- Group screens routes ---
         composable(Routes.CreateGroup.route) {
             CreateGroupScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onGroupCreated = { groupId ->
-                    // Navegar al chat del grupo recién creado
+                    // Navigates to the new group chat
                     navController.navigate(Routes.GroupChat.createRoute(groupId)) {
                         popUpTo(Routes.CreateGroup.route) { inclusive = true }
                     }
@@ -210,13 +210,13 @@ fun NavigationWrapper(
                 chatId = chatId,
                 onNavigateBack = { navController.popBackStack() },
                 onMessageClick = { message ->
-                    // Navegar de vuelta al chat y scrollear al mensaje
+                    // Navigates back tho the chat and scrolls to the message
                     navController.popBackStack()
                 }
             )
         }
 
-        // Global Search Screen - Nueva funcionalidad Fase 2
+        // Global Search Screen
         composable(Routes.GlobalSearch.route) {
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() }

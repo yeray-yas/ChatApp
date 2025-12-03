@@ -51,7 +51,7 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-            // Barra de búsqueda avanzada
+            // Advanced Search Bar
             AdvancedSearchBar(
                 query = searchState.query,
                 onQueryChange = searchViewModel::updateQuery,
@@ -63,7 +63,7 @@ fun SearchScreen(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
-            // Resultados
+            // Results
             when {
                 searchState.isLoading -> {
                     LoadingState(
@@ -98,11 +98,10 @@ fun SearchScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Versión simplificada para navegación general
     SearchScreen(
         chatId = "",
         onNavigateBack = onNavigateBack,
-        onMessageClick = { /* No-op para búsqueda general */ },
+        onMessageClick = { /* No-op for general search */ },
         modifier = modifier
     )
 }

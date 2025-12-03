@@ -128,7 +128,6 @@ class HomeViewModel @Inject constructor(
     }
 
     fun signOut(onSignedOut: () -> Unit) {
-        // ... (esta función se queda igual)
         viewModelScope.launch {
             try {
                 signOutUseCase()

@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
@@ -55,7 +56,6 @@ import com.yerayyas.chatappkotlinproject.presentation.viewmodel.chat.IndividualA
 import com.yerayyas.chatappkotlinproject.utils.Constants
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
 /**
@@ -104,6 +104,7 @@ fun UnifiedChatScreen(
     val view = LocalView.current
     var imeBottomPx by remember { mutableIntStateOf(0) } // Keyboard height in pixels
     var navBarHeightPx by remember { mutableIntStateOf(0) } // Navigation bar height in pixels
+    var inputBarHeightPx by remember { mutableIntStateOf(0) }
 
     // Track if user is at the bottom of the message list
     var isAtBottom by remember { mutableStateOf(true) }
@@ -169,73 +170,67 @@ fun UnifiedChatScreen(
     // --- Dynamic Layout and Scrolling Logic ---
 
     // Calculate smart dynamic padding to ensure the last message is visible above the keyboard.
-    val smartBottomPadding = if (isKeyboardOpen) {
-        with(receiver = density) {
+    val smartBottomPadding = if (isKeyboardOpen && isAtBottom) {
+        with(density) {
             val keyboardHeightDp = (imeBottomPx / density.density).dp
-            val inputAreaHeight = 100.dp
-            keyboardHeightDp + inputAreaHeight - Constants.TOP_APP_BAR_HEIGHT
+
+            val inputAreaHeight = (inputBarHeightPx / density.density).dp
+
+            keyboardHeightDp + inputAreaHeight + 16.dp - Constants.TOP_APP_BAR_HEIGHT
         }
     } else {
-        80.dp
+        with(density) {
+            val inputAreaHeight = (inputBarHeightPx / density.density).dp
+            if (inputAreaHeight > 0.dp) inputAreaHeight + 8.dp else 80.dp
+        }
     }
 
     // Calculate the simple offset for the input area to follow the IME (keyboard) edge
     val inputOffset = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
     /**
-     * Monitors scroll state to update [isAtBottom] efficiently using LayoutInfo.
+     * Monitors scroll state to update [isAtBottom], which informs auto-scroll decisions.
      */
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo }
-            .collect { layoutInfo ->
-                val totalItems = layoutInfo.totalItemsCount
-                if (totalItems == 0) {
-                    isAtBottom = true
-                    return@collect
-                }
-
-                val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull() ?: return@collect
-
-                // We verify if the last item is the last item in the list
-                val lastIndex = totalItems - 1
-
-                // Considered "at bottom" if the last visible item (or almost the last)
-                // is at the edge or very close to the end of the list.
-                isAtBottom = lastVisibleItem.index >= lastIndex - 1
-            }
+    LaunchedEffect(listState.isScrollInProgress, isKeyboardOpen) {
+        if (!listState.isScrollInProgress && messages.isNotEmpty() && !isKeyboardOpen) {
+            val visibleInfo = listState.layoutInfo.visibleItemsInfo
+            val lastVisibleIndex = visibleInfo.lastOrNull()?.index ?: -1
+            val totalItems = messages.size
+            isAtBottom = lastVisibleIndex >= totalItems - 2
+        }
     }
 
     /**
      * EFFECT 1: Handles the VERY FIRST scroll to the bottom when the screen is created.
+     * It runs only once when messages are loaded for the first time.
+     * The key `messages.firstOrNull()?.id` ensures it doesn't re-run on simple recompositions.
      */
     LaunchedEffect(messages.firstOrNull()?.id) {
         if (messages.isNotEmpty() && !hasPerformedInitialScroll) {
             scope.launch {
                 listState.scrollToItem(messages.size - 1)
                 isAtBottom = true
+                // Mark as done. This survives process death thanks to rememberSaveable.
                 hasPerformedInitialScroll = true
             }
         }
     }
 
     /**
-     * EFFECT 2: Handles AUTO-SCROLLING for NEW messages AFTER the initial load.
-     * Uses snapshotFlow.drop(1) to avoid race conditions with initial state restoration.
+     * EFFECT 2: Handles AUTO-SCROLLING for NEW messages.
+     * Forces scroll if the new message is ours OR if we were already at the bottom.
      */
-    LaunchedEffect(listState) {
-        snapshotFlow { messages }
-            .drop(1) // Drop the first emission to avoid race conditions
-            .collect { currentMessages ->
-                val lastMessage = currentMessages.lastOrNull() ?: return@collect
-                val shouldScroll = lastMessage.isSentBy(viewModel.getCurrentUserId()) || isAtBottom
+    LaunchedEffect(messages.size, listState) {
+        if (messages.isNotEmpty()) {
+            val lastMessage = messages.last()
+            val isFromMe = lastMessage.isSentBy(viewModel.getCurrentUserId())
 
-                if (shouldScroll) {
-                    delay(300)
-
-                    listState.scrollToItem(currentMessages.size - 1)
-                    isAtBottom = true
-                }
+            if (isFromMe || isAtBottom) {
+                delay(100)
+                listState.animateScrollToItem(messages.size - 1)
+                isAtBottom = true
             }
+        }
     }
 
     /**
@@ -243,10 +238,8 @@ fun UnifiedChatScreen(
      */
     LaunchedEffect(isKeyboardOpen, isAtBottom) {
         if (isKeyboardOpen && isAtBottom && messages.isNotEmpty()) {
-
-            delay(100)
-
-            listState.scrollToItem(messages.size - 1)
+            delay(100) // Small delay to sync with keyboard animation
+            listState.animateScrollToItem(messages.size - 1)
         }
     }
 
@@ -414,6 +407,9 @@ fun UnifiedChatScreen(
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 8.dp)
                     .offset { IntOffset(x = 0, y = inputOffset) } // Dynamic offset for keyboard
+                    .onSizeChanged { size ->
+                        inputBarHeightPx = size.height
+                    }
                     .background(MaterialTheme.colorScheme.surface)
             )
         }

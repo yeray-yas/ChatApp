@@ -11,8 +11,6 @@ import org.junit.Before
 import org.junit.Test
 
 class SignOutUseCaseTest {
-
-
     // We use relaxed=true so they don't fail if void methods are called without stubbing
     private val firebaseAuth: FirebaseAuth = mockk(relaxed = true)
     private val userRepository: UserRepository = mockk(relaxed = true)

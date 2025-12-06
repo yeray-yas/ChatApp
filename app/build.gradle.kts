@@ -91,6 +91,7 @@ dependencies {
     // Mockito
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.mockk)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit)

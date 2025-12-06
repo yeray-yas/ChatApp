@@ -169,8 +169,8 @@ fun UnifiedChatScreen(
     // --- Dynamic Layout and Scrolling Logic ---
 
     // Calculate smart dynamic padding to ensure the last message is visible above the keyboard.
-    val smartBottomPadding = if (isKeyboardOpen && isAtBottom) {
-        with(density) {
+    val smartBottomPadding = if (isKeyboardOpen) {
+        with(receiver = density) {
             val keyboardHeightDp = (imeBottomPx / density.density).dp
             val inputAreaHeight = 100.dp
             keyboardHeightDp + inputAreaHeight - Constants.TOP_APP_BAR_HEIGHT
@@ -183,28 +183,36 @@ fun UnifiedChatScreen(
     val inputOffset = if (imeBottomPx > 0) -(imeBottomPx - navBarHeightPx) else 0
 
     /**
-     * Monitors scroll state to update [isAtBottom], which informs auto-scroll decisions.
+     * Monitors scroll state to update [isAtBottom] efficiently using LayoutInfo.
      */
-    LaunchedEffect(listState.isScrollInProgress, isKeyboardOpen) {
-        if (!listState.isScrollInProgress && messages.isNotEmpty() && !isKeyboardOpen) {
-            val visibleInfo = listState.layoutInfo.visibleItemsInfo
-            val lastVisibleIndex = visibleInfo.lastOrNull()?.index ?: -1
-            val totalItems = messages.size
-            isAtBottom = lastVisibleIndex >= totalItems - 2
-        }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo }
+            .collect { layoutInfo ->
+                val totalItems = layoutInfo.totalItemsCount
+                if (totalItems == 0) {
+                    isAtBottom = true
+                    return@collect
+                }
+
+                val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull() ?: return@collect
+
+                // We verify if the last item is the last item in the list
+                val lastIndex = totalItems - 1
+
+                // Considered "at bottom" if the last visible item (or almost the last)
+                // is at the edge or very close to the end of the list.
+                isAtBottom = lastVisibleItem.index >= lastIndex - 1
+            }
     }
 
     /**
      * EFFECT 1: Handles the VERY FIRST scroll to the bottom when the screen is created.
-     * It runs only once when messages are loaded for the first time.
-     * The key `messages.firstOrNull()?.id` ensures it doesn't re-run on simple recompositions.
      */
     LaunchedEffect(messages.firstOrNull()?.id) {
         if (messages.isNotEmpty() && !hasPerformedInitialScroll) {
             scope.launch {
                 listState.scrollToItem(messages.size - 1)
                 isAtBottom = true
-                // Mark as done. This survives process death thanks to rememberSaveable.
                 hasPerformedInitialScroll = true
             }
         }
@@ -222,7 +230,9 @@ fun UnifiedChatScreen(
                 val shouldScroll = lastMessage.isSentBy(viewModel.getCurrentUserId()) || isAtBottom
 
                 if (shouldScroll) {
-                    listState.animateScrollToItem(currentMessages.size - 1)
+                    delay(300)
+
+                    listState.scrollToItem(currentMessages.size - 1)
                     isAtBottom = true
                 }
             }
@@ -233,8 +243,10 @@ fun UnifiedChatScreen(
      */
     LaunchedEffect(isKeyboardOpen, isAtBottom) {
         if (isKeyboardOpen && isAtBottom && messages.isNotEmpty()) {
-            delay(100) // Small delay to sync with keyboard animation
-            listState.animateScrollToItem(messages.size - 1)
+
+            delay(100)
+
+            listState.scrollToItem(messages.size - 1)
         }
     }
 

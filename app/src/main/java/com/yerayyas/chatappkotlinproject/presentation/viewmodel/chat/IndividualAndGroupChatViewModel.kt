@@ -139,8 +139,13 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         _serverMessages,
         _pendingMessages
     ) { serverMessages, pendingMsgs ->
+        val confirmedTimestamps = serverMessages.map { it.timestamp }.toSet()
 
-        val allMessages = serverMessages + pendingMsgs
+        val filteredPendingMsgs = pendingMsgs.filter { pending ->
+            !confirmedTimestamps.contains(pending.timestamp)
+        }
+
+        val allMessages = serverMessages + filteredPendingMsgs
 
         allMessages.sortedBy { it.timestamp }
 
@@ -250,7 +255,6 @@ class IndividualAndGroupChatViewModel @Inject constructor(
     fun sendMessage(receiverId: String? = null, imageUri: Uri? = null) {
         val textToSend = _messageText.value.trim()
         val currentType = _chatType.value
-
         val replyTo = replyToMessage.value
 
         if (textToSend.isEmpty() && imageUri == null) return
@@ -258,18 +262,23 @@ class IndividualAndGroupChatViewModel @Inject constructor(
         if (imageUri == null) _messageText.value = ""
         clearReply()
 
-        val tempId = UUID.randomUUID().toString()
+        val shouldUsePending = imageUri != null
+        var tempId: String? = null
 
-        val pendingMessage = UnifiedMessage.Pending(
-            id = tempId,
-            senderId = currentUserId,
-            localUri = imageUri,
-            timestamp = System.currentTimeMillis(),
-            isReply = replyTo != null,
-            content = if (imageUri != null) "Image" else textToSend
-        )
+        if (shouldUsePending) {
+            tempId = UUID.randomUUID().toString()
 
-        _pendingMessages.value = _pendingMessages.value + pendingMessage
+            val pendingMessage = UnifiedMessage.Pending(
+                id = tempId,
+                senderId = currentUserId,
+                localUri = imageUri,
+                timestamp = System.currentTimeMillis(),
+                isReply = replyTo != null,
+                content = "Image"
+            )
+
+            _pendingMessages.value = _pendingMessages.value + pendingMessage
+        }
 
         viewModelScope.launch {
             try {
@@ -281,11 +290,15 @@ class IndividualAndGroupChatViewModel @Inject constructor(
                     replyTo = replyTo
                 )
 
-                removePendingMessage(tempId)
+                if (tempId != null) {
+                    removePendingMessage(tempId)
+                }
 
             } catch (e: Exception) {
                 _error.value = "Error sending: ${e.message}"
-                removePendingMessage(tempId)
+                if (tempId != null) {
+                    removePendingMessage(tempId)
+                }
                 if (imageUri == null) _messageText.value = textToSend
             }
         }

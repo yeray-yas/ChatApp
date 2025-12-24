@@ -8,6 +8,8 @@ import com.yerayyas.chatappkotlinproject.data.repository.ThemeRepositoryImpl
 import com.yerayyas.chatappkotlinproject.data.repository.UserRepositoryImpl
 import com.yerayyas.chatappkotlinproject.domain.repository.GroupChatRepository
 import com.yerayyas.chatappkotlinproject.data.repository.GroupChatRepositoryImpl
+import com.yerayyas.chatappkotlinproject.data.service.FirebaseAuthenticationService
+import com.yerayyas.chatappkotlinproject.domain.interfaces.AuthenticationService
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,27 +17,19 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Dagger Hilt module that binds repository implementations to their domain interfaces.
+ * Dagger Hilt module responsible for binding repository implementations to their domain interfaces.
  *
- * This module follows the Repository Pattern and Clean Architecture principles by providing
- * the concrete data layer implementations for all domain repository contracts. It ensures
- * proper dependency injection throughout the application while maintaining separation
- * between domain and data layers.
+ * This module is the cornerstone of the Data Layer in Clean Architecture. It instructs Hilt on how to
+ * provide concrete implementations (usually utilizing Firebase or DataStore) whenever a Domain Use Case
+ * or ViewModel requests a repository interface.
  *
- * Repository responsibilities:
- * - **UserRepository**: User management, authentication, and FCM token handling
- * - **ChatRepository**: Individual chat messaging, image uploads, and message tracking
- * - **GroupChatRepository**: Group chat management, member administration, and group messaging
- * - **ThemeRepository**: Application theme preferences and dynamic color management
+ * Key features:
+ * - **Dependency Inversion:** Decouples the Domain layer from Data layer implementation details.
+ * - **Singleton Scope:** Ensures consistent data state and resource efficiency across the app.
+ * - **Centralized Binding:** Acts as the single source of truth for repository dependency configuration.
  *
- * All repositories are provided as singletons to ensure:
- * - Consistent data state across the application
- * - Optimal memory usage and performance
- * - Single point of truth for data operations
- * - Proper lifecycle management throughout app execution
- *
- * The module is installed in SingletonComponent to provide application-wide availability
- * and ensure all ViewModels and Use Cases receive the same repository instances.
+ * The module is installed in [SingletonComponent] to make these bindings available throughout the
+ * entire application lifecycle.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -44,15 +38,11 @@ abstract class RepositoryModule {
     /**
      * Binds [UserRepositoryImpl] to the [UserRepository] domain interface.
      *
-     * This repository handles all user-related operations including:
-     * - Firebase Authentication integration and user session management
-     * - FCM token management for push notifications
-     * - User profile data retrieval and caching
-     * - User search and contact management
-     * - Online status tracking and user presence
+     * Provides access to user-related data, handling Firebase Authentication bridging,
+     * user profile caching, and presence management logic.
      *
-     * @param userRepositoryImpl The concrete implementation with Firebase integration
-     * @return UserRepository interface for domain layer consumption
+     * @param userRepositoryImpl The concrete implementation.
+     * @return UserRepository interface for domain layer consumption.
      */
     @Binds
     @Singleton
@@ -63,15 +53,11 @@ abstract class RepositoryModule {
     /**
      * Binds [ChatRepositoryImpl] to the [ChatRepository] domain interface.
      *
-     * This repository manages individual chat operations including:
-     * - Text and image message sending with Firebase Storage integration
-     * - Real-time message streaming through Firebase Realtime Database
-     * - Message read status tracking and delivery confirmations
-     * - Reply functionality with context preservation
-     * - Chat history management and message persistence
+     * Manages individual messaging operations, including real-time synchronization
+     * via Firebase Realtime Database and media handling via Firebase Storage.
      *
-     * @param chatRepositoryImpl The concrete implementation with Firebase integration
-     * @return ChatRepository interface for domain layer consumption
+     * @param chatRepositoryImpl The concrete implementation.
+     * @return ChatRepository interface for domain layer consumption.
      */
     @Binds
     @Singleton
@@ -82,14 +68,11 @@ abstract class RepositoryModule {
     /**
      * Binds [ThemeRepositoryImpl] to the [ThemeRepository] domain interface.
      *
-     * This repository manages application theming and user preferences including:
-     * - Theme mode persistence (Light, Dark, System) using DataStore
-     * - Dynamic color (Material You) preference management
-     * - Reactive theme updates through Flow for immediate UI response
-     * - Type-safe preference storage with automatic migration
+     * Handles local persistence of UI preferences (Dark/Light mode, Dynamic Colors)
+     * using Jetpack DataStore, exposing changes reactively via Flow.
      *
-     * @param themeRepositoryImpl The concrete implementation with DataStore integration
-     * @return ThemeRepository interface for domain layer consumption
+     * @param themeRepositoryImpl The concrete implementation.
+     * @return ThemeRepository interface for domain layer consumption.
      */
     @Binds
     @Singleton
@@ -100,22 +83,33 @@ abstract class RepositoryModule {
     /**
      * Binds [GroupChatRepositoryImpl] to the [GroupChatRepository] domain interface.
      *
-     * This repository handles comprehensive group chat functionality including:
-     * - Group creation, management, and configuration
-     * - Member administration with role-based permissions (admin/member)
-     * - Group messaging with advanced features (reactions, mentions, replies)
-     * - Read receipt tracking across multiple group members
-     * - Group invitation system with status management
-     * - File upload support for group images and message attachments
-     * - Real-time group data synchronization
-     * - Mock data support for development and testing scenarios
+     * Handles complex group operations such as creation, member management, role administration,
+     * and multi-user message synchronization.
      *
-     * @param groupChatRepositoryImpl The concrete implementation with Firebase integration
-     * @return GroupChatRepository interface for domain layer consumption
+     * @param groupChatRepositoryImpl The concrete implementation.
+     * @return GroupChatRepository interface for domain layer consumption.
      */
     @Binds
     @Singleton
     abstract fun bindGroupChatRepository(
         groupChatRepositoryImpl: GroupChatRepositoryImpl
     ): GroupChatRepository
+
+    /**
+     * Binds [FirebaseAuthenticationService] to the [AuthenticationService] domain interface.
+     *
+     * This binding provides the infrastructure-level implementation for authentication checks,
+     * allowing the domain layer to verify session validity without depending directly on the
+     * Firebase SDK.
+     *
+     * @param impl The concrete Firebase-backed implementation.
+     * @return AuthenticationService interface for domain layer consumption.
+     */
+    @Binds
+    // Nota: Si AuthenticationService no tiene estado, @Singleton es opcional pero recomendado por consistencia.
+    // Si la implementación mantiene caché, descomenta @Singleton.
+    // @Singleton
+    abstract fun bindAuthenticationService(
+        impl: FirebaseAuthenticationService
+    ): AuthenticationService
 }

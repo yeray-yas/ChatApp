@@ -11,28 +11,29 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleDefaultNavigationUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.HandleNotificationNavigationUseCase
-import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel.MainActivityViewModel
 import com.yerayyas.chatappkotlinproject.presentation.ui.theme.ChatAppKotlinProjectTheme
 import com.yerayyas.chatappkotlinproject.presentation.viewmodel.theme.ThemeViewModel
 
 /**
- * Root composable for the application. Applies the app theme, configures the scaffold,
- * and initializes navigation.
+ * The top-level Composable container for the application's UI.
  *
- * @param activityViewModel The ViewModel associated with the main activity.
- * @param handleNotificationNavigation Use case to navigate based on notification actions.
- * @param handleDefaultNavigation Use case to handle the app's default navigation flow.
- * @param skipSplash When true, bypasses the splash screen on startup.
- * @param initialNavState Optional initial navigation state derived from a notification.
+ * This function acts as the composition root, establishing the global environment
+ * for all screens. It is responsible for:
+ * 1. **Theming:** Applying the app-wide theme (Dark/Light/Dynamic) observed from [ThemeViewModel].
+ * 2. **Layout Structure:** Providing a [Scaffold] to correctly handle system insets (status bars, navigation bars).
+ * 3. **Navigation:** Initializing the [NavHostController] and embedding the [NavigationWrapper].
+ *
+ * @param activityViewModel The shared ViewModel associated with the hosting Activity.
+ * @param handleNotificationNavigation Use case to process deep-link navigation events.
+ * @param handleDefaultNavigation Use case to determine the default start destination.
+ * @param themeViewModel ViewModel managing user theme preferences (default injected via Hilt).
  */
 @Composable
 fun AppContainer(
     activityViewModel: MainActivityViewModel,
     handleNotificationNavigation: HandleNotificationNavigationUseCase,
     handleDefaultNavigation: HandleDefaultNavigationUseCase,
-    skipSplash: Boolean = false,
-    initialNavState: NotificationNavigationState? = null,
     themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -42,6 +43,9 @@ fun AppContainer(
         themeMode = themePreferences.themeMode,
         useDynamicColors = themePreferences.useDynamicColors
     ) {
+        // Crucial: This Scaffold handles the system bars padding.
+        // It ensures that the NavigationWrapper receives the correct 'innerPadding',
+        // preventing the bottom navigation bar from overlapping content (like the keyboard).
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -51,8 +55,6 @@ fun AppContainer(
                 mainActivityViewModel = activityViewModel,
                 handleNotificationNavigation = handleNotificationNavigation,
                 handleDefaultNavigation = handleDefaultNavigation,
-                skipSplash = skipSplash,
-                initialNavState = initialNavState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

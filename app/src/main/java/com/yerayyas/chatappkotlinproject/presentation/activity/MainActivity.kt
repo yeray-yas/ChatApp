@@ -23,28 +23,26 @@ import javax.inject.Inject
 private const val TAG = "MainActivity"
 
 /**
- * Main and single activity of the application, serving as the entry point for the user interface.
+ * Single-Activity entry point for the application.
  *
- * This activity follows the Clean Architecture principles and delegates responsibilities to specialized services:
- * - [ActivityInitializationService]: Handles Google Play Services, permissions, and FCM token management
- * - [NotificationIntentService]: Processes notification intents and manages navigation state
- * - [CancelAllNotificationsUseCase]: Manages notification clearing using domain layer logic
+ * This Activity serves as the host container for the Jetpack Compose UI and orchestrates
+ * the initialization of core services. It strictly follows Clean Architecture principles
+ * by delegating business logic to UseCases and specific infrastructure services.
  *
- * The activity focuses primarily on:
- * - Setting up the Compose UI container
- * - Managing the activity lifecycle
- * - Coordinating between services and the presentation layer
- * - Handling permission requests through result contracts
+ * Key Responsibilities:
+ * - **Host:** Configures the Compose content via [AppContainer].
+ * - **Initialization:** Bootstraps [ActivityInitializationService] (Permissions, FCM, Google Play Services).
+ * - **Navigation Routing:** Acts as the traffic controller for Deep Links and Notifications via [NotificationIntentService].
+ * - **Lifecycle Management:** Handles `onNewIntent` to support navigation updates while the app is running.
  *
- * Architecture Pattern: Clean Architecture with MVVM
- * - Uses dependency injection with Hilt for loose coupling
- * - Leverages use cases for business logic operations
- * - Maintains separation between UI, domain, and data layers
+ * Architecture: Clean Architecture + MVVM (Entry Point)
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val activityViewModel: MainActivityViewModel by viewModels()
+
+    // --- Services & Use Cases Injection ---
 
     @Inject
     lateinit var activityInitializationService: ActivityInitializationService
@@ -62,8 +60,7 @@ class MainActivity : ComponentActivity() {
     lateinit var cancelAllNotificationsUseCase: CancelAllNotificationsUseCase
 
     /**
-     * Activity result launcher for notification permission requests.
-     * Uses the modern Activity Result API for better lifecycle management.
+     * Handles the runtime permission request flow for Notifications (Android 13+).
      */
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -74,94 +71,85 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         /**
-         * Tracks whether the application has been initialized to distinguish between
-         * cold start (first app launch) and warm start (returning from background).
-         * This helps optimize the user experience by skipping splash screens appropriately.
+         * Static flag to track process lifecycle.
+         * Used to differentiate between a Cold Start (app killed) and a Warm Start (config change/rotation).
+         * This allows the Splash Screen to be skipped on rotation to improve UX.
          */
         private var isAppInitialized = false
     }
 
     /**
-     * Called when the activity is first created.
+     * Initializes the Activity, services, and UI content.
      *
-     * This method handles:
-     * - Activity configuration (edge-to-edge display)
-     * - Service initialization with proper lifecycle management
-     * - Initial intent processing for deep-link navigation
-     * - Notification clearing using domain layer use case
-     * - UI composition setup with dependency injection
-     *
-     * @param savedInstanceState Bundle containing the activity's previously saved state, or null
+     * Workflow:
+     * 1. Configure Edge-to-Edge display.
+     * 2. Determine start type (Cold vs Warm).
+     * 3. Initialize infrastructure services.
+     * 4. Process any pending intent (Deep Link).
+     * 5. Delegate start destination calculation to ViewModel.
+     * 6. Render Compose UI.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Detect if this is a recreation (e.g., rotation) or a warm start to skip Splash
         val isAppAlreadyRunning = isAppInitialized || savedInstanceState != null
-        Log.d(TAG, "onCreate: isAppAlreadyRunning=$isAppAlreadyRunning, isAppInitialized=$isAppInitialized, savedInstanceState=${savedInstanceState != null}")
+        Log.d(TAG, "onCreate: WarmStart=$isAppAlreadyRunning (Initialized=$isAppInitialized)")
 
-        // Mark app as initialized on its first creation to track warm/cold starts
+        // Mark as initialized for future recreations within the same process
         isAppInitialized = true
 
-        // Initialize core services with permission callback delegation
         initializeServices()
 
-        // Process any notification or deep-link from the initial intent before rendering the UI
-        val initialNavState =
-            notificationIntentService.processInitialIntent(intent, isAppAlreadyRunning)
+        // Parse deep-link/notification data from the intent
+        val initialNavState = notificationIntentService.processInitialIntent(
+            intent,
+            isAppAlreadyRunning
+        )
 
-        // Clear all notifications when the app opens using domain layer use case
+        // Critical: Hand off navigation decision to ViewModel
+        activityViewModel.resolveStartDestination(
+            skipSplash = isAppAlreadyRunning,
+            initialNavState = initialNavState
+        )
+
         clearAllNotifications()
 
-        // Set up the Compose UI with all required dependencies
         setContent {
             AppContainer(
                 activityViewModel = activityViewModel,
                 handleNotificationNavigation = handleNotificationNavigation,
-                handleDefaultNavigation = handleDefaultNavigation,
-                skipSplash = isAppAlreadyRunning,
-                initialNavState = initialNavState
+                handleDefaultNavigation = handleDefaultNavigation
             )
         }
     }
 
     /**
-     * Called when the activity receives a new intent while already running.
+     * Handles new intents received while the Activity is already in the foreground.
      *
-     * This typically occurs when:
-     * - User taps on a notification while app is in background
-     * - App receives a deep-link while already active
-     * - System triggers the activity with new parameters
-     *
-     * @param intent The new intent that was received
+     * This is crucial for "SingleTop" behavior where tapping a notification
+     * updates the existing activity rather than creating a new stack.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent) // Update the activity's current intent
-        Log.d(TAG, "onNewIntent: Received new intent while app is running")
+        setIntent(intent) // Update the intent property to the new one
+        Log.d(TAG, "onNewIntent: Processing new deep link/notification")
 
-        // Clear all notifications when opening from a notification using domain layer
         clearAllNotifications()
 
-        // Process the new intent and handle any navigation requirements
+        // Delegate the new navigation request to the service -> ViewModel pipeline
         notificationIntentService.handleNotificationIntent(intent, activityViewModel)
     }
 
-    /**
-     * Called when the activity is becoming visible to the user.
-     *
-     * We clear notifications here as well to handle cases where the user
-     * returns to the app without triggering a new intent (e.g., through task switcher).
-     */
     override fun onStart() {
         super.onStart()
-        // Clear notifications when app becomes visible using domain layer use case
+        // Ensure notifications are cleared when user manually returns to the app
         clearAllNotifications()
     }
 
     /**
-     * Initializes all required services with proper error handling and lifecycle management.
-     * Uses dependency injection to maintain loose coupling between components.
+     * Safely initializes infrastructure services.
      */
     private fun initializeServices() {
         try {
@@ -173,33 +161,21 @@ class MainActivity : ComponentActivity() {
                         .requestPermission(notificationPermissionLauncher)
                 }
             )
-            Log.d(TAG, "Services initialized successfully")
+            Log.d(TAG, "Services initialized")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize services", e)
-            // App can still function with limited capabilities
+            Log.e(TAG, "Service initialization failed", e)
         }
     }
 
     /**
-     * Clears all active notifications using the domain layer use case.
-     * This follows Clean Architecture principles by using business logic
-     * instead of directly calling infrastructure services.
+     * Executes the [CancelAllNotificationsUseCase] to clean up the system tray.
      */
     private fun clearAllNotifications() {
         lifecycleScope.launch {
             try {
-                val result = cancelAllNotificationsUseCase()
-                if (result.isSuccess) {
-                    Log.d(TAG, "Successfully cleared all notifications")
-                } else {
-                    Log.w(
-                        TAG,
-                        "Failed to clear notifications: ${result.exceptionOrNull()?.message}"
-                    )
-                }
+                cancelAllNotificationsUseCase()
             } catch (e: Exception) {
-                Log.e(TAG, "Error clearing notifications", e)
-                // Non-critical error, app continues functioning
+                Log.e(TAG, "Failed to clear notifications", e)
             }
         }
     }

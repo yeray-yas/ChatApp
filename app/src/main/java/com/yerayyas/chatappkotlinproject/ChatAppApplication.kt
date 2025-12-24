@@ -1,54 +1,38 @@
 package com.yerayyas.chatappkotlinproject
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.ServerValue
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.ManageUserPresenceUseCase
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 /**
- * ChatAppApplication is the application class for the Chat App.
+ * Application entry point and Dependency Injection root.
  *
- * This class uses Hilt for dependency injection and implements
- * DefaultLifecycleObserver to update the user's online status
- * in Firebase based on the application's foreground/background state.
+ * This class initializes the Hilt dependency graph and manages the application-wide
+ * lifecycle to track the user's online presence. By implementing [DefaultLifecycleObserver]
+ * and observing [ProcessLifecycleOwner], it can detect when the app as a whole moves
+ * between foreground and background states, regardless of individual Activity transitions.
  *
- * Dependencies injected:
- * - FirebaseAuth: For authentication and obtaining the current user.
- * - DatabaseReference: For accessing and updating the Firebase Realtime Database.
- *
- * The class observes the lifecycle of the entire application using ProcessLifecycleOwner.
- * When the app goes to the foreground, the user's status is updated to "online",
- * and when it goes to the background, the status is updated to "offline".
+ * Key responsibilities:
+ * - bootstrapping Hilt ([@HiltAndroidApp]).
+ * - Global lifecycle monitoring (App-level vs Activity-level).
+ * - delegating presence logic (Online/Offline) to the Domain layer.
  */
 @HiltAndroidApp
 class ChatAppApplication : Application(), DefaultLifecycleObserver {
 
-    /**
-     * Instance of FirebaseAuth for managing user authentication.
-     */
     @Inject
-    lateinit var auth: FirebaseAuth
+    lateinit var manageUserPresenceUseCase: ManageUserPresenceUseCase
 
     /**
-     * Instance of DatabaseReference for accessing the Firebase Realtime Database.
-     */
-    @Inject
-    lateinit var database: DatabaseReference
-
-    /**
-     * Flag to track whether the app is currently in the foreground.
-     */
-    private var isAppInForeground = false
-
-    /**
-     * Called when the application is created.
-     * Registers this class as a lifecycle observer to track app foreground/background transitions.
+     * Called when the application process is starting.
+     *
+     * Registers this class as an observer of the process lifecycle. This ensures
+     * that `onStart` and `onStop` are triggered based on the application's
+     * composite visibility state.
      */
     override fun onCreate() {
         super<Application>.onCreate()
@@ -56,51 +40,30 @@ class ChatAppApplication : Application(), DefaultLifecycleObserver {
     }
 
     /**
-     * Called when the application moves to the foreground.
-     * Updates the user's status to "online" if not already in the foreground.
+     * Triggered when the application moves to the **foreground**.
      *
-     * @param owner The LifecycleOwner (ProcessLifecycleOwner in this case).
+     * This occurs when the first Activity becomes visible. We delegate to the
+     * use case to mark the user as "online" in the remote database and cancel
+     * any pending "last seen" timestamps.
+     *
+     * @param owner The lifecycle owner (ProcessLifecycleOwner).
      */
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
-        if (!isAppInForeground) {
-            isAppInForeground = true
-            updateUserStatus("online")
-        }
+        manageUserPresenceUseCase.startPresenceUpdates()
     }
 
     /**
-     * Called when the application moves to the background.
-     * Updates the user's status to "offline" if currently in the foreground.
+     * Triggered when the application moves to the **background**.
      *
-     * @param owner The LifecycleOwner (ProcessLifecycleOwner in this case).
+     * This occurs when the last visible Activity is stopped (user presses Home,
+     * switches apps, or locks the screen). We delegate to the use case to mark
+     * the user as "offline" and update the "last seen" timestamp.
+     *
+     * @param owner The lifecycle owner (ProcessLifecycleOwner).
      */
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
-        if (isAppInForeground) {
-            isAppInForeground = false
-            updateUserStatus("offline")
-        }
-    }
-
-    /**
-     * Updates the user's status in the Firebase Realtime Database.
-     *
-     * It updates the "status" and "lastSeen" values under the user's private information in the database.
-     * If the update fails, an error message is logged.
-     *
-     * @param status A String representing the new status, e.g., "online" or "offline".
-     */
-    private fun updateUserStatus(status: String) {
-        auth.currentUser?.uid?.let { uid ->
-            database.child("Users").child(uid).child("private").updateChildren(
-                mapOf(
-                    "status" to status,
-                    "lastSeen" to ServerValue.TIMESTAMP
-                )
-            ).addOnFailureListener { e ->
-                Log.e("AppLifecycle", "Error updating user status to $status", e)
-            }
-        }
+        manageUserPresenceUseCase.stopPresenceUpdates()
     }
 }

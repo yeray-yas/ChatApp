@@ -3,6 +3,7 @@ package com.yerayyas.chatappkotlinproject.presentation.activity.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yerayyas.chatappkotlinproject.domain.usecases.GetStartDestinationUseCase
 import com.yerayyas.chatappkotlinproject.notifications.NotificationNavigationState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,69 +15,90 @@ import javax.inject.Inject
 private const val TAG = "MainActivityVM"
 
 /**
- * ViewModel for MainActivity responsible for managing notification-driven navigation events.
+ * ViewModel for MainActivity responsible for orchestrating the app's entry point and navigation events.
  *
- * This ViewModel follows the MVVM pattern and serves as a bridge between the service layer
- * and the UI layer for handling deep-link navigation from notifications. It manages one-shot
- * navigation events and provides a reactive interface for the Compose UI to observe and consume.
+ * This ViewModel acts as the bridge between the Android Framework (Intents/Notifications) and the
+ * Compose UI layer. It manages two critical aspects of the app startup:
+ * 1. **Start Destination Resolution:** Deciding whether to show Splash, Login, or Home based on auth state.
+ * 2. **Deep Link Handling:** Processing navigation events triggered by push notifications.
  *
- * Key responsibilities:
- * - Managing pending navigation states from notification intents
- * - Providing reactive navigation state through StateFlow
- * - Supporting both individual and group chat navigation
- * - Ensuring navigation events are consumed only once
- * - Maintaining navigation state during configuration changes
- * - Providing comprehensive logging for debugging navigation flows
- *
- * Architecture Pattern: MVVM with Reactive State Management
- * - Uses StateFlow for reactive state management
- * - Follows single source of truth principle
- * - Provides lifecycle-aware navigation state
- * - Supports both cold and warm app starts
- * - Ensures navigation events are not lost during configuration changes
+ * Architecture Pattern: MVVM with Reactive State Management.
  */
 @HiltViewModel
-class MainActivityViewModel @Inject constructor() : ViewModel() {
+class MainActivityViewModel @Inject constructor(
+    private val getStartDestinationUseCase: GetStartDestinationUseCase
+) : ViewModel() {
+
+    // --- State Management ---
 
     /**
-     * Private mutable state flow for internal state management.
-     * Only this ViewModel can modify the navigation state.
+     * Internal mutable state for notification-driven navigation.
+     * Stores the parsed navigation intent waiting to be consumed by the UI.
      */
     private val _pendingNavigation = MutableStateFlow<NotificationNavigationState?>(null)
 
     /**
-     * Public read-only state flow for UI observation.
+     * Public stream of pending navigation events.
+     * Observed by the [NavigationWrapper] to trigger deep-link navigation.
      *
-     * This StateFlow emits [NotificationNavigationState] instances when valid navigation
-     * parameters are provided through notification intents. The UI layer should observe
-     * this flow and handle navigation accordingly.
-     *
-     * Key characteristics:
-     * - Emits null when no navigation is pending
-     * - Emits navigation state when valid notification data is received
-     * - Maintains state during configuration changes
-     * - Should be consumed and cleared after handling navigation
-     *
-     * @return StateFlow containing the current pending navigation state or null
+     * Contract:
+     * - Emits `null` when idle.
+     * - Emits [NotificationNavigationState] when a notification is tapped.
+     * - Must be cleared via [clearPendingNavigation] after consumption.
      */
-    val pendingNavigation: StateFlow<NotificationNavigationState?> = _pendingNavigation.asStateFlow()
+    val pendingNavigation: StateFlow<NotificationNavigationState?> =
+        _pendingNavigation.asStateFlow()
+
+    private val _navigationEvent = MutableStateFlow<NotificationNavigationState?>(null)
 
     /**
-     * Queues an individual chat navigation event based on notification parameters.
+     * Secondary navigation stream for generic runtime events.
+     * (Note: distinct from [pendingNavigation] which is specialized for Deep Links handling).
+     */
+    val navigationEvent = _navigationEvent.asStateFlow()
+
+    private val _startDestinationState = MutableStateFlow<StartNavigationState>(StartNavigationState.Loading)
+
+    /**
+     * Represents the current state of the app's entry point determination.
+     * Used by the UI to toggle between the Splash Screen and the main NavHost.
+     */
+    val startDestinationState = _startDestinationState.asStateFlow()
+
+    // --- Actions ---
+
+    fun onNavigationHandled() {
+        _navigationEvent.value = null
+    }
+
+    /**
+     * Resolves the initial screen of the application.
      *
-     * This method validates the provided parameters and creates a navigation state
-     * for individual chat navigation. It includes comprehensive validation and
-     * error handling to ensure only valid navigation requests are processed.
+     * Delegates to [GetStartDestinationUseCase] to apply business rules (Auth status,
+     * Deep Link priority, Splash delay) and updates [startDestinationState].
      *
-     * Validation rules:
-     * - navigateTo must equal "chat"
-     * - userId must be non-null and non-blank
-     * - username must be non-null and non-blank
+     * @param skipSplash If true, indicates a warm start where the splash screen should be skipped.
+     * @param initialNavState Optional navigation state if the app was launched via notification.
+     */
+    fun resolveStartDestination(skipSplash: Boolean, initialNavState: NotificationNavigationState?) {
+        viewModelScope.launch {
+            val destination = getStartDestinationUseCase(initialNavState, skipSplash)
+            _startDestinationState.value = StartNavigationState.Ready(destination)
+        }
+    }
+
+    // --- Notification Handling Logic ---
+
+    /**
+     * Queues an individual chat navigation event from a raw service payload.
      *
-     * @param navigateTo Expected destination identifier (must be "chat" for individual chats)
-     * @param userId Unique identifier of the chat recipient (must be non-blank)
-     * @param username Display name of the chat recipient (must be non-blank)
-     * @param skipSplash If true, bypasses the splash screen during navigation
+     * Called by the NotificationService when a user taps a "New Message" notification.
+     * Validates parameters before emitting state to avoid broken navigation.
+     *
+     * @param navigateTo Must be [NotificationNavigationState.ROUTE_INDIVIDUAL_CHAT].
+     * @param userId The recipient's ID.
+     * @param username The recipient's display name.
+     * @param skipSplash Whether to bypass the splash screen.
      */
     fun setPendingNavigation(
         navigateTo: String?,
@@ -84,105 +106,74 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
         username: String?,
         skipSplash: Boolean = false
     ) {
-        Log.d(
-            TAG,
-            "Attempting to set individual chat navigation - navigateTo: $navigateTo, userId: $userId, skipSplash: $skipSplash"
-        )
+        Log.d(TAG, "Attempting to set individual chat navigation: $username ($userId)")
 
         try {
-            // Validate required parameters
             if (!isValidIndividualChatNavigation(navigateTo, userId, username)) {
-                Log.w(TAG, "Invalid individual chat navigation parameters - ignoring request")
+                Log.w(TAG, "Invalid individual chat params - ignoring.")
                 return
             }
 
-            // Create and emit navigation state
-            val navigationState = createIndividualChatNavigationState(
+            val navigationState = NotificationNavigationState.forIndividualChat(
                 userId = userId!!,
                 username = username!!,
                 skipSplash = skipSplash
             )
 
             emitNavigationState(navigationState)
-            Log.d(TAG, "Individual chat navigation queued successfully for user: $username")
-
         } catch (e: Exception) {
             Log.e(TAG, "Error setting individual chat navigation", e)
         }
     }
 
     /**
-     * Queues a group chat navigation event based on notification parameters.
+     * Queues a group chat navigation event from a raw service payload.
      *
-     * This method validates the provided parameters and creates a navigation state
-     * for group chat navigation. It includes comprehensive validation and error
-     * handling to ensure only valid navigation requests are processed.
+     * Called by the NotificationService when a user taps a "Group Message" notification.
      *
-     * Validation rules:
-     * - groupId must be non-blank
-     * - groupName must be non-blank
-     *
-     * @param groupId Unique identifier of the group chat (must be non-blank)
-     * @param groupName Display name of the group chat (must be non-blank)
-     * @param skipSplash If true, bypasses the splash screen during navigation
+     * @param groupId The group's ID.
+     * @param groupName The group's display name.
+     * @param skipSplash Whether to bypass the splash screen.
      */
     fun setPendingGroupNavigation(
         groupId: String,
         groupName: String,
         skipSplash: Boolean = false
     ) {
-        Log.d(
-            TAG,
-            "Attempting to set group chat navigation - groupId: $groupId, groupName: $groupName, skipSplash: $skipSplash"
-        )
+        Log.d(TAG, "Attempting to set group navigation: $groupName ($groupId)")
 
         try {
-            // Validate required parameters
             if (!isValidGroupChatNavigation(groupId, groupName)) {
-                Log.w(TAG, "Invalid group chat navigation parameters - ignoring request")
+                Log.w(TAG, "Invalid group chat params - ignoring.")
                 return
             }
 
-            // Create and emit navigation state
-            val navigationState = createGroupChatNavigationState(
+            // Sender info is not strictly required for opening the chat, so we use empty strings
+            // or specific logic if needed by the destination screen.
+            val navigationState = NotificationNavigationState.forGroupChat(
                 groupId = groupId,
                 groupName = groupName,
+                senderId = "",
+                senderName = "",
                 skipSplash = skipSplash
             )
 
             emitNavigationState(navigationState)
-            Log.d(TAG, "Group chat navigation queued successfully for group: $groupName")
-
         } catch (e: Exception) {
             Log.e(TAG, "Error setting group chat navigation", e)
         }
     }
 
     /**
-     * Clears the current pending navigation state.
-     *
-     * This method should be called after the navigation event has been consumed
-     * by the UI layer to prevent duplicate navigation attempts. It safely resets
-     * the navigation state to null.
+     * Resets the pending navigation state to null.
+     * Must be called by the UI (NavigationWrapper) immediately after processing the event.
      */
     fun clearPendingNavigation() {
-        try {
-            Log.d(TAG, "Clearing pending navigation state")
-            _pendingNavigation.value = null
-            Log.d(TAG, "Pending navigation state cleared successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error clearing pending navigation state", e)
-        }
+        _pendingNavigation.value = null
     }
 
-    /**
-     * Validates parameters for individual chat navigation.
-     *
-     * @param navigateTo The navigation destination (should be "chat")
-     * @param userId The user ID to validate
-     * @param username The username to validate
-     * @return true if all parameters are valid, false otherwise
-     */
+    // --- Private Helpers ---
+
     private fun isValidIndividualChatNavigation(
         navigateTo: String?,
         userId: String?,
@@ -193,13 +184,6 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
                 !username.isNullOrBlank()
     }
 
-    /**
-     * Validates parameters for group chat navigation.
-     *
-     * @param groupId The group ID to validate
-     * @param groupName The group name to validate
-     * @return true if all parameters are valid, false otherwise
-     */
     private fun isValidGroupChatNavigation(
         groupId: String,
         groupName: String
@@ -207,64 +191,25 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
         return groupId.isNotBlank() && groupName.isNotBlank()
     }
 
-    /**
-     * Creates a navigation state for individual chat navigation using factory method.
-     *
-     * @param userId The user ID
-     * @param username The username
-     * @param skipSplash Whether to skip the splash screen
-     * @return NotificationNavigationState configured for individual chat
-     */
-    private fun createIndividualChatNavigationState(
-        userId: String,
-        username: String,
-        skipSplash: Boolean
-    ): NotificationNavigationState {
-        return NotificationNavigationState.forIndividualChat(
-            userId = userId,
-            username = username,
-            skipSplash = skipSplash
-        )
-    }
-
-    /**
-     * Creates a navigation state for group chat navigation using factory method.
-     *
-     * @param groupId The group ID
-     * @param groupName The group name
-     * @param skipSplash Whether to skip the splash screen
-     * @return NotificationNavigationState configured for group chat
-     */
-    private fun createGroupChatNavigationState(
-        groupId: String,
-        groupName: String,
-        skipSplash: Boolean
-    ): NotificationNavigationState {
-        return NotificationNavigationState.forGroupChat(
-            groupId = groupId,
-            groupName = groupName,
-            senderId = "", // Not needed for this navigation context
-            senderName = "", // Not needed for this navigation context
-            skipSplash = skipSplash
-        )
-    }
-
-    /**
-     * Safely emits a navigation state to the StateFlow.
-     *
-     * @param navigationState The navigation state to emit
-     */
     private fun emitNavigationState(navigationState: NotificationNavigationState) {
-        viewModelScope.launch {
-            try {
-                _pendingNavigation.value = navigationState
-                Log.d(
-                    TAG,
-                    "Navigation state emitted successfully - EventId: ${navigationState.eventId}"
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Error emitting navigation state", e)
-            }
-        }
+        _pendingNavigation.value = navigationState
+        Log.d(TAG, "Navigation state emitted: ${navigationState.destinationName}")
     }
+}
+
+/**
+ * Sealed interface representing the state of the initial navigation resolution.
+ */
+sealed interface StartNavigationState {
+    /**
+     * The app is calculating the destination (e.g. checking Firebase Auth).
+     * The UI should show the Splash Screen.
+     */
+    data object Loading : StartNavigationState
+
+    /**
+     * The destination is resolved.
+     * The UI should mount the NavHost with the provided [startDestination].
+     */
+    data class Ready(val startDestination: String) : StartNavigationState
 }

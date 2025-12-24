@@ -7,44 +7,66 @@ import javax.inject.Inject
 import javax.inject.Named
 
 /**
- * Manages the user's online presence in Firebase Realtime Database.
+ * Manages the user's online presence and activity tracking in Firebase Realtime Database.
  *
- * This use case handles setting the user's status to "online" when they are active
- * and uses Firebase's `onDisconnect` mechanism to automatically set their status to
- * "offline" with a timestamp when they disconnect.
+ * This use case acts as the bridge between the app's lifecycle and the database presence system.
+ * It operates specifically on the node: `Users/{userId}/private`.
+ *
+ * Key responsibilities:
+ * - Sets status to "online" when the app is in foreground.
+ * - Schedules an automatic "offline" update using Firebase's [onDisconnect] system.
+ * - Updates the `lastSeen` timestamp for activity tracking.
+ * - Uses non-destructive updates ([updateChildren]) to preserve other private data like emails.
  */
 class ManageUserPresenceUseCase @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
-    @Named("firebaseDatabaseInstance") private val firebaseDatabase: FirebaseDatabase
+    @param:Named("firebaseDatabaseInstance") private val firebaseDatabase: FirebaseDatabase
 ) {
-
     private val currentUserId: String?
         get() = firebaseAuth.currentUser?.uid
 
     /**
-     * Starts monitoring and updating the user's presence.
-     * Sets the user to "online" and prepares an `onDisconnect` operation.
+     * Starts monitoring and sets the user as "online".
+     *
+     * This method performs two critical operations atomically:
+     * 1. Updates the current status to "online" immediately.
+     * 2. Registers an [onDisconnect] hook on the server to automatically mark the user
+     * as "offline" if the connection is lost unexpectedly (crash or network loss).
      */
     fun startPresenceUpdates() {
         val userId = currentUserId ?: return
-        val userStatusRef = firebaseDatabase.getReference("/status/$userId")
+        val userPrivateRef = firebaseDatabase.getReference("Users/$userId/private")
 
-        // Set the user's status to "online"
-        userStatusRef.setValue("online")
+        val onlineData = mapOf(
+            "status" to "online",
+            "lastSeen" to ServerValue.TIMESTAMP
+        )
+        // We use updateChildren to avoid overwriting other fields in the 'private' node (e.g. email)
+        userPrivateRef.updateChildren(onlineData)
 
-        // When the user disconnects, set their status to the server timestamp
-        userStatusRef.onDisconnect().setValue(ServerValue.TIMESTAMP)
+        val offlineData = mapOf(
+            "status" to "offline",
+            "lastSeen" to ServerValue.TIMESTAMP
+        )
+        // Prepare the server-side trigger for disconnection
+        userPrivateRef.onDisconnect().updateChildren(offlineData)
     }
 
     /**
-     * Manually stops the presence updates and sets the user to offline immediately.
-     * Useful for explicit sign-out actions.
+     * Explicitly marks the user as "offline".
+     *
+     * Should be called when the app enters the background or the user logs out.
+     * This updates the `lastSeen` timestamp to the current moment.
      */
     fun stopPresenceUpdates() {
         val userId = currentUserId ?: return
-        val userStatusRef = firebaseDatabase.getReference("/status/$userId")
+        val userPrivateRef = firebaseDatabase.getReference("Users/$userId/private")
 
-        // Manually set the user's status to "offline" timestamp
-        userStatusRef.setValue(ServerValue.TIMESTAMP)
+        val offlineData = mapOf(
+            "status" to "offline",
+            "lastSeen" to ServerValue.TIMESTAMP
+        )
+
+        userPrivateRef.updateChildren(offlineData)
     }
 }

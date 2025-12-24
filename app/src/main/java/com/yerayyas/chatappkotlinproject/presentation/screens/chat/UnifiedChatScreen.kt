@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
@@ -80,7 +81,7 @@ import kotlinx.coroutines.launch
 fun UnifiedChatScreen(
     chatId: String,
     chatType: ChatType,
-    chatName: String, // Name of the user or group
+    chatName: String,
     navController: NavHostController,
     viewModel: IndividualAndGroupChatViewModel = hiltViewModel()
 ) {
@@ -100,6 +101,7 @@ fun UnifiedChatScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    var inputBarHeightPx by remember { mutableIntStateOf(0) }
 
     val view = LocalView.current
     var imeBottomPx by remember { mutableIntStateOf(0) } // Keyboard height in pixels
@@ -169,14 +171,19 @@ fun UnifiedChatScreen(
     // --- Dynamic Layout and Scrolling Logic ---
 
     // Calculate smart dynamic padding to ensure the last message is visible above the keyboard.
-    val smartBottomPadding = if (isKeyboardOpen) {
-        with(receiver = density) {
+    val smartBottomPadding = with(density) {
+        val baseHeight = if (inputBarHeightPx > 0) inputBarHeightPx.toDp() else 80.dp
+
+        if (isKeyboardOpen) {
             val keyboardHeightDp = (imeBottomPx / density.density).dp
-            val inputAreaHeight = 100.dp
-            keyboardHeightDp + inputAreaHeight - Constants.TOP_APP_BAR_HEIGHT
+            val navBarHeightDp = (navBarHeightPx / density.density).dp
+
+            // We subtract navBarHeightDp because the inputOffset is already compensating
+            // for it to align with the actual keyboard edge.
+            keyboardHeightDp + baseHeight - navBarHeightDp
+        } else {
+            baseHeight
         }
-    } else {
-        80.dp
     }
 
     // Calculate the simple offset for the input area to follow the IME (keyboard) edge
@@ -367,10 +374,11 @@ fun UnifiedChatScreen(
                             .weight(1f)
                             .padding(horizontal = 16.dp)
                             .padding(top = Constants.TOP_APP_BAR_HEIGHT)
-                            .padding(bottom = smartBottomPadding),
+                            .padding(bottom = 0.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
                         contentPadding = PaddingValues(
-                            vertical = 8.dp
+                            top = 8.dp,
+                            bottom = smartBottomPadding
                         )
                     ) {
                         // Delegates rendering of each message to UnifiedMessageBubble component
@@ -415,6 +423,11 @@ fun UnifiedChatScreen(
                     .padding(horizontal = 8.dp)
                     .offset { IntOffset(x = 0, y = inputOffset) } // Dynamic offset for keyboard
                     .background(MaterialTheme.colorScheme.surface)
+                    .onGloballyPositioned { coordinates ->
+                        if (inputBarHeightPx != coordinates.size.height) {
+                            inputBarHeightPx = coordinates.size.height
+                        }
+                    }
             )
         }
 

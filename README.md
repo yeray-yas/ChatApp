@@ -73,26 +73,18 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
 ## Vista previa de la aplicación
 
 
-<div align="center">
-  <img src="screenshots/chatapp1.png" width="350" alt="Bienvenida">
-  <img src="screenshots/chatapp2.png" width="350" alt="Login">
-  <br>
-  <sub><i>1. Pantalla de bienvenida &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2. Inicio de sesión</i></sub>
 
-<br><br>
+| 1. Pantalla de Bienvenida | 2. Inicio de Sesión |
+|:---:|:---:|
+| <img src="screenshots/chatapp1.png" width="250"> | <img src="screenshots/chatapp2.png" width="250"> |
 
-  <img src="screenshots/chatapp3.png" width="350" alt="Home">
-  <img src="screenshots/chatapp4.png" width="350" alt="Grupos">
-  <br>
-  <sub><i>3. Home (Lista de usuarios) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4. Vista de grupos</i></sub>
+| 3. Home (Lista de usuarios) | 4. Vista de grupos |
+|:---:|:---:|
+| <img src="screenshots/chatapp3.png" width="250"> | <img src="screenshots/chatapp4.png" width="250"> |
 
-<br><br>
-
-  <img src="screenshots/chatapp5.png" width="350" alt="Crear Grupo">
-  <img src="screenshots/chatapp6.png" width="350" alt="Chat">
-  <br>
-  <sub><i>5. Configuración de grupo &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6. Conversación y respuestas</i></sub>
-</div>
+| 5. Configuración de grupo | 6. Conversación y respuestas |
+|:---:|:---:|
+| <img src="screenshots/chatapp5.png" width="250"> | <img src="screenshots/chatapp6.png" width="250"> |
 
 ---
 

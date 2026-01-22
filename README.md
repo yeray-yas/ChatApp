@@ -73,12 +73,31 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
 ## Vista previa de la aplicación
 
 
+<p align="center">
+  <img src="screenshots/chatapp1.png" width="250" alt="Pantalla de Bienvenida">
+  &nbsp;&nbsp;&nbsp;
+  <img src="screenshots/chatapp2.png" width="250" alt="Inicio de Sesión">
+  &nbsp;&nbsp;&nbsp;
+  <img src="screenshots/chatapp3.png" width="250" alt="Pantalla Principal">
+</p>
 
-1. Pantalla de inicio de sesión / registro  
-2. Lista o vista de chat  
-3. Envío y recepción de mensajes en tiempo real  
-4. **Funcionalidad de respuesta con vista previa**
-5. Notificación push recibida
+<p align="center">
+  <b>1. Bienvenida &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2. Login &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3. Home (Usuarios)</b>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="screenshots/chatapp4.png" width="250" alt="Lista de Grupos">
+  &nbsp;&nbsp;&nbsp;
+  <img src="screenshots/chatapp5.png" width="250" alt="Crear Nuevo Grupo">
+  &nbsp;&nbsp;&nbsp;
+  <img src="screenshots/chatapp6.png" width="250" alt="Conversación">
+</p>
+
+<p align="center">
+  <b>4. Grupos &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5. Crear Grupo &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6. Chat con Respuesta</b>
+</p>
 
 ---
 
@@ -128,7 +147,7 @@ Chats/
 1. **Mantén presionado** cualquier mensaje
 2. Escribe tu respuesta en el campo de texto
 3. El mensaje se enviará como respuesta al mensaje original
-4. **✨ NUEVO**: **Toca** la vista previa del reply para ir al mensaje original
+4. **Toca** la vista previa del reply para ir al mensaje original
 
 ### Características:
 
@@ -139,8 +158,6 @@ Chats/
 - ✅ **Animación de highlight avanzada** para mensajes respondidos
 - ✅ **Transiciones sincronizadas** para experiencia fluida
 - ✅ Compatibilidad total con mensajes existentes
-
-**📖 Para más detalles técnicos, consulta: [REPLY_FUNCTIONALITY.md](REPLY_FUNCTIONALITY.md)**
 
 ---
 

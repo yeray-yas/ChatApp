@@ -46,8 +46,7 @@ class MainActivityViewModel @Inject constructor(
      * - Emits [NotificationNavigationState] when a notification is tapped.
      * - Must be cleared via [clearPendingNavigation] after consumption.
      */
-    val pendingNavigation: StateFlow<NotificationNavigationState?> =
-        _pendingNavigation.asStateFlow()
+    val pendingNavigation: StateFlow<NotificationNavigationState?> = _pendingNavigation.asStateFlow()
 
     private val _navigationEvent = MutableStateFlow<NotificationNavigationState?>(null)
 
@@ -82,6 +81,9 @@ class MainActivityViewModel @Inject constructor(
      */
     fun resolveStartDestination(skipSplash: Boolean, initialNavState: NotificationNavigationState?) {
         viewModelScope.launch {
+            if (initialNavState != null) {
+                _pendingNavigation.value = initialNavState
+            }
             val destination = getStartDestinationUseCase(initialNavState, skipSplash)
             _startDestinationState.value = StartNavigationState.Ready(destination)
         }

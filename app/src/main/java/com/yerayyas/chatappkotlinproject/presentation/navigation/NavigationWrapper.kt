@@ -91,9 +91,11 @@ fun NavigationWrapper(
     // Handle pending notification intents (Deep Linking logic)
     LaunchedEffect(pendingNavigation) {
         Log.d("NavigationWrapper", "Pending navigation: $pendingNavigation")
-        pendingNavigation?.let { state ->
-            handleNotificationNavigation(navController, state)
-            mainActivityViewModel.clearPendingNavigation()
+        pendingNavigation?.let {
+            if (navController.currentDestination?.route != Routes.Splash.route) {
+                handleNotificationNavigation(navController, it)
+                mainActivityViewModel.clearPendingNavigation()
+            }
         }
     }
 
@@ -167,13 +169,16 @@ fun NavigationWrapper(
                 // This route exists for manual navigation to Splash if needed,
                 // distinct from the initial Loading state.
                 composable(Routes.Splash.route) {
-                    SplashScreen(
-                        onNavigateToMain = {
-                            navController.navigate(Routes.Home.route) {
-                                popUpTo(Routes.Splash.route) { inclusive = true }
-                            }
+                    val currentRoute = navController.currentBackStackEntry?.destination?.route
+                    SplashScreen(onNavigateToMain = {
+                        val pendingNav = pendingNavigation
+                        if (pendingNav != null) {
+                            handleNotificationNavigation(navController, pendingNav)
+                            mainActivityViewModel.clearPendingNavigation()
+                        } else {
+                            handleDefaultNavigation(navController, currentRoute)
                         }
-                    )
+                    })
                 }
 
                 // --- Auth & Main Routes ---

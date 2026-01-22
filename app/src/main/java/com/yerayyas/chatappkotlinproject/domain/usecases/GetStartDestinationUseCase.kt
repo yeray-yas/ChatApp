@@ -9,14 +9,14 @@ import javax.inject.Inject
  * Domain Use Case responsible for determining the application's entry point.
  *
  * This class encapsulates the decision logic for the initial navigation route when the app is launched.
- * It acts as a central router that prioritizes deep links (notifications), security (authentication),
- * and user experience (splash screen).
+ * It acts as a central router that prioritizes the user experience (splash screen) on cold starts,
+ * then handles deep links and authentication for warm starts.
  *
  * Decision Hierarchy (in order of priority):
- * 1. **Deep Linking:** If the app was opened via a notification, navigate directly to the target chat.
- * 2. **Security:** If the user is not authenticated, force navigation to the Login screen.
- * 3. **UX/Loading:** If it's a cold start, show the Splash screen (unless explicitly skipped).
- * 4. **Default:** If none of the above apply, navigate to the Home screen.
+ * 1. **UX/Loading:** On a cold start, always show the Splash screen first.
+ * 2. **Deep Linking:** On a warm start from a notification, navigate directly to the target chat.
+ * 3. **Security:** On a warm start, if the user is not authenticated, navigate to the Main screen.
+ * 4. **Default:** On a warm start for an authenticated user, navigate to the Home screen.
  */
 class GetStartDestinationUseCase @Inject constructor(
     private val authService: AuthenticationService
@@ -33,7 +33,15 @@ class GetStartDestinationUseCase @Inject constructor(
         initialNavState: NotificationNavigationState?,
         skipSplash: Boolean
     ): String {
-        // 1. High Priority: Deep Linking via Notifications
+        // 1. UX Flow: Splash Screen Logic on Cold Start
+        // On a cold start, always show the splash screen first, regardless of other states.
+        if (!skipSplash) {
+            return Routes.Splash.route
+        }
+
+        // --- The following logic applies only to WARM STARTS ---
+
+        // 2. High Priority (Warm Start): Deep Linking via Notifications
         // If the app is launched from a notification, we prioritize that destination.
         if (initialNavState?.isInitialDestination == true) {
             return if (initialNavState.isGroupChat) {
@@ -43,21 +51,14 @@ class GetStartDestinationUseCase @Inject constructor(
             }
         }
 
-        // 2. Security Check: Unauthenticated User -> Login
+        // 3. Security Check (Warm Start): Unauthenticated User -> Main
         // If the user has no valid session, they are redirected to the onboarding flow.
         if (!authService.isUserAuthenticated()) {
-            return Routes.Login.route
+            return Routes.Main.route
         }
 
-        // 3. UX Flow: Splash Screen Logic
-        // Note: While modern architectures often handle Splash as a loading state outside the NavHost,
-        // this logic maintains it as a route for legacy support or specific design requirements.
-        if (!skipSplash) {
-            return Routes.Splash.route
-        }
-
-        // 4. Default: Home
-        // Standard entry point for an authenticated user on a warm start.
-        return Routes.Home.route
+        // 4. Default (Warm Start): Home
+        // Standard entry point for an authenticated user.
+        return Routes.Home.createRoute()
     }
 }

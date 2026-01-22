@@ -2,6 +2,7 @@ package com.yerayyas.chatappkotlinproject.domain.usecases
 
 import android.util.Log
 import androidx.navigation.NavController
+import com.yerayyas.chatappkotlinproject.domain.interfaces.AuthenticationService
 import com.yerayyas.chatappkotlinproject.presentation.navigation.Routes
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,18 +20,18 @@ private const val TAG = "DefaultNavigation"
  * @constructor Creates a new instance of HandleDefaultNavigationUseCase.
  */
 @Singleton
-class HandleDefaultNavigationUseCase @Inject constructor() {
+class HandleDefaultNavigationUseCase @Inject constructor(
+    private val authService: AuthenticationService
+) {
 
     /**
      * Performs default post-splash navigation logic.
      *
      * @param navController Controller responsible for app navigation.
-     * @param isUserAuthenticated True if an authenticated session exists.
      * @param currentRoute The route currently displayed, or null if unknown.
      */
     operator fun invoke(
         navController: NavController,
-        isUserAuthenticated: Boolean,
         currentRoute: String?
     ) {
         // Skip navigation if already viewing a chat
@@ -39,6 +40,7 @@ class HandleDefaultNavigationUseCase @Inject constructor() {
             return
         }
 
+        val isUserAuthenticated = authService.isUserAuthenticated()
         Log.d(TAG, "Default navigation: isUserAuthenticated=$isUserAuthenticated, currentRoute=$currentRoute")
 
         // Only navigate if still on the splash or no route is set

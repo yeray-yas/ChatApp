@@ -73,31 +73,26 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
 ## Vista previa de la aplicación
 
 
-<p align="center">
-  <img src="screenshots/chatapp1.png" width="250" alt="Pantalla de Bienvenida">
-  &nbsp;&nbsp;&nbsp;
-  <img src="screenshots/chatapp2.png" width="250" alt="Inicio de Sesión">
-  &nbsp;&nbsp;&nbsp;
-  <img src="screenshots/chatapp3.png" width="250" alt="Pantalla Principal">
-</p>
+<div align="center">
+  <img src="screenshots/chatapp1.png" width="350" alt="Bienvenida">
+  <img src="screenshots/chatapp2.png" width="350" alt="Login">
+  <br>
+  <sub><i>1. Pantalla de bienvenida &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2. Inicio de sesión</i></sub>
 
-<p align="center">
-  <b>1. Bienvenida &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2. Login &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3. Home (Usuarios)</b>
-</p>
+<br><br>
 
-<br>
+  <img src="screenshots/chatapp3.png" width="350" alt="Home">
+  <img src="screenshots/chatapp4.png" width="350" alt="Grupos">
+  <br>
+  <sub><i>3. Home (Lista de usuarios) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4. Vista de grupos</i></sub>
 
-<p align="center">
-  <img src="screenshots/chatapp4.png" width="250" alt="Lista de Grupos">
-  &nbsp;&nbsp;&nbsp;
-  <img src="screenshots/chatapp5.png" width="250" alt="Crear Nuevo Grupo">
-  &nbsp;&nbsp;&nbsp;
-  <img src="screenshots/chatapp6.png" width="250" alt="Conversación">
-</p>
+<br><br>
 
-<p align="center">
-  <b>4. Grupos &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5. Crear Grupo &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6. Chat con Respuesta</b>
-</p>
+  <img src="screenshots/chatapp5.png" width="350" alt="Crear Grupo">
+  <img src="screenshots/chatapp6.png" width="350" alt="Chat">
+  <br>
+  <sub><i>5. Configuración de grupo &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6. Conversación y respuestas</i></sub>
+</div>
 
 ---
 

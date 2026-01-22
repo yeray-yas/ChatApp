@@ -86,15 +86,15 @@ Esta estructura facilita la escalabilidad, la reutilización de lógica y la cap
 
 1. Clonar el repositorio.
 2. Abrir el proyecto en Android Studio (Arctic Fox o superior).
-3. Cambiar a la rama push-notifications, donde están los últimos cambios.
-4. Crear un proyecto en Firebase y descargar `google-services.json`.
-5. Colocar el archivo en la carpeta app
-6. Habilitar los siguientes servicios en Firebase:
+3. Crear un proyecto en Firebase y descargar `google-services.json`.
+4. Colocar el archivo en la carpeta app
+5. Habilitar los siguientes servicios en Firebase:
   - Authentication (Email/Password)
   - Realtime Database
   - Cloud Messaging
-- Storage (para imágenes)
-7. Sincronizar Gradle.
+  - Storage (para imágenes)
+6. Sincronizar Gradle.
+7. Crear el backend para las notificaciones con node.js y enlazarlo al proyecto.
 8. Ejecutar la aplicación en un dispositivo o emulador.
 
 ---
@@ -135,10 +135,9 @@ Chats/
 - ✅ Vista previa del mensaje original con miniaturas de imagen
 - ✅ Indicadores visuales distintivos
 - ✅ Soporte para responder a texto e imágenes
-- ✅ Botón de cancelar respuesta
 - ✅ **Navegación al mensaje original** con scroll automático
-- ✅ **Animación de highlight avanzada**: fondo dorado + texto negro para máximo contraste
-- ✅ **Transiciones sincronizadas** de 500ms para experiencia fluida
+- ✅ **Animación de highlight avanzada** para mensajes respondidos
+- ✅ **Transiciones sincronizadas** para experiencia fluida
 - ✅ Compatibilidad total con mensajes existentes
 
 **📖 Para más detalles técnicos, consulta: [REPLY_FUNCTIONALITY.md](REPLY_FUNCTIONALITY.md)**
@@ -175,7 +174,7 @@ Chats/
 
 Este proyecto forma parte de mi portafolio como desarrollador Android, con el objetivo de mostrar experiencia en:
 - Desarrollo de apps modernas con Compose
-- Integración con servicios backend (Firebase)
+- Integración con servicios backend (Firebase y node.js)
 - Aplicación de arquitectura limpia
 - Buenas prácticas de código y escalabilidad
 - **Implementación de funcionalidades complejas** como el sistema de respuestas
@@ -187,3 +186,4 @@ Este proyecto forma parte de mi portafolio como desarrollador Android, con el ob
 [<img src="https://avatars.githubusercontent.com/u/84556441?s=400&u=9c2e1e6d95d361a45bb3fda23ebdf5b403e754ee&v=4" width=115><br><sub>Yeray Yas</sub>](https://github.com/yeray-yas)
 :---:
 Android Developer   
+

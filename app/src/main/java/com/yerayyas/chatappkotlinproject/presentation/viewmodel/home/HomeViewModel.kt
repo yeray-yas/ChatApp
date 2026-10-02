@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yerayyas.chatappkotlinproject.data.model.User
+import com.yerayyas.chatappkotlinproject.data.repository.UserRepositoryImpl
 import com.yerayyas.chatappkotlinproject.domain.usecases.auth.SignOutUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.chat.group.GetUnreadGroupMessagesCountUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.chat.individual.GetUserChatsUseCase
@@ -11,6 +12,7 @@ import com.yerayyas.chatappkotlinproject.domain.usecases.notification.CancelAllN
 import com.yerayyas.chatappkotlinproject.domain.usecases.user.FetchUsersUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.user.GetCurrentUserIdUseCase
 import com.yerayyas.chatappkotlinproject.domain.usecases.user.LoadUserProfileUseCase
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.ManageUserPresenceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -90,6 +92,7 @@ class HomeViewModel @Inject constructor(
         clearAllNotificationsOnStart()
         loadUnreadGroupMessagesCount()
         observeUsersAndChats()
+
     }
 
     /**

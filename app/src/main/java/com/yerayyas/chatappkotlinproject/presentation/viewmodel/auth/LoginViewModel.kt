@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessaging
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.ManageUserPresenceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -23,7 +24,8 @@ private const val TAG = "LoginViewModel"
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val manageUserPresenceUseCase: ManageUserPresenceUseCase
 ) : ViewModel() {
 
     /**
@@ -46,12 +48,7 @@ class LoginViewModel @Inject constructor(
                 auth.signInWithEmailAndPassword(email, password).await()
                 Log.i(TAG, "Login successful for email: $email. User ID: ${auth.currentUser?.uid}")
 
-                try {
-                    userRepository.updateUserStatus("online")
-                    Log.i(TAG, "User status updated to online manually.")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to update user status to online", e)
-                }
+                manageUserPresenceUseCase.startPresenceUpdates()
                 updateFcmTokenAfterLogin()
                 onResult(true, null)
 

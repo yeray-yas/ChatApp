@@ -2,6 +2,7 @@ package com.yerayyas.chatappkotlinproject.domain.usecases.auth
 
 import com.google.firebase.auth.FirebaseAuth
 import com.yerayyas.chatappkotlinproject.domain.repository.UserRepository
+import com.yerayyas.chatappkotlinproject.domain.usecases.user.ManageUserPresenceUseCase
 import javax.inject.Inject
 
 /**
@@ -10,11 +11,12 @@ import javax.inject.Inject
  */
 class SignOutUseCase @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val manageUserPresenceUseCase: ManageUserPresenceUseCase
 ) {
     suspend operator fun invoke() {
         try {
-            userRepository.updateUserStatus("offline")
+            manageUserPresenceUseCase.stopPresenceUpdates()
         } catch (e: Exception) {
             e.printStackTrace()
         }

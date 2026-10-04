@@ -15,19 +15,8 @@ private const val TAG = "ManageUserPresenceUseCase"
 
 /**
  * Manages the user's online presence and activity tracking in Firebase Realtime Database.
- *
- * This use case acts as the bridge between the application's lifecycle and Firebase's real-time
- * presence system. It operates specifically on the node: `Users/{userId}/private`.
- *
- * Key responsibilities:
- * - Monitors socket connection state via Firebase's internal `.info/connected` path.
- * - Re-arms the server-side [onDisconnect] hook on every connection handshake to withstand transient drops.
- * - Sets the user's status to "online" only after the disconnection hook is securely acknowledged by the server.
- * - Explicitly transitions status to "offline" and cancels pending triggers when transitioning to the background.
- * - Uses non-destructive updates ([updateChildren]) to preserve adjacent private attributes such as emails.
- *
- * @property firebaseAuth Firebase Authentication instance used to resolve the current session's UID.
- * @property firebaseDatabase Configured Realtime Database instance targeting the project's root.
+ * 
+ * This version is hardened against race conditions and abrupt application termination.
  */
 @Singleton
 class ManageUserPresenceUseCase @Inject constructor(
@@ -38,81 +27,67 @@ class ManageUserPresenceUseCase @Inject constructor(
         get() = firebaseAuth.currentUser?.uid
 
     private var connectedListener: ValueEventListener? = null
+    private var isMonitoringActive = false
 
-    /**
-     * Starts observing connection state changes and establishes presence hooks.
-     *
-     * Listens to `.info/connected` to continuously maintain presence:
-     * 1. Queues an [onDisconnect] action on the server whenever a connection is established.
-     * 2. Sets the local user status to "online" upon successful registration of the disconnect hook.
-     *
-     * Ensures any pre-existing listener is removed prior to attaching a new one to prevent leaks.
-     */
     fun startPresenceUpdates() {
         val userId = currentUserId ?: return
+        if (isMonitoringActive) return
+        isMonitoringActive = true
+
         val userPrivateRef = firebaseDatabase.getReference("Users/$userId/private")
         val connectedRef = firebaseDatabase.getReference(".info/connected")
 
-        // Clean up any previously attached listener to prevent duplicate subscriptions
         connectedListener?.let { connectedRef.removeEventListener(it) }
 
         connectedListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val isConnected = snapshot.getValue(Boolean::class.java) ?: false
+                
+                val sessionUid = firebaseAuth.currentUser?.uid
+                if (!isMonitoringActive || sessionUid == null || sessionUid != userId) {
+                    cleanupListener()
+                    return
+                }
 
                 if (isConnected) {
-                    val offlineData = mapOf(
-                        "status" to "offline",
-                        "lastSeen" to ServerValue.TIMESTAMP
-                    )
+                    val offlineData = mapOf("status" to "offline", "lastSeen" to ServerValue.TIMESTAMP)
+                    val onlineData = mapOf("status" to "online", "lastSeen" to ServerValue.TIMESTAMP)
 
-                    // 1. Arm server-side disconnect action first to guarantee offline fallback on abrupt termination
+                    // 1. Armamos el seguro PRIMERO.
                     userPrivateRef.onDisconnect().updateChildren(offlineData).addOnSuccessListener {
-                        // 2. Mark online only after the server acknowledges the disconnect instruction
-                        val onlineData = mapOf(
-                            "status" to "online",
-                            "lastSeen" to ServerValue.TIMESTAMP
-                        )
-                        userPrivateRef.updateChildren(onlineData)
+                        // 2. Solo marcamos online si seguimos en la sesión y monitoreando.
+                        if (isMonitoringActive && firebaseAuth.currentUser?.uid == userId) {
+                            userPrivateRef.updateChildren(onlineData)
+                        }
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Database presence listener cancelled: ${error.message}", error.toException())
+                Log.e(TAG, "Presence listener cancelled: ${error.message}")
             }
-        }.also {
-            connectedRef.addValueEventListener(it)
-        }
+        }.also { connectedRef.addValueEventListener(it) }
     }
 
-    /**
-     * Explicitly marks the user as "offline" and releases presence hooks.
-     *
-     * Invoked when the application transitions to the background:
-     * 1. Detaches the `.info/connected` listener to avoid unwanted background reconnection events.
-     * 2. Cancels pending server-side [onDisconnect] hooks to prevent race conditions.
-     * 3. Explicitly updates database records to "offline" along with the current timestamp.
-     */
     fun stopPresenceUpdates() {
+        isMonitoringActive = false
         val userId = currentUserId ?: return
-        val userPrivateRef = firebaseDatabase.getReference("Users/$userId/private")
-        val connectedRef = firebaseDatabase.getReference(".info/connected")
+        
+        cleanupListener()
 
-        // 1. Detach connection listener so state changes are ignored while in background
+        // LA CLAVE: No llamamos a onDisconnect().cancel(). 
+        // Lo dejamos como respaldo en el servidor por si el update de abajo no llega a tiempo.
+
+        val userPrivateRef = firebaseDatabase.getReference("Users/$userId/private")
+        val offlineData = mapOf("status" to "offline", "lastSeen" to ServerValue.TIMESTAMP)
+        
+        userPrivateRef.updateChildren(offlineData)
+    }
+
+    private fun cleanupListener() {
         connectedListener?.let {
-            connectedRef.removeEventListener(it)
+            firebaseDatabase.getReference(".info/connected").removeEventListener(it)
             connectedListener = null
         }
-
-        // 2. Cancel pending server-side disconnect hook to prevent premature triggers
-        userPrivateRef.onDisconnect().cancel()
-
-        // 3. Explicitly mark user as offline and record timestamp
-        val offlineData = mapOf(
-            "status" to "offline",
-            "lastSeen" to ServerValue.TIMESTAMP
-        )
-        userPrivateRef.updateChildren(offlineData)
     }
 }
